@@ -142,7 +142,13 @@ how older versions behave, so you might have to turn this on.
 .BI "\-s " "domainlist"
 Specify a domainname that should be stripped off before
 logging.  Multiple domains may be specified using the colon (``:'')
-separator.  Remember that the first match is used, not the best.
+separator.
+Please be advised that no sub-domains may be specified but only entire
+domains.  For example if
+.B "\-s north.de"
+is specified and the host logging resolves to satu.infodrom.north.de
+no domain would be cut, you will have to specify two domains like:
+.BR "\-s north.de:infodrom.north.de" .
 .TP
 .B "\-v"
 Print version and exit.

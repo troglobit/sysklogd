@@ -44,6 +44,9 @@ static char sccsid[] = "@(#)syslog.c	5.28 (Berkeley) 6/27/90";
  *	patch which was announced in the linux-security mailing lists
  *	and incorporated into the libc version of syslog.c.
  *
+ * Sun Mar 11 20:23:44 CET 2001: Martin Schulze <joey@infodrom.ffis.de>
+ *	Use SOCK_DGRAM for loggin, renables it to work.	
+ *
  */
 
 #include <sys/types.h>
@@ -208,7 +211,7 @@ openlog(ident, logstat, logfac)
 		strncpy(SyslogAddr.sa_data, _PATH_LOGNAME,
 		    sizeof(SyslogAddr.sa_data));
 		if (LogStat & LOG_NDELAY) {
-			LogFile = socket(AF_UNIX, SOCK_STREAM, 0);
+			LogFile = socket(AF_UNIX, SOCK_DGRAM, 0);
 /*			fcntl(LogFile, F_SETFD, 1); */
 		}
 	}

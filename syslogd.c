@@ -436,6 +436,11 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	Removed unixm/unix domain sockets and switch to Datagram Unix
  *	Sockets.  This should remove one possibility to play DoS with
  *	syslogd.  Thanks to Olaf Kirch <okir@caldera.de> for the patch.
+ *
+ * Sun Mar 11 20:23:44 CET 2001: Martin Schulze <joey@infodrom.ffis.de>
+ *	Don't return a closed fd if `-a' is called with a wrong path.
+ *	Thanks to Bill Nottingham <notting@redhat.com> for providing
+ *	a patch.
  */
 
 
@@ -1200,6 +1205,7 @@ static int create_unix_socket(const char *path)
 #ifndef SYSV
 		die(0);
 #endif
+		return -1;
 	}
 	return fd;
 }

@@ -148,11 +148,16 @@ the syslogd daemon.  This prevents 'nuisance' messages such as line
 printer out of paper or disk change detected from cluttering the
 console.
 
-By default the
+When
+.B \-c
+is given on the commandline the
 .B klogd
-daemon executes a system call to inhibit all
-kernel messages (except for panics) from being displayed on the
-console.  The \fB\-c\fR switch can be used to alter this behavior.  The
+daemon will execute a system call to inhibit all kernel messages from
+being displayed on the console.  Former versions always issued this
+system call and defaulted to all kernel messages except for panics.
+This is handled differently nowardays so
+.B klogd
+doesn't need to set this value anymore.  The
 argument given to the \fB\-c\fR switch specifies the priority level of
 messages which will be directed to the console.  Note that messages of
 a priority value LOWER than the indicated number will be directed to
