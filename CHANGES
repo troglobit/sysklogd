@@ -30,3 +30,4 @@ Version 1.4
  . Olaf Kirch <okir@caldera.de>
    - Remove Unix Domain Sockets and switch to Datagram Unix Sockets
  . Several bugfixes and improvements, please refer to the .c files
+
