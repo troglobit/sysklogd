@@ -9,8 +9,10 @@ LDFLAGS= -s
 
 # Look where your install program is.
 INSTALL = /usr/bin/install
-BINDIR = /usr/sbin
-MANDIR = /usr/man
+
+# Destination paths, set prefix=/opt if required
+BINDIR = $(prefix)/usr/sbin
+MANDIR = $(prefix)/usr/share/man
 
 # There is one report that under an all ELF system there may be a need to
 # explicilty link with libresolv.a.  If linking syslogd fails you may wish
@@ -35,8 +37,9 @@ FSSTND = -DFSSTND
 # The following define establishes ownership for the man pages.
 # Avery tells me that there is a difference between Debian and
 # Slackware.  Rather than choose sides I am leaving it up to the user.
-MAN_OWNER = root
-# MAN_OWNER = man
+MAN_USER = root
+MAN_GROUP = root
+MAN_PERMS = 644
 
 # The following define establishes the name of the pid file for the
 # syslogd daemon.  The library include file (paths.h) defines the
@@ -117,7 +120,7 @@ install_exec: syslogd klogd
 	${INSTALL} -m 500 -s klogd ${BINDIR}/klogd
 
 install_man:
-	${INSTALL} -o ${MAN_OWNER} -g ${MAN_OWNER} -m 644 sysklogd.8 ${MANDIR}/man8/sysklogd.8
-	${INSTALL} -o ${MAN_OWNER} -g ${MAN_OWNER} -m 644 syslogd.8 ${MANDIR}/man8/syslogd.8
-	${INSTALL} -o ${MAN_OWNER} -g ${MAN_OWNER} -m 644 syslog.conf.5 ${MANDIR}/man5/syslog.conf.5
-	${INSTALL} -o ${MAN_OWNER} -g ${MAN_OWNER} -m 644 klogd.8 ${MANDIR}/man8/klogd.8
+	${INSTALL} -o ${MAN_USER} -g ${MAN_GROUP} -m ${MAN_PERMS} sysklogd.8 ${MANDIR}/man8/sysklogd.8
+	${INSTALL} -o ${MAN_USER} -g ${MAN_GROUP} -m ${MAN_PERMS} syslogd.8 ${MANDIR}/man8/syslogd.8
+	${INSTALL} -o ${MAN_USER} -g ${MAN_GROUP} -m ${MAN_PERMS} syslog.conf.5 ${MANDIR}/man5/syslog.conf.5
+	${INSTALL} -o ${MAN_USER} -g ${MAN_GROUP} -m ${MAN_PERMS} klogd.8 ${MANDIR}/man8/klogd.8
