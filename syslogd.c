@@ -411,6 +411,11 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  * Tue Jan 19 01:04:18 MET 1999: Martin Schulze <joey@infodrom.north.de>
  *	Finally fixed an error with `-a' processing, thanks to Topi
  *	Miettinen <tom@medialab.sonera.net>.
+ *
+ * Sun May 23 10:08:53 CEST 1999: Martin Schulze <joey@infodrom.north.de>
+ *	Removed superflous call to utmpname().  The path to the utmp
+ *	file is defined in the used libc and should not be hardcoded
+ *	into the syslogd binary referring the system it was compiled on.
  */
 
 
@@ -1898,7 +1903,6 @@ void wallmsg(f, iov)
 		return;
 
 	/* open the user login file */
-	utmpname(_PATH_UTMP);
 	setutent();
 
 
