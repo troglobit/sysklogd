@@ -1,5 +1,5 @@
-Very important information before using version 1.3
----------------------------------------------------
+Important information
+---------------------
 
 The included version of syslogd behaves in a slightly different manner
 to the one in former releases.  Please review the following important
@@ -63,3 +63,10 @@ differences:
   these scripts should remove all old .pid files found in /var/run.
   This will insure that klogd and syslogd start properly even if prior
   executions have been terminated harshly.
+
+* Large file support, i.e. support to write to log files that are
+  larger than 2 GB is not part of syslogd, but a matter of the Glibc
+  emitting different system calls to the kernel interface.  To support
+  large files you'll have to compile syslogd with the compiler defines
+  -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE so that glibc adjusts the
+  system calls.
