@@ -62,7 +62,7 @@ struct module
 
 	union
 	{
-		atomic_t usecount;
+		int usecount;
 		long pad;
 	} uc;				/* Needs to keep its size - so says rth */
 
