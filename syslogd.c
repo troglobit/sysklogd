@@ -875,7 +875,7 @@ int main(argc, argv)
 			StripDomains = crunch_list(optarg);
 			break;
 		case 'v':
-			printf("syslogd %s-%s\n", VERSION, PATCHLEVEL);
+			printf("syslogd %s.%s\n", VERSION, PATCHLEVEL);
 			exit (0);
 		case '?':
 		default:
@@ -2409,20 +2409,20 @@ void init()
 
 	if ( AcceptRemote )
 #ifdef DEBRELEASE
-		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "-" PATCHLEVEL "#" DEBRELEASE \
+		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "." PATCHLEVEL "#" DEBRELEASE \
 		       ": restart (remote reception)." , LocalHostName, \
 		       	ADDDATE);
 #else
-		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "-" PATCHLEVEL \
+		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "." PATCHLEVEL \
 		       ": restart (remote reception)." , LocalHostName, \
 		       	ADDDATE);
 #endif
 	else
 #ifdef DEBRELEASE
-		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "-" PATCHLEVEL "#" DEBRELEASE \
+		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "." PATCHLEVEL "#" DEBRELEASE \
 		       ": restart." , LocalHostName, ADDDATE);
 #else
-		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "-" PATCHLEVEL \
+		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "." PATCHLEVEL \
 		       ": restart." , LocalHostName, ADDDATE);
 #endif
 	(void) signal(SIGHUP, sighup_handler);

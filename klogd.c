@@ -461,7 +461,7 @@ static void ChangeLogging(void)
 		Terminate();
 
 	/* Indicate that something is happening. */
-	Syslog(LOG_INFO, "klogd %s-%s, ---------- state change ----------\n", \
+	Syslog(LOG_INFO, "klogd %s.%s, ---------- state change ----------\n", \
 	       VERSION, PATCHLEVEL);
 
 	/* Reload symbols. */
@@ -534,10 +534,10 @@ static enum LOGSRC GetKernelLogSrc(void)
 	  	/* Initialize kernel logging. */
 	  	ksyslog(1, NULL, 0);
 #ifdef DEBRELEASE
-		Syslog(LOG_INFO, "klogd %s-%s#%s, log source = ksyslog "
+		Syslog(LOG_INFO, "klogd %s.%s#%s, log source = ksyslog "
 		       "started.", VERSION, PATCHLEVEL, DEBRELEASE);
 #else
-		Syslog(LOG_INFO, "klogd %s-%s, log source = ksyslog "
+		Syslog(LOG_INFO, "klogd %s.%s, log source = ksyslog "
 		       "started.", VERSION, PATCHLEVEL);
 #endif
 		return(kernel);
@@ -556,10 +556,10 @@ static enum LOGSRC GetKernelLogSrc(void)
 #endif
 
 #ifdef DEBRELEASE
-	Syslog(LOG_INFO, "klogd %s-%s#%s, log source = %s started.", \
+	Syslog(LOG_INFO, "klogd %s.%s#%s, log source = %s started.", \
 	       VERSION, PATCHLEVEL, DEBRELEASE, _PATH_KLOG);
 #else
-	Syslog(LOG_INFO, "klogd %s-%s, log source = %s started.", \
+	Syslog(LOG_INFO, "klogd %s.%s, log source = %s started.", \
 	       VERSION, PATCHLEVEL, _PATH_KLOG);
 #endif
 	return(proc);
@@ -1032,7 +1032,7 @@ int main(argc, argv)
 			use_syscall = 1;
 			break;
 		    case 'v':
-			printf("klogd %s-%s\n", VERSION, PATCHLEVEL);
+			printf("klogd %s.%s\n", VERSION, PATCHLEVEL);
 			exit (1);
 		    case 'x':
 			symbol_lookup = 0;
