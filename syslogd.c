@@ -681,6 +681,7 @@ int main(argc, argv)
 	extern int optind;
 	extern char *optarg;
 
+	chdir ("/");
 	while ((ch = getopt(argc, argv, "dhf:l:m:np:rs:v")) != EOF)
 		switch((char)ch) {
 		case 'd':		/* debug */

@@ -864,6 +864,7 @@ int main(argc, argv)
 	auto char	*log_level = (char *) 0,
 			*output = (char *) 0;
 
+	chdir ("/");
 	/* Parse the command-line. */
 	while ((ch = getopt(argc, argv, "c:df:iIk:nopsvx")) != EOF)
 		switch((char)ch)
