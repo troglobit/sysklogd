@@ -431,6 +431,11 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	Fixed bug in printchopped() that caused syslogd to emit
  *	kern.emerg messages when splitting long lines.  Thanks to
  *	Daniel Jacobowitz <dan@debian.org> for the fix.
+ *
+ * Mon Sep 18 15:33:26 CEST 2000: Martin Schulze <joey@infodrom.ffis.de>
+ *	Removed unixm/unix domain sockets and switch to Datagram Unix
+ *	Sockets.  This should remove one possibility to play DoS with
+ *	syslogd.  Thanks to Olaf Kirch <okir@caldera.de> for the patch.
  */
 
 
@@ -787,14 +792,16 @@ int main(argc, argv)
 	 * read().  This is in contrary to readfds which is a list of
 	 * file descriptors where activity is monitored by select()
 	 * and from which one cannot read().  -Joey
+	 *
+	 * Changed: unixm is gone, since we now use datagram unix sockets.
+	 * Hence we recv() from unix sockets directly (rather than
+	 * first accept()ing connections on them), so there's no need
+	 * for separate book-keeping.  --okir
 	 */
-	fd_set unixm, readfds;
+	fd_set readfds;
 
 #ifndef TESTING
 	int	fd;
-#ifdef SYSLOG_UNIXAF
-	struct sockaddr_un fromunix;
-#endif
 #ifdef  SYSLOG_INET
 	struct sockaddr_in frominet;
 	char *from;
@@ -1010,7 +1017,6 @@ int main(argc, argv)
 #endif
 
 	/* Main loop begins here. */
-	FD_ZERO(&unixm);
 	for (;;) {
 		int nfds;
 		errno = 0;
@@ -1029,12 +1035,6 @@ int main(argc, argv)
 				if (funix[i]>maxfds) maxfds=funix[i];
 			}
 		}
-		/* Copy accepted connections */
-		for (nfds= 0; nfds < FD_SETSIZE; ++nfds)
-			if (FD_ISSET(nfds, &unixm)) {
-				FD_SET(nfds, &readfds);
-				if (nfds>maxfds) maxfds=nfds;
-			}
 #endif
 #endif
 #ifdef SYSLOG_INET
@@ -1097,57 +1097,19 @@ int main(argc, argv)
 
 #ifndef TESTING
 #ifdef SYSLOG_UNIXAF
-		if ( debugging_on )
-		{
-			dprintf("Checking UNIX connections, active: ");
-			for (nfds= 0; nfds < maxfds; ++nfds)
-				if ( FD_ISSET(nfds, &unixm) )
-					dprintf("%d ", nfds);
-			dprintf("\n");
-		}
-		for (fd= 0; fd <= maxfds; ++fd)
-		  if ( FD_ISSET(fd, &readfds) && FD_ISSET(fd, &unixm) ) {
-			dprintf("Message from UNIX socket #%d.\n", fd);
+		for (i = 0; i < nfunix; i++) {
+		    if ((fd = funix[i]) != -1 && FD_ISSET(fd, &readfds)) {
 			memset(line, '\0', sizeof(line));
-			i = read(fd, line, MAXLINE);
+			i = recv(fd, line, MAXLINE - 2, 0);
+			dprintf("Message from UNIX socket: #%d\n", fd);
 			if (i > 0) {
-				printchopped(LocalHostName, line, i, fd);
-		  	} else if (i < 0) {
-		    		if (errno != EINTR) {
-		      			logerror("recvfrom unix");
-				}
-		        } else {
-		    		dprintf("Unix socket (%d) closed.\n", fd);
-				if ( parts[fd] != (char *) 0 )
-				{
-					logerror("Printing partial message");
-					line[0] = '\0';
-					printchopped(LocalHostName, line, \
-						     strlen(parts[fd]) + 1, \
-						     fd);
-				}
-				/* reset it */
-				for (i = 1; i < nfunix; i++) {
-					if (funix[i] == fd)
-						funix[i] = -1;
-				}
-		    		close(fd);
-		    		FD_CLR(fd, &unixm);
-		  	}
+				line[i] = line[i+1] = '\0';
+				printchopped(LocalHostName, line, i + 2,  fd);
+			} else if (i < 0 && errno != EINTR) {
+				dprintf("UNIX socket error: %d = %s.\n", \
+					errno, strerror(errno));
+				logerror("recvfrom UNIX");
 	      	}
-		/* Accept a new unix connection */
-		for (i = 0; i < nfunix; i++)
-			if (funix[i] != -1 && FD_ISSET(funix[i], &readfds)) {
-				len = sizeof(fromunix);
-				if ((fd = accept(funix[i], (struct sockaddr *) &fromunix,
-						 &len)) >= 0) {
-					FD_SET(fd, &unixm);
-					dprintf("New UNIX connect assigned to fd: " \
-						"%d.\n", fd);
-					FD_SET(fd, &readfds);
-				} else {
-					dprintf("Error accepting UNIX connection: " \
-						"%d = %s.\n", errno, strerror(errno));
 				}
 			}
 #endif
@@ -1178,6 +1140,8 @@ int main(argc, argv)
 				dprintf("INET socket error: %d = %s.\n", \
 					errno, strerror(errno));
 				logerror("recvfrom inet");
+				/* should be harmless now that we set
+				 * BSDCOMPAT on the socket */
 				sleep(10);
 			}
 		}
@@ -1225,10 +1189,10 @@ static int create_unix_socket(const char *path)
 	memset(&sunx, 0, sizeof(sunx));
 	sunx.sun_family = AF_UNIX;
 	(void) strncpy(sunx.sun_path, path, sizeof(sunx.sun_path));
-	fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	fd = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (fd < 0 || bind(fd, (struct sockaddr *) &sunx,
 			   sizeof(sunx.sun_family)+strlen(sunx.sun_path)) < 0 ||
-	    chmod(path, 0666) < 0 || listen(fd, 5) < 0) {
+	    chmod(path, 0666) < 0) {
 		(void) snprintf(line, sizeof(line), "cannot create %s", path);
 		logerror(line);
 		dprintf("cannot create %s (%d).\n", path, errno);
@@ -1258,7 +1222,16 @@ static int create_inet_socket()
 	sin.sin_port = LogPort;
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, \
 		       (char *) &on, sizeof(on)) < 0 ) {
-		logerror("setsockopt, suspending inet");
+		logerror("setsockopt(REUSEADDR), suspending inet");
+		close(fd);
+		return -1;
+	}
+	/* We need to enable BSD compatibility. Otherwise an attacker
+	 * could flood our log files by sending us tons of ICMP errors.
+	 */
+	if (setsockopt(fd, SOL_SOCKET, SO_BSDCOMPAT, \
+			(char *) &on, sizeof(on)) < 0) {
+		logerror("setsockopt(BSDCOMPAT), suspending inet");
 		close(fd);
 		return -1;
 	}

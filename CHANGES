@@ -16,4 +16,6 @@ Version 1.4
      addresses converted to symbols, once with the raw text.  Allows
      external programs such as ksymoops do their own processing on the
      original data.
+ . Olaf Kirch <okir@caldera.de>
+   - Remove Unix Domain Sockets and switch to Datagram Unix Sockets
  . Several bugfixes and improvements, please refer to the .c files
