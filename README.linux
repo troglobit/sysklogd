@@ -39,6 +39,11 @@ important to maintain consistent standardized system utilities
 sources.  Hopefully the Linux community will find these sources to be
 a useful addition to the software gene pool.
 
+There is a mailing list covering this package and syslog in general.
+The lists address is sysklogd@Infodrom.North.DE .  To subscribe send a
+mail to Majordomo@Infodrom.North.DE with a line "subscribe sysklogd"
+in the message body.
+
 Best regards,
 
 Dr. Wettstein

@@ -337,6 +337,12 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *
  * Mon Jan 12 19:50:58 CET 1998: Martin Schulze <joey@infodrom.north.de>
  *	Modified debug output concerning remote receiption.
+ *
+ * Mon Feb 23 23:32:35 CET 1998: Topi Miettinen <Topi.Miettinen@ml.tele.fi>
+ *	Re-worked handling of Unix and UDP sockets to support closing /
+ *	opening of them in order to have it open only if it is needed
+ *	either for forwarding to a remote host or by receiption from
+ *	the network.
  */
 
 
@@ -449,7 +455,7 @@ char	ctty[] = _PATH_CONSOLE;
 
 char	**parts;
 
-int inetm = 0, funix = 0;
+int inetm = 0, funix = -1;
 static int debugging_on = 0;
 static int nlogs = -1;
 static int restart = 0;
@@ -605,7 +611,7 @@ int	Debug;			/* debug flag */
 char	LocalHostName[MAXHOSTNAMELEN+1];	/* our hostname */
 char	*LocalDomain;		/* our local domain name */
 int	InetInuse = 0;		/* non-zero if INET sockets are being used */
-int	finet;			/* Internet datagram socket */
+int	finet = -1;		/* Internet datagram socket */
 int	LogPort;		/* port number for INET connections */
 int	Initialized = 0;	/* set when we have initialized ourselves */
 int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
@@ -651,6 +657,12 @@ static void dprintf(char *, ...);
 static void allocate_log(void);
 void sighup_handler();
 
+#ifdef SYSLOG_UNIXAF
+static int create_unix_socket();
+#endif
+#ifdef SYSLOG_INET
+static int create_inet_socket();
+#endif
 
 int main(argc, argv)
 	int argc;
@@ -668,10 +680,10 @@ int main(argc, argv)
 
 	int	fd;
 #ifdef SYSLOG_UNIXAF
-	struct sockaddr_un sunx, fromunix;
+	struct sockaddr_un fromunix;
 #endif
 #ifdef  SYSLOG_INET
-	struct sockaddr_in sin, frominet;
+	struct sockaddr_in frominet;
 	char *from;
 #endif
 	int ch;
@@ -826,60 +838,6 @@ int main(argc, argv)
 	(void) signal(SIGUSR1, Debug ? debug_switch : SIG_IGN);
 	(void) alarm(TIMERINTVL);
 	(void) unlink(LogName);
-
-#ifdef SYSLOG_UNIXAF
-	sunx.sun_family = AF_UNIX;
-	(void) strncpy(sunx.sun_path, LogName, sizeof(sunx.sun_path));
-	funix = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (funix < 0 || bind(funix, (struct sockaddr *) &sunx,
-	    sizeof(sunx.sun_family)+strlen(sunx.sun_path)) < 0 ||
-	    chmod(LogName, 0666) < 0 || listen(funix, 5) < 0) {
-		(void) sprintf(line, "cannot create %s", LogName);
-		logerror(line);
-		dprintf("cannot create %s (%d).\n", LogName, errno);
-#ifndef SYSV
-		die(0);
-#endif
-	}
-#endif
-
-#ifdef SYSLOG_INET
-	finet = socket(AF_INET, SOCK_DGRAM, 0);
-	if (finet >= 0) {
-	        auto int on = 1;
-		struct servent *sp;
-
-		sp = getservbyname("syslog", "udp");
-		if (sp == NULL) {
-			errno = 0;
-			logerror("network logging disabled (syslog/udp service unknown).");
-			logerror("see syslogd(8) for details of whether and how to enable it.");
-		}
-		else {
-			sin.sin_family = AF_INET;
-			sin.sin_port = LogPort = sp->s_port;
-			sin.sin_addr.s_addr = 0;
-			if ( setsockopt(finet, SOL_SOCKET, SO_REUSEADDR, \
-					(char *) &on, sizeof(on)) < 0 ) {
-				logerror("setsockopt, suspending inet");
-			}
-			else {
-				if (bind(finet, (struct sockaddr *) &sin, \
-					 sizeof(sin)) < 0) {
-					logerror("bind, suspending inet");
-				} else {
-					inetm = finet;
-					InetInuse = 1;
-					if ( AcceptRemote )
-						dprintf("Opened syslog UDP port.\n");
-				}
-			}
-		}
-	}
-	else
-		logerror("syslog: Unknown protocol, suspending inet service.");
-#endif
-
 
 	/* Create a partial message table for all file descriptors. */
 	num_fds = getdtablesize();
@@ -1059,6 +1017,70 @@ int usage()
 	exit(1);
 }
 
+#ifdef SYSLOG_UNIXAF
+static int create_unix_socket()
+{
+	struct sockaddr_un sunx;
+	int fd;
+	char line[MAXLINE +1];
+
+	sunx.sun_family = AF_UNIX;
+	(void) strncpy(sunx.sun_path, LogName, sizeof(sunx.sun_path));
+	fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (fd < 0 || bind(fd, (struct sockaddr *) &sunx,
+			   sizeof(sunx.sun_family)+strlen(sunx.sun_path)) < 0 ||
+	    chmod(LogName, 0666) < 0 || listen(fd, 5) < 0) {
+		(void) sprintf(line, "cannot create %s", LogName);
+		logerror(line);
+		dprintf("cannot create %s (%d).\n", LogName, errno);
+		close(fd);
+#ifndef SYSV
+		die(0);
+#endif
+	}
+	return fd;
+}
+#endif
+
+#ifdef SYSLOG_INET
+static int create_inet_socket()
+{
+	int fd, on = 1;
+	struct servent *sp;
+	struct sockaddr_in sin;
+
+	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (fd < 0) {
+		logerror("syslog: Unknown protocol, suspending inet service.");
+		return fd;
+	}
+
+	sp = getservbyname("syslog", "udp");
+	if (sp == NULL) {
+		errno = 0;
+		logerror("network logging disabled (syslog/udp service unknown).");
+		logerror("see syslogd(8) for details of whether and how to enable it.");
+		close(fd);
+		return -1;
+	}
+
+	sin.sin_family = AF_INET;
+	sin.sin_port = LogPort = sp->s_port;
+	sin.sin_addr.s_addr = 0;
+	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, \
+		       (char *) &on, sizeof(on)) < 0 ) {
+		logerror("setsockopt, suspending inet");
+		close(fd);
+		return -1;
+	}
+	if (bind(fd, (struct sockaddr *) &sin, sizeof(sin)) < 0) {
+		logerror("bind, suspending inet");
+		close(fd);
+		return -1;
+	}
+	return fd;
+}
+#endif
 
 char **
 crunch_list(list)
@@ -1966,6 +1988,7 @@ void init()
 	register FILE *cf;
 	register struct filed *f, **nextp = (struct filed **) 0;
 	register char *p;
+	register unsigned int Forwarding = 0;
 #ifdef CONT_LINE
 	char cbuf[BUFSIZ];
 	char *cline;
@@ -2075,10 +2098,37 @@ void init()
 #else
 		cfline(cline, f);
 #endif
+		if (f->f_type == F_FORW || f->f_type == F_FORW_SUSP || f->f_type == F_FORW_UNKN) {
+			Forwarding++;
+		}
 	}
 
 	/* close the configuration file */
 	(void) fclose(cf);
+
+#ifdef SYSLOG_UNIXAF
+	if (funix < 0)
+		funix = create_unix_socket();
+#endif
+
+#ifdef SYSLOG_INET
+	if (Forwarding || AcceptRemote) {
+		if (finet < 0) {
+			finet = create_inet_socket();
+			if (finet >= 0) {
+				InetInuse = 1;
+				dprintf("Opened syslog UDP port.\n");
+			}
+		}
+	}
+	else {
+		if (finet >= 0)
+			close(finet);
+		finet = -1;
+		InetInuse = 0;
+	}
+	inetm = finet;
+#endif
 
 	Initialized = 1;
 
@@ -2322,8 +2372,6 @@ void cfline(line, f)
 	{
 	case '@':
 #ifdef SYSLOG_INET
-		if (!InetInuse)
-			break;
 		(void) strcpy(f->f_un.f_forw.f_hname, ++p);
 		dprintf("forwarding host: %s\n", p);	/*ASP*/
 		if ( (hp = gethostbyname(p)) == NULL ) {
@@ -2510,3 +2558,12 @@ void sighup_handler()
 	signal(SIGHUP, sighup_handler);
 	return;
 }
+
+/*
+ * Local variables:
+ *  c-indent-level: 8
+ *  c-basic-offset: 8
+ *  tab-width: 8
+ * End:
+ */
+

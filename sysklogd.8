@@ -372,6 +372,11 @@ option there's also a possibility to define single hosts as local
 machines. This, too, results in logging only their simple hostnames
 and not the fqdns.
 
+The UDP socket used to forward messages to remote hosts or to receive
+messages from them is only opened when it is needed.  In releases
+prior to 1.3-23 it was opened every time but not opened for reading or
+forwarding respectively.
+
 .SH OUTPUT TO NAMED PIPES (FIFOs)
 This version of syslogd has support for logging output to named pipes
 (fifos).  A fifo or named pipe can be used as a destination for log
