@@ -270,6 +270,14 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *
  *	Minor code cleanups.
  *
+ * Thu May  2 15:15:33 CDT 1996:  Dr. Wettstein
+ *	Fixed bug in init function which resulted in file descripters
+ *	being orphaned when syslogd process was re-initialized with SIGHUP
+ *	signal.  Thanks to Edvard Tuinder
+ *	(Edvard.Tuinder@praseodymium.cistron.nl) for putting me on the
+ *	trail of this bug.  I am amazed that we didn't catch this one
+ *	before now.
+ *
  * Tue May 14 00:03:35 MET DST 1996:  Martin Schulze
  *	Corrected a mistake that causes the syslogd to stop logging at
  *	some virtual consoles under Linux. This was caused by checking
@@ -305,7 +313,6 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  * Tue Jun 10 12:51:41 MET DST 1997:  Martin Schulze
  *	Removed sleep(10) from parent process.  This has caused a slow
  *	startup in former times - and I don't see any reason for this.
- *
  */
 
 
@@ -752,16 +759,19 @@ int main(argc, argv)
 		 * should return the simple hostname or the fqdn. A
 		 * good piece of software should be aware of both and
 		 * we want to distribute good software.  Joey
+		 *
+		 * Good software also always checks its return values...
+		 * If syslogd starts up before DNS is up & /etc/hosts
+		 * doesn't have LocalHostName listed, gethostbyname will
+		 * return NULL. 
 		 */
 		hent = gethostbyname(LocalHostName);
-		if (hent != NULL)
-		{
+		if ( hent )
 			sprintf(LocalHostName, "%s", hent->h_name);
-			if ( (p = index(LocalHostName, '.')) )
-			{	
-				*p++ = '\0';
-				LocalDomain = p;
-			}
+		if ( (p = index(LocalHostName, '.')) )
+		{
+			*p++ = '\0';
+			LocalDomain = p;
 		}
 	}
 
@@ -926,7 +936,7 @@ int main(argc, argv)
 					dprintf("%d ", nfds);
 			dprintf("\n");
 		}
-		for (fd= 0; fd <= FD_SETSIZE; ++fd)
+		for (fd= 0; fd < FD_SETSIZE; ++fd)
 		  if ( FD_ISSET(fd, &readfds) && FD_ISSET(fd, &unixm) ) {
 			dprintf("Message from UNIX socket #%d.\n", fd);
 			memset(line, '\0', sizeof(line));
@@ -1015,9 +1025,8 @@ char **
 crunch_list(list)
 	char *list;
 {
-	int count;
-	int i;
-	char *p;
+	int count, i;
+	char *p, *q;
 	char **result = NULL;
 
 	p = list;
@@ -1048,15 +1057,15 @@ crunch_list(list)
 	 * so we don't have to care about this.
 	 */
 	count = 0;
-	while ((i=(int)index(p, LIST_DELIMITER))) {
-		if ((result[count] = \
-		     (char *)malloc(sizeof(char) * i - (int)p +1)) == NULL) {
+	while ((q=index(p, LIST_DELIMITER))) {
+		result[count] = (char *) malloc((q - p + 1) * sizeof(char));
+		if (result[count] == NULL) {
 			printf ("Sorry, can't get enough memory, exiting.\n");
 			exit(0);
 		}
-		strncpy(result[count],p, i - (int)p);
-		result[count][i - (int)p] = '\0';
-		p = (char *)i;p++;
+		strncpy(result[count], p, q - p);
+		result[count][q - p] = '\0';
+		p = q; p++;
 		count++;
 	}
 	if ((result[count] = \
@@ -1918,51 +1927,41 @@ void init()
 	char cline[BUFSIZ];
 #endif
 
-	dprintf("Called init.\n");
-
 	/*
-	 *  Close all open log files.
-	 *
-	 *  This is needed especially when HUPing syslogd as the
-	 *  structure would grow infinitively.
-	 *
+	 *  Close all open log files and free log descriptor array.
 	 */
+	dprintf("Called init.\n");
 	Initialized = 0;
-	
-#ifdef SYSV
-	for (lognum = 0; lognum <= nlogs; lognum++ ) {
-		f = &Files[lognum];
-#else
-	for (f = Files; f != NULL; f = next) {
-#endif
-		/* flush any pending output */
-		if (f->f_prevcount)
-			fprintlog(f, LocalHostName, 0, (char *)NULL);
-
-		switch (f->f_type) {
-		  case F_FILE:
-		  case F_PIPE:
-		  case F_TTY:
-		  case F_CONSOLE:
-			(void) close(f->f_file);
-			break;
-		}
-#ifdef SYSV
-		f->f_type = F_UNUSED;	/* clear entry - ASP */
-	}
 	if ( nlogs > -1 )
 	{
-		dprintf("Freeing log structures.\n");
+		dprintf("Initializing log structures.\n");
+
+		for (lognum = 0; lognum <= nlogs; lognum++ ) {
+			f = &Files[lognum];
+
+			/* flush any pending output */
+			if (f->f_prevcount)
+				fprintlog(f, LocalHostName, 0, (char *)NULL);
+
+			switch (f->f_type) {
+				case F_FILE:
+				case F_PIPE:
+				case F_TTY:
+				case F_CONSOLE:
+					(void) close(f->f_file);
+				break;
+			}
+		}
+
+		/*
+		 * This is needed especially when HUPing syslogd as the
+		 * structure would grow infinitively.  -Joey
+		 */
 		nlogs = -1;
 		free((void *) Files);
+		Files = (struct filed *) 0;
 	}
-	Files = (struct filed *) 0;
-#else
-		next = f->f_next;
-		free((char *) f);
-	}
-	nextp = &OBFiles;
-#endif
+	
 
 	/* open the configuration file */
 	if ((cf = fopen(ConfFile, "r")) == NULL) {

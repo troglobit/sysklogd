@@ -39,7 +39,7 @@ System logging is provided by a version of
 .BR syslogd (8)
 derived from the
 stock BSD sources.  Support for kernel logging is provided by the
-.BR syslogd (8)
+.BR klogd (8)
 utility which allows kernel logging to be conducted in either a
 standalone fashion or as a client of syslogd.
 
@@ -91,7 +91,7 @@ defined.
 .TP
 .BI "\-l " "hostlist"
 Specify a hostname that should be logged only with its simple hostname
-and not the the fqdn. Multiple hosts may be specified using the colon
+and not the fqdn. Multiple hosts may be specified using the colon
 (``:'') separator.
 .TP
 .BI "\-m " "interval"
@@ -195,8 +195,8 @@ will also match) to go into
 .PP
 Under the new scheme this behavior remains the same.  The difference
 is the addition of four new specifiers, the asterisk (\fB*\fR)
-wildcard the equation sign (\fB=\fR), the exclamation mark
-(\fB!\fR) and the minus sign (\fB-\fR).
+wildcard, the equation sign (\fB=\fR), the exclamation mark
+(\fB!\fR), and the minus sign (\fB-\fR).
 
 The \fB*\fR specifies that all messages for the
 specified facility are to be directed to the destination.  Note that
@@ -215,7 +215,7 @@ file.
 .IP
 .nf
 	# Sample syslog.conf
-	daemon.=debug			/usr/adm/debug
+	*.=debug			/usr/adm/debug
 .fi
 .PP
 .\" The \fB!\fR as the first character of a priority inverts the above
@@ -456,11 +456,11 @@ dealing with the occasional recalcitrant or belligerent individual.
 .SH DEBUGGING
 When debugging is turned on using
 .B "\-d"
-option the
+option then
 .B syslogd
-will very verbose by writing much of what it does on stdout. Whenever
+will be very verbose by writing much of what it does on stdout. Whenever
 the configuration file is reread and re-parsed you'll see a tabular,
-corresponding on the internal data structure. This tabular consists of
+corresponding to the internal data structure. This tabular consists of
 four fields:
 .TP
 .I number
@@ -489,7 +489,7 @@ manpage for all possible actions.
 This field shows additional arguments to the actions in the last
 field. For file-logging this is the filename for the logfile; for
 user-logging this is a list of users; for remote logging this is the
-the hostname of the machine to log to; for console-logging this is the
+hostname of the machine to log to; for console-logging this is the
 used console; for tty-logging this is the specified tty; wall has no
 additional arguments.
 .SH FILES

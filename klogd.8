@@ -2,6 +2,7 @@
 .\" May be distributed under the GNU General Public License
 .\" Sun Jul 30 01:35:55 MET: Martin Schulze: Updates
 .\" Sun Nov 19 23:22:21 MET: Martin Schulze: Updates
+.\" Mon Aug 19 09:42:08 CDT 1996: Dr. G.W. Wettstein: Updates
 .\"
 .TH KLOGD 8 "24 November 1995" "Version 1.3" "Linux System Administration"
 .SH NAME
@@ -16,8 +17,10 @@ klogd \- kernel log daemon.
 .RB [ " \-f "
 .I fname
 ]
+.RB [ " \-iI " ]
 .RB [ " \-n " ]
 .RB [ " \-o " ]
+.RB [ " \-p " ]
 .RB [ " \-s " ]
 .RB [ " \-k "
 .I fname
@@ -41,6 +44,12 @@ stderr.
 .BI "\-f " file
 Log messages to the specified filename rather than to the syslog facility.
 .TP
+.BI "\-i \-I"
+Signal the currently executing klogd daemon.  Both of these switches control
+the loading/reloading of symbol information.  The \-i switch signals the
+daemon to reload the kernel module symbols.  The \-I switch signals for a
+reload of both the static kernel symbols and the kernel module symbols.
+.TP
 .B "\-n"
 Avoid auto-backgrounding. This is needed especially if the
 .B klogd
@@ -51,6 +60,12 @@ is started and controlled by
 Execute in 'one\-shot' mode.  This causes \fBklogd\fP to read and log
 all the messages that are found in the kernel message buffers.  After
 a single read and log cycle the daemon exits.
+.TP
+.B "-p"
+Enable paranoia.  This option controls when klogd loads kernel module symbol
+information.  Setting this switch causes klogd to load the kernel module
+symbol information whenever an Oops string is detected in the kernel message
+stream.
 .TP
 .B "-s"
 Force \fBklogd\fP to use the system call interface to the kernel message
@@ -72,15 +87,15 @@ offers a cleaner separation of services.
 
 In Linux there are two potential sources of kernel log information: the 
 .I /proc
-filesystem and the syscall (sys_syslog) interface, although
+file system and the syscall (sys_syslog) interface, although
 ultimately they are one and the same.  Klogd is designed to choose
 whichever source of information is the most appropriate.  It does this
 by first checking for the presence of a mounted 
 .I /proc
-filesystem. If this is found the 
+file system. If this is found the 
 .I /proc/kmsg
 file is used as the source of kernel log
-information. If the proc filesystem is not mounted 
+information. If the proc file system is not mounted 
 .B klogd
 uses a
 system call to obtain kernel messages.  The command line switch
@@ -163,10 +178,43 @@ command would be given.
 .fi
 .PP
 .SH KERNEL ADDRESS RESOLUTION
+If the kernel detects an internal error condition a general protection
+fault will be triggered.  As part of the GPF handling procedure the
+kernel prints out a status report indicating the state of the
+processor at the time of the fault.  Included in this display are the
+contents of the microprocessor's registers, the contents of the kernel
+stack and a tracing of what functions were being executed at the time
+of the fault.
+
+This information is
+.B EXTREMELY IMPORTANT
+in determining what caused the internal error condition.  The
+difficulty comes when a kernel developer attempts to analyze this
+information.  The raw numeric information present in the protection
+fault printout is of very little use to the developers.  This is due
+to the fact that kernels are not identical and the addresses of
+variable locations or functions will not be the same in all kernels.
+In order to correctly diagnose the cause of failure a kernel developer
+needs to know what specific kernel functions or variable locations
+were involved in the error.
+
+As part of the kernel compilation process a listing is created which
+specified the address locations of important variables and function in
+the kernel being compiled.  This listing is saved in a file called
+System.map in the top of the kernel directory source tree.  Using this
+listing a kernel developer can determine exactly what the kernel was
+doing when the error condition occurred.
+
+The process of resolving the numeric addresses from the protection
+fault printout can be done manually or by using the
+.B ksymoops
+program which is included in the kernel sources.
+
+As a convenience
 .B klogd
 will attempt to resolve kernel numeric addresses to their symbolic
-forms if a kernel symbol table is available at execution time.
-A symbol table may be specified by using the \fB\-k\fR switch on the
+forms if a kernel symbol table is available at execution time.  A
+symbol table may be specified by using the \fB\-k\fR switch on the
 command line.  If a symbol file is not explicitly specified the
 following filenames will be tried:
 
@@ -192,19 +240,101 @@ Modern kernels as of 1.3.43 properly format important kernel addresses
 so that they will be recognized and translated by klogd.  Earlier
 kernels require a source code patch be applied to the kernel sources.
 This patch is supplied with the sysklogd sources.
+
+The process of analyzing kernel protections faults works very well
+with a static kernel.  Additional difficulties are encountered when
+attempting to diagnose errors which occur in loadable kernel modules.
+Loadable kernel modules are used to implement kernel functionality in
+a form which can be loaded or unloaded at will.  The use of loadable
+modules is useful from a debugging standpoint and can also be useful
+in decreasing the amount of memory required by a kernel.
+
+The difficulty with diagnosing errors in loadable modules is due to
+the dynamic nature of the kernel modules.  When a module is loaded the
+kernel will allocate memory to hold the module, when the module is
+unloaded this memory will be returned back to the kernel.  This
+dynamic memory allocation makes it impossible to produce a map file
+which details the addresses of the variable and functions in a kernel
+loadable module.  Without this location map it is not possible for a
+kernel developer to determine what went wrong if a protection fault
+involves a kernel module.
+
+.B klogd
+has support for dealing with the problem of diagnosing protection
+faults in kernel loadable modules.  At program start time or in
+response to a signal the daemon will interrogate the kernel for a
+listing of all modules loaded and the addresses in memory they are
+loaded at.  Individual modules can also register the locations of
+important functions when the module is loaded.  The addresses of these
+exported symbols are also determined during this interrogation
+process.
+
+When a protection fault occurs an attempt will be made to resolve
+kernel addresses from the static symbol table.  If this fails the
+symbols from the currently loaded modules are examined in an attempt
+to resolve the addresses.  At the very minimum this allows klogd to
+indicate which loadable module was responsible for generating the
+protection fault.  Additional information may be available if the
+module developer chose to export symbol information from the module.
+
+Proper and accurate resolution of addresses in kernel modules requires
+that
+.B klogd
+be informed whenever the kernel module status changes.  The
+.B \-i
+and
+.B \-I
+switches can be used to signal the currently executing daemon that
+symbol information be reloaded.  Of most importance to proper
+resolution of module symbols is the
+.B \-i
+switch.  Each time a kernel module is loaded or removed from the
+kernel the following command should be executed:
+
+.nf
+.I klogd \-i
+.fi
+
+The
+.B \-p
+switch can also be used to insure that module symbol information is up
+to date.  This switch instructs
+.B klogd
+to reload the module symbol information whenever a protection fault
+is detected.  Caution should be used before invoking the program in
+\'paranoid\' mode.  The stability of the kernel and the operating
+environment is always under question when a protection fault occurs.
+Since the klogd daemon must execute system calls in order to read the
+module symbol information there is the possibility that the system may
+be too unstable to capture useful information.  A much better policy
+is to insure that klogd is updated whenever a module is loaded or
+unloaded.  Having uptodate symbol information loaded increases the
+probability of properly resolving a protection fault if it should occur.
+
+Included in the sysklogd source distribution is a patch to the
+modules-2.0.0 package which allows the
+.B insmod,
+.B rmmod
+and
+.B modprobe
+utilities to automatically signal
+.B klogd
+whenever a module is inserted or removed from the kernel.  Using this
+patch will insure that the symbol information maintained in klogd is
+always consistent with the current kernel state.
 .PP
 .SH SIGNAL HANDLING
 The 
 .B klogd
-will respond to six signals:
-.BR SIGHUP ", " SIGINT ", " SIGKILL ", " SIGTERM ", " SIGTSTP " and " SIGCONT ". The"
+will respond to eight signals:
+.BR SIGHUP ", " SIGINT ", " SIGKILL ", " SIGTERM ", " SIGTSTP ", " SIGUSR1 ", "SIGUSR2 " and " SIGCONT ". The"
 .BR SIGINT ", " SIGKILL ", " SIGTERM " and " SIGHUP
 signals will cause the daemon to close its kernel log sources and
 terminate gracefully.
 
 The 
 .BR SIGTSTP " and " SIGCONT
-singals are used to start and stop kernel logging. Upon receipt of a 
+signals are used to start and stop kernel logging. Upon receipt of a 
 .B SIGTSTP
 signal the daemon will close its
 log sources and spin in an idle loop.  Subsequent receipt of a 
@@ -229,6 +359,26 @@ Notations will be made in the system logs with
 .B LOG_INFO
 priority
 documenting the start/stop of logging.
+
+The 
+.BR SIGUSR1 " and " SIGUSR2
+signals are used to initiate loading/reloading of kernel symbol information.
+Receipt of the
+.B SIGUSR1
+signal will cause the kernel module symbols to be reloaded.  Signaling the
+daemon with
+.B SIGUSR2
+will cause both the static kernel symbols and the kernel module symbols to
+be reloaded.
+
+Provided that the System.map file is placed in an appropriate location the
+signal of generally greatest usefulness is the
+.B SIGUSR1
+signal.  This signal is designed to be used to signal the daemon when kernel
+modules are loaded/unloaded.  Sending this signal to the daemon after a
+kernel module state change will insure that proper resolution of symbols will
+occur if a protection fault occurs in the address space occupied by a kernel
+module.
 .LP
 .SH FILES
 .PD 0
@@ -241,7 +391,7 @@ One Source for kernel messages
 The file containing the process id of 
 .B klogd
 .TP
-.I /System.map, /usr/src/linux/System.map
+.I /boot/System.map, /System.map, /usr/src/linux/System.map
 Default locations for kernel system maps.
 .PD
 .SH BUGS

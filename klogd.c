@@ -140,11 +140,24 @@
  *	Added a second patch to remove the pidfile as part of the
  *	termination cleanup sequence.  This minimizes the potential for
  *	conflicting pidfiles causing immediate termination at boot time.
- *
+ *	
  * Sun May 12 12:18:21 MET DST 1996:  Martin Schulze
  *	Corrected incorrect/insecure use of strpbrk for a not necessarily
  *	null-terminated buffer.  Used a patch from Chris Hanson
  *	(cph@martigny.ai.mit.edu), thanks.
+ *
+ * Wed Aug 21 09:13:03 CDT 1996:  Dr. Wettstein
+ *	Added ability to reload static symbols and kernel module symbols
+ *      under control of SIGUSR1 and SIGUSR2 signals.
+ *
+ *	Added -p switch to select 'paranoid' behavior with respect to the
+ *	loading of kernel module symbols.
+ *
+ *	Informative line now printed whenever a state change occurs due
+ *	to signal reception by the daemon.
+ *
+ *	Added the -i and -I command line switches to signal the currently
+ *	executing daemon.
  */
 
 
@@ -163,8 +176,10 @@
 
 #define __LIBRARY__
 #include <linux/unistd.h>
-#define __NR_sys_syslog __NR_syslog
-_syscall3(int,sys_syslog,int, type, char *, buf, int, len);
+#ifndef __alpha__
+# define __NR_ksyslog __NR_syslog
+_syscall3(int,ksyslog,int, type, char *, buf, int, len);
+#endif
 
 #define LOG_BUFFER_SIZE 4096
 #define LOG_LINE_LENGTH 1024
@@ -179,13 +194,15 @@ static int	kmsg,
 		change_state = 0,
 		terminate = 0,
 		caught_TSTP = 0,
+		reload_symbols = 0,
 		console_log_level = 6;
 
 static int	use_syscall = 0,
 		one_shot = 0,
 		NoFork = 0;	/* don't fork - don't run in daemon mode */
 
-static char log_buffer[LOG_BUFFER_SIZE];
+static char	*symfile = (char *) 0,
+		log_buffer[LOG_BUFFER_SIZE];
 
 static FILE *output_file = (FILE *) 0;
 
@@ -195,12 +212,15 @@ int debugging = 0;
 
 
 /* Function prototypes. */
-extern int sys_syslog(int type, char *buf, int len);
+extern int ksyslog(int type, char *buf, int len);
 static void CloseLogSrc(void);
 extern void restart(int sig);
 extern void stop_logging(int sig);
 extern void stop_daemon(int sig);
+extern void reload_daemon(int sig);
 static void Terminate(void);
+static void SignalDaemon(int);
+static void ReloadSymbols(void);
 static void ChangeLogging(void);
 static enum LOGSRC GetKernelLogSrc(void);
 static void LogLine(char *ptr, int len);
@@ -213,14 +233,14 @@ static void CloseLogSrc()
 
 {
 	/* Turn on logging of messages to console. */
-  	sys_syslog(7, NULL, 0);
+  	ksyslog(7, NULL, 0);
   
         /* Shutdown the log sources. */
 	switch ( logsrc )
 	{
 	    case kernel:
-		sys_syslog(0, 0, 0);
-		Syslog(LOG_INFO, "Kernel logging (sys_syslog) stopped.");
+		ksyslog(0, 0, 0);
+		Syslog(LOG_INFO, "Kernel logging (ksyslog) stopped.");
 		break;
             case proc:
 		close(kmsg);
@@ -271,6 +291,27 @@ void stop_daemon(sig)
 }
 
 
+void reload_daemon(sig)
+
+     int sig;
+
+{
+	change_state = 1;
+	reload_symbols = 1;
+
+
+	if ( sig == SIGUSR2 )
+	{
+		++reload_symbols;
+		signal(SIGUSR2, reload_daemon);
+	}
+	else
+		signal(SIGUSR1, reload_daemon);
+		
+	return;
+}
+
+
 static void Terminate()
 
 {
@@ -284,13 +325,46 @@ static void Terminate()
 	exit(1);
 }
 
-	
+static void SignalDaemon(sig)
+
+     int sig;
+
+{
+	auto int pid = check_pid(PidFile);
+
+	kill(pid, sig);
+	return;
+}
+
+
+static void ReloadSymbols()
+
+{
+	if ( reload_symbols > 1 )
+		InitKsyms(symfile);
+	InitMsyms();
+	reload_symbols = change_state = 0;
+	return;
+}
+
+
 static void ChangeLogging(void)
 
 {
 	/* Terminate kernel logging. */
 	if ( terminate == 1 )
 		Terminate();
+
+	/* Indicate that something is happening. */
+	Syslog(LOG_INFO, "klogd %s-%s, ---------- state change ----------\n", \
+	       VERSION, PATCHLEVEL);
+
+	/* Reload symbols. */
+	if ( reload_symbols > 0 )
+	{
+		ReloadSymbols();
+		return;
+	}
 
 	/* Stop kernel logging. */
 	if ( caught_TSTP == 1 )
@@ -330,7 +404,7 @@ static enum LOGSRC GetKernelLogSrc(void)
 
 
 	/* Set level of kernel console messaging.. */
-	if ( (sys_syslog(8, NULL, console_log_level) < 0) && \
+	if ( (ksyslog(8, NULL, console_log_level) < 0) && \
 	     (errno == EINVAL) )
 	{
 		/*
@@ -341,7 +415,7 @@ static enum LOGSRC GetKernelLogSrc(void)
 		 */
 		Syslog(LOG_WARNING, "Cannot set console log level - disabling "
 			      "console output.");
-		sys_syslog(6, NULL, 0);
+		ksyslog(6, NULL, 0);
 	}
 	
 
@@ -353,12 +427,12 @@ static enum LOGSRC GetKernelLogSrc(void)
 	    ((stat(_PATH_KLOG, &sb) < 0) && (errno == ENOENT)) )
 	{
 	  	/* Initialize kernel logging. */
-	  	sys_syslog(1, NULL, 0);
+	  	ksyslog(1, NULL, 0);
 #ifdef DEBRELEASE
-		Syslog(LOG_INFO, "klogd %s-%s#%s, log source = sys_syslog "
+		Syslog(LOG_INFO, "klogd %s-%s#%s, log source = ksyslog "
 		       "started.", VERSION, PATCHLEVEL, DEBRELEASE);
 #else
-		Syslog(LOG_INFO, "klogd %s-%s, log source = sys_syslog "
+		Syslog(LOG_INFO, "klogd %s-%s, log source = ksyslog "
 		       "started.", VERSION, PATCHLEVEL);
 #endif
 		return(kernel);
@@ -366,8 +440,9 @@ static enum LOGSRC GetKernelLogSrc(void)
 	
 	if ( (kmsg = open(_PATH_KLOG, O_RDONLY)) < 0 )
 	{
-		fputs("klogd: Cannot open proc file system.", stderr);
-		sys_syslog(7, NULL, 0);
+		fprintf(stderr, "klogd: Cannot open proc file system, " \
+			"%d - %s.\n", errno, strerror(errno));
+		ksyslog(7, NULL, 0);
 		exit(1);
 	}
 
@@ -391,7 +466,7 @@ extern void Syslog(int priority, char *fmt, ...)
 	{
 		fputs("Logging line:\n", stderr);
 		fprintf(stderr, "\tLine: %s\n", fmt);
-		fprintf(stderr, "\tPriority: %c\n", *(fmt+1));
+		fprintf(stderr, "\tPriority: %d\n", priority);
 	}
 
 	/* Handle output to a file. */
@@ -534,12 +609,12 @@ static void LogKernelLine(void)
 	 * messages into this fresh buffer.
 	 */
 	memset(log_buffer, '\0', sizeof(log_buffer));
-	if ( (rdcnt = sys_syslog(2, log_buffer, sizeof(log_buffer))) < 0 )
+	if ( (rdcnt = ksyslog(2, log_buffer, sizeof(log_buffer))) < 0 )
 	{
 		if ( errno == EINTR )
 			return;
-		fprintf(stderr, "Error return from sys_sycall: %d - %s\n", \
-			errno, strerror(errno));
+		fprintf(stderr, "klogd: Error return from sys_sycall: " \
+			"%d - %s\n", errno, strerror(errno));
 	}
 	
 	LogLine(log_buffer, rdcnt);
@@ -563,7 +638,8 @@ static void LogProcLine(void)
 	{
 		if ( errno == EINTR )
 			return;
-		Syslog(LOG_ERR, "Cannot read proc file system.");
+		Syslog(LOG_ERR, "Cannot read proc file system: %d - %s.", \
+		       errno, strerror(errno));
 	}
 	
 	LogLine(log_buffer, rdcnt);
@@ -579,14 +655,14 @@ int main(argc, argv)
 	char *argv[];
 
 {
-	auto int ch, use_output = 0;
+	auto int	ch,
+			use_output = 0;
 
-	auto char	*symfile = (char *) 0,
-			*log_level = (char *) 0,
+	auto char	*log_level = (char *) 0,
 			*output = (char *) 0;
 
 	/* Parse the command-line. */
-	while ((ch = getopt(argc, argv, "c:df:k:nosv")) != EOF)
+	while ((ch = getopt(argc, argv, "c:df:iIk:nopsv")) != EOF)
 		switch((char)ch)
 		{
 		    case 'c':		/* Set console message level. */
@@ -599,6 +675,12 @@ int main(argc, argv)
 			output = optarg;
 			use_output++;
 			break;
+		    case 'i':		/* Reload module symbols. */
+			SignalDaemon(SIGUSR1);
+			return(0);
+		    case 'I':
+			SignalDaemon(SIGUSR2);
+			return(0);
 		    case 'k':		/* Kernel symbol file. */
 			symfile = optarg;
 			break;
@@ -608,6 +690,9 @@ int main(argc, argv)
 		    case 'o':		/* One-shot mode. */
 			one_shot = 1;
 			break;
+		    case 'p':
+			SetParanoiaLevel(1);	/* Load symbols on oops. */
+			break;	
 		    case 's':		/* Use syscall interface. */
 			use_syscall = 1;
 			break;
@@ -698,6 +783,8 @@ int main(argc, argv)
 	signal(SIGHUP, stop_daemon);
 	signal(SIGTSTP, stop_logging);
 	signal(SIGCONT, restart);
+	signal(SIGUSR1, reload_daemon);
+	signal(SIGUSR2, reload_daemon);
 
 
 	/* Open outputs. */
@@ -707,8 +794,8 @@ int main(argc, argv)
 			output_file = stdout;
 		else if ( (output_file = fopen(output, "w")) == (FILE *) 0 )
 		{
-			fprintf(stderr, "klogd: Cannot open output file %s - "\
-				"%s\n", output, strerror(errno));
+			fprintf(stderr, "klogd: Cannot open output file " \
+				"%s - %s\n", output, strerror(errno));
 			return(1);
 		}
 	}
@@ -720,6 +807,7 @@ int main(argc, argv)
 	if ( one_shot )
 	{
 		InitKsyms(symfile);
+		InitMsyms();
 		if ( (logsrc = GetKernelLogSrc()) == kernel )
 			LogKernelLine();
 		else
@@ -733,6 +821,7 @@ int main(argc, argv)
 #endif
 	logsrc = GetKernelLogSrc();
 	InitKsyms(symfile);
+	InitMsyms();
 
         /* The main loop. */
 	while (1)

@@ -12,6 +12,8 @@ Description:    The sysklogd package implements two system log daemons.  The
 		routes them to either output files or to syslogd.  This
 		version of klogd will optionally translate kernel addresses
 		to their symbolic equivalents if provided with a system map.
+		The klogd daemon also provides support for debugging of
+		protection faults which occur in kernel loadable modules.
 Keywords:       logging, remote, kernel, syslogd, proc, daemon, klogd
 Author:         greg@wind.rmcc.com (Dr. G.W. Wettstein)
 Maintained-by:  greg@wind.rmcc.com (Dr. G.W. Wettstein)

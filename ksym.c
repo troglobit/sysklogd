@@ -1,6 +1,7 @@
 /*
     ksym.c - functions for kernel address->symbol translation
-    Copyright (c) 1995  Dr. G.W. Wettstein <greg@wind.rmcc.com>
+    Copyright (c) 1995, 1996  Dr. G.W. Wettstein <greg@wind.rmcc.com>
+    Copyright (c) 1996 Enjellic Systems Development
 
     This file is part of the sysklogd package, a kernel and system log daemon.
 
@@ -61,10 +62,20 @@
  *	Added patch from beta-testers to allow for reading of both
  *	ELF and a.out map files.
  *
+ * Wed Aug 21 09:15:49 CDT 1996:  Dr. Wettstein
+ *	Reloading of kernel module symbols is now turned on by the
+ *	SetParanoiaLevel function.  The default behavior is to NOT reload
+ *	the kernel module symbols when a protection fault is detected.
+ *
+ *	Added support for freeing of the current kernel module symbols.
+ *	This was necessary to support reloading of the kernel module symbols.
+ *
+ *	When a matching static symbol table is loaded the kernel version
+ *	number is printed.
+ *
  * Mon Jun  9 17:12:42 CST 1997:  Martin Schulze
  *	Added #1 and #2 to some error messages in order to being able
  *	to divide them (ulmo@Q.Net)
- *
  */
 
 
@@ -73,27 +84,22 @@
 #include <malloc.h>
 #include <sys/utsname.h>
 #include "klogd.h"
+#include "ksyms.h"
 
 #define VERBOSE_DEBUGGING 0
 
 
-/* Variables, structures and type definitions static to this module. */
+/* Variables static to this module. */
 struct sym_table
 {
 	unsigned long value;
 	char *name;
 };
 
-struct symbol
-{
-	char *name;
-	int size;
-	int offset;
-};
-
-static struct sym_table *sym_array = (struct sym_table *) 0;
-
 static int num_syms = 0;
+static int i_am_paranoid = 0;
+static char vstring[12];
+static struct sym_table *sym_array = (struct sym_table *) 0;
 
 static char *system_maps[] =
 {
@@ -107,7 +113,7 @@ static char *system_maps[] =
 
 
 #if defined(TEST)
-static int debugging = 1;
+int debugging;
 #else
 extern int debugging;
 #endif
@@ -117,6 +123,7 @@ extern int debugging;
 static char * FindSymbolFile(void);
 static int AddSymbol(unsigned long, char*);
 static char * LookupSymbol(unsigned long, struct symbol *);
+static void FreeSymbols(void);
 static int CheckVersion(char *);
 
 
@@ -151,6 +158,11 @@ extern int InitKsyms(mapfile)
 	auto unsigned long int address;
 
 	auto FILE *sym_file;
+
+
+	/* Check and make sure that we are starting with a clean slate. */
+	if ( num_syms > 0 )
+		FreeSymbols();
 
 
 	/*
@@ -195,7 +207,7 @@ extern int InitKsyms(mapfile)
 	 */
 	while ( !feof(sym_file) )
 	{
-		if ( fscanf(sym_file, "%8lx %c %s\n", &address, &type, sym)
+		if ( fscanf(sym_file, "%lx %c %s\n", &address, &type, sym)
 		    != 3 )
 		{
 			Syslog(LOG_ERR, "Error in symbol table input (#1).");
@@ -231,7 +243,7 @@ extern int InitKsyms(mapfile)
 		break;
 		
 	    case 1:
-		Syslog(LOG_INFO, "Symbols match kernel version.");
+		Syslog(LOG_INFO, "Symbols match kernel version %s.", vstring);
 		break;
 	}
 		
@@ -283,7 +295,7 @@ static char * FindSymbolFile()
 
 	auto int version;
 	auto struct utsname utsname;
-	char symfile[100];
+	static char symfile[100];
 
 	auto unsigned long int address;
 
@@ -319,7 +331,7 @@ static char * FindSymbolFile()
 		version = 0;
 		while ( !feof(sym_file) && (version == 0) )
 		{
-			if ( fscanf(sym_file, "%8lx %c %s\n", &address, \
+			if ( fscanf(sym_file, "%lx %c %s\n", &address, \
 				    &type, sym) != 3 )
 			{
 				Syslog(LOG_ERR, "Error in symbol table input (#2).");
@@ -419,8 +431,6 @@ static int CheckVersion(version)
 	
 
 {
-	auto char vstring[12];
-
 	auto int	vnum,
 			major,
 			minor,
@@ -445,16 +455,15 @@ static int CheckVersion(version)
 	 * things out by decoding the version string into its component
 	 * parts.
 	 */
-	memset(vstring, '\0', sizeof(vstring));
-	strncpy(vstring, version + strlen(prefix), sizeof(vstring)-1);
-	vnum = atoi(vstring);
+	vnum = atoi(version + strlen(prefix));
 	major = vnum / 65536;
 	vnum -= (major * 65536);
 	minor = vnum / 256;
 	patch = vnum - (minor * 256);
 	if ( debugging )
 		fprintf(stderr, "Version string = %s, Major = %d, " \
-		       "Minor = %d, Patch = %d.\n", vstring, major, minor, \
+		       "Minor = %d, Patch = %d.\n", version +
+		       strlen(prefix), major, minor, \
 		       patch);
 	sprintf(vstring, "%d.%d.%d", major, minor, patch);
 
@@ -543,7 +552,7 @@ static int AddSymbol(address, symbol)
  *		closely matching the address is returned.
  **************************************************************************/
 
-extern char * LookupSymbol(value, sym)
+static char * LookupSymbol(value, sym)
 
 	unsigned long value;
 
@@ -572,7 +581,41 @@ extern char * LookupSymbol(value, sym)
 		last = sym_array[lp].name;
 	}
 
+	if ( (last = LookupModuleSymbol(value, sym)) != (char *) 0 )
+		return(last);
+
 	return((char *) 0);
+}
+
+
+/**************************************************************************
+ * Function:	FreeSymbols
+ *
+ * Purpose:	This function is responsible for freeing all memory which
+ *		has been allocated to hold the static symbol table.  It
+ *		also initializes the symbol count and in general prepares
+ *		for a re-read of a static symbol table.
+ *
+ * Arguements:  void
+ *
+ * Return:	void
+ **************************************************************************/
+
+static void FreeSymbols()
+
+{
+	auto int lp;
+
+	/* Free each piece of memory allocated for symbol names. */
+	for(lp= 0; lp < num_syms; ++lp)
+		free(sym_array[lp].name);
+
+	/* Whack the entire array and initialize everything. */
+	free(sym_array);
+	sym_array = (struct sym_table *) 0;
+	num_syms = 0;
+
+	return;
 }
 
 
@@ -610,8 +653,30 @@ extern char * ExpandKadds(line, el)
 	auto int value;
 
 	auto struct symbol sym;
+
+
+	/*
+	 * This is as handy a place to put this as anyplace.
+	 *
+	 * Since the insertion of kernel modules can occur in a somewhat
+	 * dynamic fashion we need some mechanism to insure that the
+	 * kernel symbol tables get read just prior to when they are
+	 * needed.
+	 *
+	 * To accomplish this we look for the Oops string and use its
+	 * presence as a signal to load the module symbols.
+	 *
+	 * This is not the best solution of course, especially if the
+	 * kernel is rapidly going out to lunch.  What really needs to
+	 * be done is to somehow generate a callback from the
+	 * kernel whenever a module is loaded or unloaded.  I am
+	 * open for patches.
+	 */
+	if ( i_am_paranoid &&
+	     (strstr(line, "Oops:") != (char *) 0) && !InitMsyms() )
+		Syslog(LOG_WARNING, "Cannot load kernel module symbols.\n");
 	
-	
+
 	/*
 	 * Early return if there do not appear to be any kernel
 	 * messages in this line.
@@ -671,6 +736,30 @@ extern char * ExpandKadds(line, el)
 }
 
 
+/**************************************************************************
+ * Function:	SetParanoiaLevel
+ *
+ * Purpose:	This function is an interface function for setting the
+ *		mode of loadable module symbol lookups.  Probably overkill
+ *		but it does slay another global variable.
+ *
+ * Arguements:	(int) level
+ *
+ *		level:->	The amount of paranoia which is to be
+ *				present when resolving kernel exceptions.
+ * Return:	void
+ **************************************************************************/
+
+extern void SetParanoiaLevel(level)
+
+	int level;
+
+{
+	i_am_paranoid = level;
+	return;
+}
+
+
 /*
  * Setting the -DTEST define enables the following code fragment to
  * be compiled.  This produces a small standalone program which will
@@ -686,21 +775,17 @@ extern int main(int, char **);
 
 extern int main(int argc, char *argv[])
 {
-	auto long int value;
 	auto char line[1024], eline[2048];
-	
-	
-#if 0
-	value = atol(argv[1]);
-	fprintf(stdout, "Value of %ld: %s\n", value, LookupSymbol(value));
-#endif
 
+	debugging = 1;
+	
+	
 	if ( !InitKsyms((char *) 0) )
 	{
 		fputs("ksym: Error loading system map.\n", stderr);
 		return(1);
 	}
-	
+
 	while ( !feof(stdin) )
 	{
 		gets(line);

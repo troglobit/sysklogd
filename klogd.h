@@ -13,5 +13,7 @@
 
 /* Function prototypes. */
 extern int InitKsyms(char *);
+extern int InitMsyms(void);
 extern char * ExpandKadds(char *, char *);
+extern void SetParanoiaLevel(int);
 extern void Syslog(int priority, char *fmt, ...);

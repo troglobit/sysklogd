@@ -1,6 +1,6 @@
-On behalf of Martin Schulze, the beta-testers and other members of the
-Linux INTERNET community who have helped shape and debug this package
-I am pleased to announce version 1.3 of the sysklogd package.
+On behalf of the beta-testers and other members of the Linux INTERNET
+community who have helped shape and debug this package I am pleased to
+announce version 1.3-pl3 of the sysklogd package.
 
 This package implements two system log daemons. The syslogd daemon is
 an enhanced version of the standard Berkeley utility program. This
@@ -26,6 +26,9 @@ here:
 	* klogd supports on-the-fly kernel address to symbol
 	translations. This requires that a valid kernel symbol map be
 	found at execution.
+
+	* klogd also supports debugging of protection faults which occur
+	in kernel loadable modules.
 
 	* syslogd has better handling of remote logging capabilities.
 
