@@ -450,6 +450,9 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  * Sat Apr 17 18:03:05 2004: Steve Grubb <linux_4ever@yahoo.com>
  *	Correct memory allocation for for commandline arguments in
  *	crunch_list().
+ *
+ * Thu Apr 29 12:38:39 2004: Solar Designer <solar@openwall.com>
+ *	Applied Openwall paranoia patches to improve crunch_list().
  */
 
 
@@ -1263,30 +1266,26 @@ char **
 crunch_list(list)
 	char *list;
 {
-	int count, i;
+	int i, m, n;
 	char *p, *q;
 	char **result = NULL;
 
 	p = list;
 	
 	/* strip off trailing delimiters */
-	while (p[strlen(p)-1] == LIST_DELIMITER) {
-		count--;
+	while (*p && p[strlen(p)-1] == LIST_DELIMITER)
 		p[strlen(p)-1] = '\0';
-	}
 	/* cut off leading delimiters */
-	while (p[0] == LIST_DELIMITER) {
-		count--;
+	while (p[0] == LIST_DELIMITER)
 		p++; 
-	}
 	
-	/* count delimiters to calculate elements */
-	for (count=i=0; p[i]; i++)
-		if (p[i] == LIST_DELIMITER) count++;
+	/* count delimiters to calculate the number of elements */
+	for (n = i = 0; p[i]; i++)
+		if (p[i] == LIST_DELIMITER) n++;
 	
-	if ((result = (char **)malloc(sizeof(char *) * (count+2))) == NULL) {
+	if ((result = (char **)malloc(sizeof(char *) * (n + 2))) == NULL) {
 		printf ("Sorry, can't get enough memory, exiting.\n");
-		exit(0);
+		exit(1);
 	}
 	
 	/*
@@ -1294,30 +1293,28 @@ crunch_list(list)
 	 * characters are different from any delimiters,
 	 * so we don't have to care about this.
 	 */
-	count = 0;
-	while ((q=strchr(p, LIST_DELIMITER))) {
-		result[count] = (char *) malloc((q - p + 1) * sizeof(char));
-		if (result[count] == NULL) {
+	m = 0;
+	while ((q = strchr(p, LIST_DELIMITER)) && m < n) {
+		result[m] = (char *) malloc((q - p + 1) * sizeof(char));
+		if (result[m] == NULL) {
 			printf ("Sorry, can't get enough memory, exiting.\n");
-			exit(0);
+			exit(1);
 		}
-		strncpy(result[count], p, q - p);
-		result[count][q - p] = '\0';
+		memcpy(result[m], p, q - p);
+		result[m][q - p] = '\0';
 		p = q; p++;
-		count++;
+		m++;
 	}
-	if ((result[count] = \
-	     (char *)malloc(sizeof(char) * strlen(p) + 1)) == NULL) {
+	if ((result[m] = strdup(p)) == NULL) {
 		printf ("Sorry, can't get enough memory, exiting.\n");
-		exit(0);
+		exit(1);
 	}
-	strcpy(result[count],p);
-	result[++count] = NULL;
+	result[++m] = NULL;
 
 #if 0
-	count=0;
-	while (result[count])
-		dprintf ("#%d: %s\n", count, StripDomains[count++]);
+	m = 0;
+	while (result[m])
+		dprintf ("#%d: %s\n", m, result[m++]);
 #endif
 	return result;
 }
