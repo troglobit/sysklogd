@@ -446,6 +446,10 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	so it guaranteed to be available when the child is forked,
  *	hence, fixing a  race condition.  This used to create problems
  *	with UML and fast machines.
+ *
+ * Sat Apr 17 18:03:05 2004: Steve Grubb <linux_4ever@yahoo.com>
+ *	Correct memory allocation for for commandline arguments in
+ *	crunch_list().
  */
 
 
@@ -1280,7 +1284,7 @@ crunch_list(list)
 	for (count=i=0; p[i]; i++)
 		if (p[i] == LIST_DELIMITER) count++;
 	
-	if ((result = (char **)malloc(sizeof(char *) * count+2)) == NULL) {
+	if ((result = (char **)malloc(sizeof(char *) * (count+2))) == NULL) {
 		printf ("Sorry, can't get enough memory, exiting.\n");
 		exit(0);
 	}
