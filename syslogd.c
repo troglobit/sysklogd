@@ -372,7 +372,7 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	people from OpenBSD.  This provides the additional '-a'
  *	argument used for specifying additional UNIX domain sockets to
  *	listen to.  This is been used with chroot()'ed named's for
- *	example.
+ *	example.  See for http://www.psionic.com/papers/dns.html
  *
  * Mon Oct 12 18:29:44 CEST 1998: Martin Schulze <joey@infodrom.north.de>
  *	Added `ftp' facility which was introduced in glibc version 2.
