@@ -1,16 +1,41 @@
 Version 1.4.2
 
- . Steve Grubb: fix memory calculation
- . klogd will reconnect to the logger (mostly syslogd) after it went
-   away.
- . On heavily loaded system syslog will not spit out error messages
-   anymore when recvfrom() results in EAGAIN
+ . Dmitry V. Levin <ldv@altlinux.org>
+   - Close file descriptor in FindSymbolFile() in ksym.c in order not to
+     leak file descriptors.
+ . Solar Designer <solar@openwall.com>
+   - improve crunch_list()
+   - Prevent potential buffer overflow in reading messages from the
+     kernel log ringbuffer.
+   - Ensure that "len" is not placed in a register, and that the
+     endtty() signal handler is not installed too early which could
+     cause a segmentation fault or worse.
+ . Steve Grubb <linux_4ever@yahoo.com>
+   - fix memory calculation in crunch_list()
+ . Martin Schulze <joey@infodrom.org>
+   - klogd will reconnect to the logger (mostly syslogd) after it went
+     away
+   - On heavily loaded system syslog will not spit out error messages
+     anymore when recvfrom() results in EAGAIN
+   - Makefile improvements
+   - Local copy of module.h
+   - Improved sysklogd.8
+   - Always log with syslogd's timezone and locale
+   - Remove trailing newline when forwarding messages
  . Jon Burgess <Jon_Burgess@eur.3com.com>
    - Moved the installation of the signal handler up a little bit so it
      guaranteed to be available when the child is forked, hence, fixing a
      race condition.  This used to create problems with UML and fast
      machines.
- . local copy of module.h
+ . Greg Trounson <gregt@maths.otago.ac.nz>
+   - Improved README.linux
+ . Ulf Härnhammar <Ulf.Harnhammar.9485@student.uu.se>
+   - Bondary check for fscanf() in InitKsyms() and CheckMapVersion()
+ . Colin Phipps <cph@cph.demon.co.uk>
+   - Don't block on the network socket in case of package los
+ . Dirk Mueller <mueller@kde.org>
+   - Don't crash when filesize limit is reached (e.g. without LFS)
+
 
 Version 1.4.1
 
@@ -48,6 +73,5 @@ Version 1.4
 
 Local variables:
 mode: indented-text
-mode: iso-accents
 fill-column: 72
 End:
