@@ -7,6 +7,7 @@ Version 1.4
    partition with no open file descriptor left over.
  . Solar Designer <solar@false.com>
    - printline() fixes
+   - priority decoding fix
  . Daniel Jacobowitz <dan@debian.org>
    - printchopped() fix
  . Keith Owens <kaos@ocs.com.au>
