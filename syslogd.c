@@ -1935,7 +1935,7 @@ void wallmsg(f, iov)
 			/* is this slot used? */
 			if (ut.ut_name[0] == '\0')
 				continue;
-			if (ut.ut_type == LOGIN_PROCESS)
+			if (ut.ut_type != USER_PROCESS)
 			        continue;
 			if (!(strcmp (ut.ut_name,"LOGIN"))) /* paranoia */
 			        continue;
