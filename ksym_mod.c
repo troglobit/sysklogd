@@ -55,6 +55,10 @@
  *	newer than 2.1.18.  It was caused by modified structures
  *	inside the kernel that were included.  I have worked in a
  *	patch from Alessandro Suardi <asuardi@uninetcom.it>.
+ *
+ * Sun Jan 25 20:57:34 CET 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Another patch for Linux/alpha by Christopher C Chimelis
+ *	<chris@classnet.med.miami.edu>.
  */
 
 
@@ -70,7 +74,11 @@
 #include <linux/time.h>
 #include <linux/module.h>
 #else /* __GLIBC__ */
+#if !defined(__alpha)
 #include <sys/module.h>
+#else
+#include <linux/module.h>
+#endif /* __alpha */
 #endif /* __GLIBC__ */
 #include <stdarg.h>
 #include <paths.h>
