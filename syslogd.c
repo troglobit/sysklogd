@@ -1963,7 +1963,7 @@ void die(sig)
 		dprintf("syslogd: exiting on signal %d\n", sig);
 		(void) sprintf(buf, "exiting on signal %d", sig);
 		errno = 0;
-		logerror(buf);
+		logmsg(LOG_SYSLOG|LOG_INFO, buf);
 	}
 
 	/* Close the sockets. */
