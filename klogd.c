@@ -167,6 +167,9 @@
  *	  an unknown amount and overrun a buffer.
  *	I turned these routines into a little parsing state machine that
  *	should not have these problems.
+ *
+ * Sun Jun 15 16:23:29 MET DST 1997: Michael Alan Dorman
+ *	Some more glibc patches made by <mdorman@debian.org>.
  */
 
 
@@ -176,7 +179,9 @@
 #include <errno.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
+#if !defined(__GLIBC__)
 #include <linux/time.h>
+#endif /* __GLIBC__ */
 #include <stdarg.h>
 #include <paths.h>
 #include <stdlib.h>
@@ -187,9 +192,12 @@
 
 #define __LIBRARY__
 #include <linux/unistd.h>
-#ifndef __alpha__
+#if !defined(__GLIBC__)
 # define __NR_ksyslog __NR_syslog
 _syscall3(int,ksyslog,int, type, char *, buf, int, len);
+#else
+#include <sys/klog.h>
+#define ksyslog klogctl
 #endif
 
 #define LOG_BUFFER_SIZE 4096

@@ -46,6 +46,9 @@
  *
  *	An informative message is printed indicating the number of kernel
  *	modules and the number of symbols loaded from these modules.
+ *
+ * Sun Jun 15 16:23:29 MET DST 1997: Michael Alan Dorman
+ *	Some more glibc patches made by <mdorman@debian.org>.
  */
 
 
@@ -57,8 +60,12 @@
 #include <errno.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
+#if !defined(__GLIBC__)
 #include <linux/time.h>
 #include <linux/module.h>
+#else /* __GLIBC__ */
+#include <sys/module.h>
+#endif /* __GLIBC__ */
 #include <stdarg.h>
 #include <paths.h>
 
@@ -66,6 +73,7 @@
 #include "ksyms.h"
 
 
+#if !defined(__GLIBC__)
 /*
  * The following bit uses some kernel/library magic to product what
  * looks like a function call to user level code.  This function is
@@ -78,7 +86,9 @@
 _syscall1(int, getsyms, struct kernel_sym *, syms);
 #undef __LIBRARY__
 extern int getsyms(struct kernel_sym *);
-
+#else /* __GLIBC__ */
+#define getsyms get_kernel_syms
+#endif /* __GLIBC__ */
 
 /* Variables static to this module. */
 struct sym_table

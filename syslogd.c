@@ -313,6 +313,9 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  * Tue Jun 10 12:51:41 MET DST 1997:  Martin Schulze
  *	Removed sleep(10) from parent process.  This has caused a slow
  *	startup in former times - and I don't see any reason for this.
+ *
+ * Sun Jun 15 16:23:29 MET DST 1997: Michael Alan Dorman
+ *	Some more glibc patches made by <mdorman@debian.org>.
  */
 
 
@@ -594,7 +597,9 @@ int	NoHops = 1;		/* Can we bounce syslog messages through an
 				   intermediate host. */
 
 extern	int errno, sys_nerr;
+#if !defined(__GLIBC__)
 extern	char *sys_errlist[];
+#endif /* __GLIBC__ */
 extern	char *ctime(), *index();
 
 /* Function prototypes. */
@@ -618,6 +623,9 @@ void die(int sig);
 void init();
 void cfline(char *line, register struct filed *f);
 int decode(char *name, struct code *codetab);
+#if defined(__GLIBC__)
+#define dprintf mydprintf
+#endif /* __GLIBC__ */
 static void dprintf(char *, ...);
 static void allocate_log(void);
 void sighup_handler();
@@ -629,7 +637,12 @@ int main(argc, argv)
 {
 	register int i;
 	register char *p;
+#if !defined(__GLIBC__)
 	int len, num_fds;
+#else /* __GLIBC__ */
+	size_t len;
+	int num_fds;
+#endif /* __GLIBC__ */
 	fd_set unixm, readfds;
 
 	int	fd;
