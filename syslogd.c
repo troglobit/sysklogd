@@ -424,7 +424,13 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	<solar@false.com>.
  *
  * Sun Sep 17 21:26:16 CEST 2000: Martin Schulze <joey@infodrom.ffis.de>
- *	Don't close open sockets upon reload.  Thanks to Bill Nottingham.
+ *	Don't close open sockets upon reload.  Thanks to Bill
+ *	Nottingham.
+ *
+ * Mon Sep 18 09:10:47 CEST 2000: Martin Schulze <joey@infodrom.ffis.de>
+ *	Fixed bug in printchopped() that caused syslogd to emit
+ *	kern.emerg messages when splitting long lines.  Thanks to
+ *	Daniel Jacobowitz <dan@debian.org> for the fix.
  */
 
 
@@ -1403,7 +1409,8 @@ void printchopped(hname, msg, len, fd)
 		msg[len] = '\0';
 		for(p= msg+len-1; *p != '\0' && p > msg; )
 			--p;
-		ptlngth = strlen(++p);
+		if(*p == '\0') p++;
+		ptlngth = strlen(p);
 		if ( (parts[fd] = malloc(ptlngth + 1)) == (char *) 0 )
 			logerror("Cannot allocate memory for message part.");
 		else

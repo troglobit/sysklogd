@@ -7,6 +7,8 @@ Version 1.4
    partition with no open file descriptor left over.
  . Solar Designer <solar@false.com>
    - printline() fixes
+ . Daniel Jacobowitz <dan@debian.org>
+   - printchopped() fix
  . Keith Owens <kaos@ocs.com.au>
    - Fixed bug that caused klogd to die if there is no sym_array available.
    - When symbols are expanded, print the line twice.  Once with
