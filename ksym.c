@@ -109,6 +109,11 @@
  * Thu Apr 29 18:07:16 CEST 2004: Dmitry Levin <ldv@altlinux.org>
  *	Close file descriptor in FindSymbolFile() in order not to leak
  *	file descriptors.
+ *
+ * Fri Jul 16 08:32:49 CEST 2004: Ulf Härnhammar <Ulf.Harnhammar.9485@student.uu.se>
+ *	Added boundary check for fscanf() in InitKsyms() and
+ *	CheckMapVersion() to prevent an unintended crash when reading
+ *	an incorrect System.map.
  */
 
 
@@ -240,7 +245,7 @@ extern int InitKsyms(mapfile)
 	 */
 	while ( !feof(sym_file) )
 	{
-		if ( fscanf(sym_file, "%lx %c %s\n", &address, &type, sym)
+		if ( fscanf(sym_file, "%lx %c %511s\n", &address, &type, sym)
 		    != 3 )
 		{
 			Syslog(LOG_ERR, "Error in symbol table input (#1).");
@@ -539,7 +544,7 @@ static int CheckMapVersion(fname)
 		version = 0;
 		while ( !feof(sym_file) && (version == 0) )
 		{
-			if ( fscanf(sym_file, "%lx %c %s\n", &address, \
+			if ( fscanf(sym_file, "%lx %c %511s\n", &address, \
 				    &type, sym) != 3 )
 			{
 				Syslog(LOG_ERR, "Error in symbol table input (#2).");
