@@ -76,6 +76,10 @@
  * Mon Jun  9 17:12:42 CST 1997:  Martin Schulze
  *	Added #1 and #2 to some error messages in order to being able
  *	to divide them (ulmo@Q.Net)
+ *
+ * Fri Jun 13 10:50:23 CST 1997:  Martin Schulze
+ *	Changed definition of LookupSymbol to non-static because it is
+ *	used in klogd.c, too.
  */
 
 
@@ -122,7 +126,6 @@ extern int debugging;
 /* Function prototypes. */
 static char * FindSymbolFile(void);
 static int AddSymbol(unsigned long, char*);
-static char * LookupSymbol(unsigned long, struct symbol *);
 static void FreeSymbols(void);
 static int CheckVersion(char *);
 
@@ -552,7 +555,7 @@ static int AddSymbol(address, symbol)
  *		closely matching the address is returned.
  **************************************************************************/
 
-static char * LookupSymbol(value, sym)
+char * LookupSymbol(value, sym)
 
 	unsigned long value;
 

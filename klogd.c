@@ -141,11 +141,6 @@
  *	termination cleanup sequence.  This minimizes the potential for
  *	conflicting pidfiles causing immediate termination at boot time.
  *	
- * Sun May 12 12:18:21 MET DST 1996:  Martin Schulze
- *	Corrected incorrect/insecure use of strpbrk for a not necessarily
- *	null-terminated buffer.  Used a patch from Chris Hanson
- *	(cph@martigny.ai.mit.edu), thanks.
- *
  * Wed Aug 21 09:13:03 CDT 1996:  Dr. Wettstein
  *	Added ability to reload static symbols and kernel module symbols
  *      under control of SIGUSR1 and SIGUSR2 signals.
@@ -158,6 +153,20 @@
  *
  *	Added the -i and -I command line switches to signal the currently
  *	executing daemon.
+ *
+ * Tue Nov 19 10:15:36 PST 1996: Lee Olds
+ *	Corrected vulnerability to buffer overruns by rewriting LogLine
+ *	routine.  Obscenely long kernel messages will now be broken up
+ *	into lines no longer than LOG_LINE_LENGTH.
+ *
+ *	The last version of LogLine was vulnerable to buffer overruns:
+ *	- Kernel messages longer than LOG_LINE_LENGTH caused a buffer
+ *	  overrun.
+ *	- If a line was determined to be shorter than LOG_LINE_LENGTH,
+ *	  the routine "ExpandKadds" could cause the line grow by
+ *	  an unknown amount and overrun a buffer.
+ *	I turned these routines into a little parsing state machine that
+ *	should not have these problems.
  */
 
 
@@ -170,7 +179,9 @@
 #include <linux/time.h>
 #include <stdarg.h>
 #include <paths.h>
+#include <stdlib.h>
 #include "klogd.h"
+#include "ksyms.h"
 #include "pidfile.h"
 #include "version.h"
 
@@ -428,13 +439,8 @@ static enum LOGSRC GetKernelLogSrc(void)
 	{
 	  	/* Initialize kernel logging. */
 	  	ksyslog(1, NULL, 0);
-#ifdef DEBRELEASE
-		Syslog(LOG_INFO, "klogd %s-%s#%s, log source = ksyslog "
-		       "started.", VERSION, PATCHLEVEL, DEBRELEASE);
-#else
 		Syslog(LOG_INFO, "klogd %s-%s, log source = ksyslog "
 		       "started.", VERSION, PATCHLEVEL);
-#endif
 		return(kernel);
 	}
 	
@@ -446,13 +452,8 @@ static enum LOGSRC GetKernelLogSrc(void)
 		exit(1);
 	}
 
-#ifdef DEBRELEASE
-	Syslog(LOG_INFO, "klogd %s-%s#%s, log source = %s started.", \
-	       VERSION, PATCHLEVEL, DEBRELEASE, _PATH_KLOG);
-#else
 	Syslog(LOG_INFO, "klogd %s-%s, log source = %s started.", \
 	       VERSION, PATCHLEVEL, _PATH_KLOG);
-#endif
 	return(proc);
 }
 
@@ -521,79 +522,218 @@ extern void Syslog(int priority, char *fmt, ...)
 	return;
 }
 
-	
-static void LogLine(char *ptr, int len)
 
+/*
+ *     Copy characters from ptr to line until a char in the delim
+ *     string is encountered or until min( space, len ) chars have
+ *     been copied.
+ *
+ *     Returns the actual number of chars copied.
+ */
+static int copyin( char *line,      int space,
+                   const char *ptr, int len,
+                   const char *delim )
 {
-	auto int idx = 0;
-	static int index = 0;
-	auto char *nl;
-	auto char *pend = ptr + len;
-	static char line[LOG_LINE_LENGTH],
-		    eline[LOG_LINE_LENGTH];
+    auto int i;
+    auto int count;
 
+    count = len < space ? len : space;
 
-	if ( debugging && (len != 0) )
-	{
-		fprintf(stderr, "Log buffer contains: %d characters.\n", len);
-		fprintf(stderr, "Line buffer contains: %d characters.\n", \
-			index);
-		while ( idx <= len )
-		{
-			fprintf(stderr, "Character #%d - %d:%c\n", idx, \
-				ptr[idx], ptr[idx]);
-			++idx;
-		}
-		if ( index != 0 )
-		{
-			fputs("Line buffer contains an unterminated line:\n", \
-			      stderr);
-			fprintf(stderr, "\tCount: %d\n", index);
-			fprintf(stderr, "%s\n\n", line);
-		}
-	}
+    for(i=0; i<count && !strchr(delim, *ptr); i++ ) { *line++ = *ptr++; }
 
-	if ( index == 0 )
-		memset(line, '\0', sizeof(line));
-	
-	while (len) {
-		for (nl = ptr; nl < pend; nl += 1)
-			if ((*nl == '\n') || (*nl == '\r'))
-				break;
-		if (nl != pend) {
-			len -= nl - ptr + 1;
-			strncat(line, ptr, nl - ptr);
-			ptr = nl + 1;
-			/* Check for empty log line (may be produced if 
-			   kernel messages have multiple terminators, eg.
-			   \n\r) */
-			if ( (*line != '\n') && (*line != '\r') )
-			{
-				memset(eline, '\0', sizeof(eline));
-				ExpandKadds(line, eline);
-				Syslog(LOG_INFO, eline);
-			}
-			index = 0;
-			memset(line, '\0', sizeof(line));
-		 }
-		 else
-		 {
-			 if ( debugging )
-			 {
-				 fputs("No terminator - leftover:\n", stderr);
-				 fprintf(stderr, "\tCharacters: %d\n", len);
-				 fprintf(stderr, "\tIndex: %d\n", index);
-				 fputs("\tLine: ", stderr);
-				 fprintf(stderr, "%s\n", line);
-			 }
-			 
-			strncat(line, ptr, len);
-			index += len;
-			len = 0;
-		}
-	}
+    return( i );
+}
 
-	return;
+/*
+ * Messages are separated by "\n".  Messages longer than
+ * LOG_LINE_LENGTH are broken up.
+ *
+ * Kernel symbols show up in the input buffer as : "[<aaaaaa>]",
+ * where "aaaaaa" is the address.  These are replaced with
+ * "[symbolname+offset/size]" in the output line - symbolname,
+ * offset, and size come from the kernel symbol table.
+ *
+ * If a kernel symbol happens to fall at the end of a message close
+ * in length to LOG_LINE_LENGTH, the symbol will not be expanded.
+ * (This should never happen, since the kernel should never generate
+ * messages that long.
+ */
+static void LogLine(char *ptr, int len)
+{
+    enum parse_state_enum {
+        PARSING_TEXT,
+        PARSING_SYMSTART,      /* at < */
+        PARSING_SYMBOL,        
+        PARSING_SYMEND         /* at ] */
+    };
+
+    static char line_buff[LOG_LINE_LENGTH];
+
+    static char *line                        =line_buff;
+    static enum parse_state_enum parse_state = PARSING_TEXT;
+    static int space                         = sizeof(line_buff)-1;
+
+    static char *sym_start;            /* points at the '<' of a symbol */
+
+    auto   int delta = 0;              /* number of chars copied        */
+
+    while( len >= 0 )
+    {
+        if( space == 0 )    /* line buffer is full */
+        {
+            /*
+            ** Line too long.  Start a new line.
+            */
+            *line = 0;   /* force null terminator */
+
+	    if ( debugging )
+	    {
+		fputs("Line buffer full:\n", stderr);
+		fprintf(stderr, "\tLine: %s\n", line);
+	    }
+
+            Syslog( LOG_INFO, line_buff );
+            line  = line_buff;
+            space = sizeof(line_buff)-1;
+            parse_state = PARSING_TEXT;
+        }
+
+        switch( parse_state )
+        {
+        case PARSING_TEXT:
+               delta = copyin( line, space, ptr, len, "\n[" );
+               line  += delta;
+               ptr   += delta;
+               space -= delta;
+               len   -= delta;
+               if( space == 0 || len == 0 )
+               {
+		  break;  /* full line_buff or end of input buffer */
+               }
+               if( *ptr == '\n' )  /* newline */
+               {
+                  *line++ = *ptr++;  /* copy it in */
+                  space -= 1;
+                  len   -= 1;
+
+                  *line = 0;  /* force null terminator */
+	          Syslog( LOG_INFO, line_buff );
+                  line  = line_buff;
+                  space = sizeof(line_buff)-1;
+                  break;
+               }
+               if( *ptr == '[' )   /* possible kernel symbol */
+               {
+                  *line++ = *ptr++;
+                  space -= 1;
+                  len   -= 1;
+                  parse_state = PARSING_SYMSTART;      /* at < */
+                  break;
+               }
+               break;
+        
+        case PARSING_SYMSTART:
+               if( *ptr != '<' )
+               {
+                  parse_state = PARSING_TEXT;        /* not a symbol */
+                  break;
+               }
+
+               /*
+               ** Save this character for now.  If this turns out to
+               ** be a valid symbol, this char will be replaced later.
+               ** If not, we'll just leave it there.
+               */
+
+               sym_start = line; /* this will point at the '<' */
+
+               *line++ = *ptr++;
+               space -= 1;
+               len   -= 1;
+               parse_state = PARSING_SYMBOL;     /* symbol... */
+               break;
+
+        case PARSING_SYMBOL:
+               delta = copyin( line, space, ptr, len, ">\n[" );
+               line  += delta;
+               ptr   += delta;
+               space -= delta;
+               len   -= delta;
+               if( space == 0 || len == 0 )
+               {
+                  break;  /* full line_buff or end of input buffer */
+               }
+               if( *ptr != '>' )
+               {
+                  parse_state = PARSING_TEXT;
+                  break;
+               }
+
+               *line++ = *ptr++;  /* copy the '>' */
+               space -= 1;
+               len   -= 1;
+
+               parse_state = PARSING_SYMEND;
+
+               break;
+
+        case PARSING_SYMEND:
+               if( *ptr != ']' )
+               {
+                  parse_state = PARSING_TEXT;        /* not a symbol */
+                  break;
+               }
+
+               /*
+               ** It's really a symbol!  Replace address with the
+               ** symbol text.
+               */
+           {
+	       auto int sym_space;
+
+	       auto int value;
+	       auto struct symbol sym;
+	       auto char *symbol;
+
+               *(line-1) = 0;    /* null terminate the address string */
+               value  = strtol(sym_start+1, (char **) 0, 16);
+               *(line-1) = '>';  /* put back delim */
+
+               symbol = LookupSymbol(value, &sym);
+               if ( symbol == (char *) 0 )
+               {
+                  parse_state = PARSING_TEXT;
+                  break;
+               }
+
+               /*
+               ** verify there is room in the line buffer
+               */
+               sym_space = space + ( line - sym_start );
+               if( sym_space < strlen(symbol) + 30 ) /*(30 should be overkill)*/
+               {
+                  parse_state = PARSING_TEXT;  /* not enough space */
+                  break;
+               }
+
+               delta = sprintf( sym_start, "%s+%d/%d]",
+                                symbol, sym.offset, sym.size );
+
+               space = sym_space + delta;
+               line  = sym_start + delta;
+           }
+               ptr++;
+               len--;
+               parse_state = PARSING_TEXT;
+               break;
+
+        default: /* Can't get here! */
+               parse_state = PARSING_TEXT;
+
+        }
+    }
+
+    return;
 }
 
 
@@ -697,11 +837,8 @@ int main(argc, argv)
 			use_syscall = 1;
 			break;
 		    case 'v':
-#ifdef DEBRELEASE
-			printf("klogd %s-%s#%s\n", VERSION, PATCHLEVEL, DEBRELEASE);
-#else
 			printf("klogd %s-%s\n", VERSION, PATCHLEVEL);
-#endif			exit (1);
+			exit (1);
 		}
 
 

@@ -1,6 +1,7 @@
 /*
-    klogd.h - main header file for Linux kernel log daemon.
-    Copyright (c) 1995  Dr. G.W. Wettstein <greg@wind.rmcc.com>
+    ksym.h - Definitions for symbol table utilities.
+    Copyright (c) 1995, 1996  Dr. G.W. Wettstein <greg@wind.rmcc.com>
+    Copyright (c) 1996 Enjellic Systems Development
 
     This file is part of the sysklogd package, a kernel and system log daemon.
 
@@ -19,22 +20,16 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-/*
- * Symbols and definitions needed by klogd.
- *
- * Thu Nov 16 12:45:06 CST 1995:  Dr. Wettstein
- *	Initial version.
- */
+/* Variables, structures and type definitions static to this module. */
 
-/* Useful include files. */
-#include <stdio.h>
-#include <syslog.h>
-#include <string.h>
+struct symbol
+{
+	char *name;
+	int size;
+	int offset;
+};
 
 
 /* Function prototypes. */
-extern int InitKsyms(char *);
-extern int InitMsyms(void);
-extern char * ExpandKadds(char *, char *);
-extern void SetParanoiaLevel(int);
-extern void Syslog(int priority, char *fmt, ...);
+extern char * LookupSymbol(unsigned long, struct symbol *);
+extern char * LookupModuleSymbol(unsigned long int, struct symbol *);

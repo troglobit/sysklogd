@@ -45,9 +45,10 @@ MAN_OWNER = root
 SYSLOGD_PIDNAME = -DSYSLOGD_PIDNAME=\"syslogd.pid\"
 
 SYSLOGD_FLAGS= -DSYSLOG_INET -DSYSLOG_UNIXAF -DNO_SCCS ${FSSTND} \
-	${SYSLOGD_PIDNAME} -DDEBRELEASE=\"$(revision)\"
+	${SYSLOGD_PIDNAME}
 SYSLOG_FLAGS= -DALLOW_KERNEL_LOGGING
-KLOGD_FLAGS = ${FSSTND} ${KLOGD_START_DELAY} -DDEBRELEASE=\"$(revision)\"
+KLOGD_FLAGS = ${FSSTND} ${KLOGD_START_DELAY}
+DEB =
 
 .c.o:
 	${CC} ${CFLAGS} -c $*.c
@@ -69,13 +70,13 @@ syslog_tst: syslog_tst.o
 	${CC} ${LDFLAGS} -o syslog_tst syslog_tst.o
 
 syslogd.o: syslogd.c version.h
-	${CC} ${CFLAGS} ${SYSLOGD_FLAGS} -c syslogd.c
+	${CC} ${CFLAGS} ${SYSLOGD_FLAGS} $(DEB) -c syslogd.c
 
 syslog.o: syslog.c
 	${CC} ${CFLAGS} ${SYSLOG_FLAGS} -c syslog.c
 
 klogd.o: klogd.c klogd.h version.h
-	${CC} ${CFLAGS} ${KLOGD_FLAGS} -c klogd.c
+	${CC} ${CFLAGS} ${KLOGD_FLAGS} $(DEB) -c klogd.c
 
 ksym.o: ksym.c klogd.h
 	${CC} ${CFLAGS} ${KLOGD_FLAGS} -c ksym.c
