@@ -109,7 +109,7 @@ clean:
 	rm -f *.o *.log *~ *.orig
 
 clobber: clean
-	rm -f syslogd klogd ksym syslog_tst oops_test TAGS tsyslogd
+	rm -f syslogd klogd ksym syslog_tst oops_test TAGS tsyslogd tklogd
 
 install_exec: syslogd klogd
 	${INSTALL} -m 500 -s syslogd ${BINDIR}/syslogd
