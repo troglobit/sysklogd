@@ -2,6 +2,9 @@ Version 1.4
 
  . Skip newline when reading in klog messages
  . Use lseek64() instead of llseek() which is deprecated these days
+ . Close symbol file before returning with 0 when an error occurred
+   while reading it.  This will enable systems to umount that
+   partition with no open file descriptor left over.
  . Keith Owens <kaos@ocs.com.au>
    - Fixed bug that caused klogd to die if there is no sym_array available.
    - When symbols are expanded, print the line twice.  Once with

@@ -102,6 +102,9 @@
  *
  * Sun Feb 21 22:27:49 EST 1999: Keith Owens <kaos@ocs.com.au>
  *	Fixed bug that caused klogd to die if there is no sym_array available.
+ *
+ * Tue Sep 12 23:48:12 CEST 2000: Martin Schulze <joey@infodrom.ffis.de>
+ *	Close symbol file in InitKsyms() when an error occurred.
  */
 
 
@@ -247,6 +250,7 @@ extern int InitKsyms(mapfile)
 		if ( AddSymbol(address, sym) == 0 )
 		{
 			Syslog(LOG_ERR, "Error adding symbol - %s.", sym);
+			fclose(sym_file);
 			return(0);
 		}
 
