@@ -2,6 +2,13 @@ Version 1.4.2
 
  . klogd will reconnect to the logger (mostly syslogd) after it went
    away.
+ . On heavily loaded system syslog will not spit out error messages
+   anymore when recvfrom() results in EAGAIN
+ . Jon Burgess <Jon_Burgess@eur.3com.com>
+   - Moved the installation of the signal handler up a little bit so it
+     guaranteed to be available when the child is forked, hence, fixing a
+     race condition.  This used to create problems with UML and fast
+     machines.
 
 Version 1.4.1
 
