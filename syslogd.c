@@ -637,7 +637,7 @@ struct code	FacNames[] = {
 	{"syslog",       LOG_SYSLOG},
 	{"user",         LOG_USER},
 	{"uucp",         LOG_UUCP},
-#if defined(__GLIBC__) && __GLIBC__ >= 2
+#if defined(LOG_FTP)
 	{"ftp",          LOG_FTP},
 #endif
 	{"local0",       LOG_LOCAL0},
