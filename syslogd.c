@@ -512,27 +512,22 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
 #define _PATH_LOG	"/dev/log"
 #endif
 
-/* Bug#24893: --> remove LogName */
-char	*LogName = _PATH_LOG;
 char	*ConfFile = _PATH_LOGCONF;
 char	*PidFile = _PATH_LOGPID;
 char	ctty[] = _PATH_CONSOLE;
 
 char	**parts;
 
-/* Bug#24893 --> remove funix */
-int inetm = 0, funix = -1;
+int inetm = 0;
 static int debugging_on = 0;
 static int nlogs = -1;
 static int restart = 0;
 
-/* Bug#24893: --> insert
 #define MAXFUNIX	20
 
 int nfunix = 1;
 char *funixn[MAXFUNIX] = { _PATH_LOG };
 int funix[MAXFUNIX] = { -1, };
-*/
 
 #ifdef UT_NAMESIZE
 # define UNAMESZ	UT_NAMESIZE	/* length of a login name */
@@ -789,22 +784,18 @@ int main(argc, argv)
 #ifndef TESTING
 	chdir ("/");
 #endif
-	/* Bug#24893 --> add
 	for (i = 1; i < nfunix; i++) {
 		funixn[i] = "";
 		funix[i]  = -1;
 	}
-	*/
 
 	while ((ch = getopt(argc, argv, "a:dhf:l:m:np:rs:v")) != EOF)
 		switch((char)ch) {
 		case 'a':
-			/* Bug#24893 --> add
 			if (nfunix < MAXFUNIX)
 				funixn[nfunix++] = optarg;
 			else
 				fprintf(stderr, "Out of descriptors, ignoring %s\n", optarg);
-			*/
 			break;
 		case 'd':		/* debug */
 			Debug = 1;
@@ -830,10 +821,7 @@ int main(argc, argv)
 			NoFork = 1;
 			break;
 		case 'p':		/* path to regular log socket */
-			/* Bug#24893 --> exchange
 			funixn[0] = optarg;
-			*/
-			LogName = optarg;
 			break;
 		case 'r':		/* accept remote messages */
 			AcceptRemote = 1;
@@ -995,27 +983,30 @@ int main(argc, argv)
 
 	/* Main loop begins here. */
 	FD_ZERO(&unixm);
-	FD_ZERO(&readfds);
 	for (;;) {
 		int nfds;
 		errno = 0;
 #ifdef SYSLOG_UNIXAF
+		FD_ZERO(&readfds);
 #ifndef TESTING
 		/*
 		 * Add the Unix Domain Sockets to the list of read
 		 * descriptors.
 		 */
-		if (funix >= 0) {
-			FD_SET(funix, &readfds);
-			for (nfds= 0; nfds < FD_SETSIZE; ++nfds)
-				if ( FD_ISSET(nfds, &unixm) )
-					FD_SET(nfds, &readfds);
-		/* Bug#24893 --> remove above if(), add the following
+		len = 0;
+		/* Copy master connections */
 		for (i = 0; i < nfunix; i++) {
-			if (funix[i] != -1)
+			if (funix[i] != -1) {
 				FD_SET(funix[i], &readfds);
-		*/
+				if (i>len) len=i;
+			}
 		}
+		/* Copy accepted connections */
+		for (nfds= 0; nfds < FD_SETSIZE; ++nfds)
+			if (FD_ISSET(nfds, &unixm)) {
+				FD_SET(nfds, &readfds);
+				if (i>nfds) len=nfds;
+			}
 #endif
 #endif
 #ifdef SYSLOG_INET
@@ -1043,7 +1034,7 @@ int main(argc, argv)
 					dprintf("%d ", nfds);
 			dprintf("\n");
 		}
-		nfds = select(FD_SETSIZE, (fd_set *) &readfds, (fd_set *) NULL,
+		nfds = select(len, (fd_set *) &readfds, (fd_set *) NULL,
 				  (fd_set *) NULL, (struct timeval *) NULL);
 		if ( restart )
 		{
@@ -1110,22 +1101,6 @@ int main(argc, argv)
 		  	}
 	      	}
 		/* Accept a new unix connection */
-
-		if (FD_ISSET(funix, &readfds)) {
-			len = sizeof(fromunix);
-			if ((fd = accept(funix, (struct sockaddr *) &fromunix,\
-					 &len)) >= 0) {
-				FD_SET(fd, &unixm);
-				dprintf("New UNIX connect assigned to fd: " \
-					"%d.\n", fd);
-				FD_SET(fd, &readfds);
-			}
-			else {
-				dprintf("Error accepting UNIX connection: " \
-					"%d = %s.\n", errno, strerror(errno));
-			}
-		}
-		/* Bug#24893 --> remove above if(), add the following
 		for (i = 0; i < nfunix; i++)
 			if (funix[i] != -1 && FD_ISSET(funix[i], &readfds)) {
 				len = sizeof(fromunix);
@@ -1140,7 +1115,6 @@ int main(argc, argv)
 						"%d = %s.\n", errno, strerror(errno));
 				}
 			}
-		*/
 #endif
 
 #ifdef SYSLOG_INET
@@ -2159,22 +2133,16 @@ void die(sig)
 	}
 
 	/* Close the UNIX sockets. */
-	close(funix);
-	/* Bug#24893 --> remove above close(), add the following
         for (i = 0; i < nfunix; i++)
 		if (funix[i] != -1)
 			close(funix[i]);
-	*/
 	/* Close the inet socket. */
 	if (InetInuse) close(inetm);
 
 	/* Clean-up files. */
-	(void) unlink(LogName);
-	/* Bug#24893 --> remove above unlink(), add the following
         for (i = 0; i < nfunix; i++)
 		if (funixn[i] && funix[i] != -1)
 			(void)unlink(funixn[i]);
-	*/
 #ifndef TESTING
 	(void) remove_pid(PidFile);
 #endif
@@ -2344,13 +2312,9 @@ void init()
 	(void) fclose(cf);
 
 #ifdef SYSLOG_UNIXAF
-	if (funix < 0)
-		funix = create_unix_socket(LogName);
-	/* Bug#24893 --> remove above if(), add the following
 	for (i = 0; i < nfunix; i++)
 		if ((funix[i] = create_unix_socket(funixn[i])) != -1)
 			dprintf("Opened UNIX socket `%s'.\n", funixn[i]);
-	*/
 #endif
 
 #ifdef SYSLOG_INET
