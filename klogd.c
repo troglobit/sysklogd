@@ -354,8 +354,13 @@ static enum LOGSRC GetKernelLogSrc(void)
 	{
 	  	/* Initialize kernel logging. */
 	  	sys_syslog(1, NULL, 0);
+#ifdef DEBRELEASE
 		Syslog(LOG_INFO, "klogd %s-%s#%s, log source = sys_syslog "
 		       "started.", VERSION, PATCHLEVEL, DEBRELEASE);
+#else
+		Syslog(LOG_INFO, "klogd %s-%s, log source = sys_syslog "
+		       "started.", VERSION, PATCHLEVEL);
+#endif
 		return(kernel);
 	}
 	
@@ -366,8 +371,13 @@ static enum LOGSRC GetKernelLogSrc(void)
 		exit(1);
 	}
 
+#ifdef DEBRELEASE
 	Syslog(LOG_INFO, "klogd %s-%s#%s, log source = %s started.", \
 	       VERSION, PATCHLEVEL, DEBRELEASE, _PATH_KLOG);
+#else
+	Syslog(LOG_INFO, "klogd %s-%s, log source = %s started.", \
+	       VERSION, PATCHLEVEL, _PATH_KLOG);
+#endif
 	return(proc);
 }
 
@@ -602,8 +612,11 @@ int main(argc, argv)
 			use_syscall = 1;
 			break;
 		    case 'v':
-			printf("klogd %s-%s#%s\n", VERSION, PATCHLEVEL,DEBRELEASE);
-			exit (1);
+#ifdef DEBRELEASE
+			printf("klogd %s-%s#%s\n", VERSION, PATCHLEVEL, DEBRELEASE);
+#else
+			printf("klogd %s-%s\n", VERSION, PATCHLEVEL);
+#endif			exit (1);
 		}
 
 

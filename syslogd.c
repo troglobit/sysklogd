@@ -276,6 +276,10 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	the wrong error code. Thanks to Michael Nonweiler
  *	<mrn20@hermes.cam.ac.uk> for sending me a patch.
  *
+ * Mon May 20 13:29:32 MET DST 1996:  Miquel van Smoorenburg <miquels@cistron.nl>
+ *	Added continuation line supported and fixed a bug in
+ *	the init() code.
+ *
  * Tue May 28 00:58:45 MET DST 1996:  Martin Schulze
  *	Corrected behaviour of blocking pipes - i.e. the whole system
  *	hung.  Michael Nonweiler <mrn20@hermes.cam.ac.uk> has sent us
@@ -293,6 +297,15 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  * Mon Feb 10 00:09:11 MET DST 1997:  Martin Schulze
  *	Improved debug code to decode the numeric facility/priority
  *	pair into textual information.
+ *
+ * Tue Jun 10 12:35:10 MET DST 1997:  Martin Schulze
+ *	Corrected freeing of logfiles.  Thanks to Jos Vos <jos@xos.nl>
+ *	for reporting the bug and sending an idea to fix the problem.
+ *
+ * Tue Jun 10 12:51:41 MET DST 1997:  Martin Schulze
+ *	Removed sleep(10) from parent process.  This has caused a slow
+ *	startup in former times - and I don't see any reason for this.
+ *
  */
 
 
@@ -301,6 +314,8 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
 #define DEFUPRI		(LOG_USER|LOG_NOTICE)
 #define DEFSPRI		(LOG_KERN|LOG_CRIT)
 #define TIMERINTVL	30		/* interval for checking flush, mark */
+
+#define CONT_LINE	1		/* Allow continuation lines */
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -625,8 +640,6 @@ int main(argc, argv)
 	extern int optind;
 	extern char *optarg;
 
-	int quitpid = 0;
-
 	while ((ch = getopt(argc, argv, "dhf:l:m:np:rs:v")) != EOF)
 		switch((char)ch) {
 		case 'd':		/* debug */
@@ -681,13 +694,11 @@ int main(argc, argv)
 		dprintf("Checking pidfile.\n");
 		if (!check_pid(PidFile))
 		{
-			quitpid = getpid();
 			if (fork())
-			{
-				/* We try to wait the end of initialization */
-				sleep(10);
+				/*
+				 * Parent process
+				 */
 				exit(0);
-			}
 			num_fds = getdtablesize();
 			for (i= 0; i < num_fds; i++)
 				(void) close(i);
@@ -842,11 +853,7 @@ int main(argc, argv)
 		dprintf("Debugging disabled, SIGUSR1 to turn on debugging.\n");
 		debugging_on = 0;
 	}
-/*
-	if (quitpid) {
-		kill(quitpid, SIGINT);
-	}
-*/
+
 	/* Main loop begins here. */
 	FD_ZERO(&unixm);
 	FD_ZERO(&readfds);
@@ -1904,23 +1911,23 @@ void init()
 	register FILE *cf;
 	register struct filed *f, **nextp = (struct filed **) 0;
 	register char *p;
+#ifdef CONT_LINE
+	char cbuf[BUFSIZ];
+	char *cline;
+#else
 	char cline[BUFSIZ];
+#endif
 
 	dprintf("Called init.\n");
 
 	/*
 	 *  Close all open log files.
+	 *
+	 *  This is needed especially when HUPing syslogd as the
+	 *  structure would grow infinitively.
+	 *
 	 */
-/*
 	Initialized = 0;
-	if ( nlogs > -1 )
-	{
-		dprintf("Initializing log structures.\n");
-		nlogs = -1;
-		free((void *) Files);
-		Files = (struct filed *) 0;
-	}
-*/
 	
 #ifdef SYSV
 	for (lognum = 0; lognum <= nlogs; lognum++ ) {
@@ -1943,11 +1950,17 @@ void init()
 #ifdef SYSV
 		f->f_type = F_UNUSED;	/* clear entry - ASP */
 	}
+	if ( nlogs > -1 )
+	{
+		dprintf("Freeing log structures.\n");
+		nlogs = -1;
+		free((void *) Files);
+	}
+	Files = (struct filed *) 0;
 #else
 		next = f->f_next;
 		free((char *) f);
 	}
-	Files = NULL;
 	nextp = &OBFiles;
 #endif
 
@@ -1974,7 +1987,12 @@ void init()
 #else
 	f = NULL;
 #endif
+#if CONT_LINE
+	cline = cbuf;
+	while (fgets(cline, sizeof(cbuf) - (cline - cbuf), cf) != NULL) {
+#else
 	while (fgets(cline, sizeof(cline), cf) != NULL) {
+#endif
 		/*
 		 * check for end-of-section, comments, strip off trailing
 		 * spaces and newline character.
@@ -1982,7 +2000,23 @@ void init()
 		for (p = cline; isspace(*p); ++p);
 		if (*p == '\0' || *p == '#')
 			continue;
+#if CONT_LINE
+		strcpy(cline, p);
+#endif
 		for (p = index(cline, '\0'); isspace(*--p););
+#if CONT_LINE
+		if (*p == '\\') {
+			if ((p - cbuf) > BUFSIZ - 30) {
+				/* Oops the buffer is full - what now? */
+				cline = cbuf;
+			} else {
+				*p = 0;
+				cline = p;
+				continue;
+			}
+		}  else
+			cline = cbuf;
+#endif
 		*++p = '\0';
 #ifndef SYSV
 		f = (struct filed *)calloc(1, sizeof(*f));
@@ -1991,7 +2025,11 @@ void init()
 #endif
 		allocate_log();
 		f = &Files[lognum++];
+#if CONT_LINE
+		cfline(cbuf, f);
+#else
 		cfline(cline, f);
+#endif
 	}
 
 	/* close the configuration file */
@@ -2042,12 +2080,23 @@ void init()
 	}
 
 	if ( AcceptRemote )
+#ifdef DEBRELEASE
 		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "-" PATCHLEVEL "#" DEBRELEASE \
 		       ": restart (remote reception)." , LocalHostName, \
 		       	ADDDATE);
+#else
+		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "-" PATCHLEVEL \
+		       ": restart (remote reception)." , LocalHostName, \
+		       	ADDDATE);
+#endif
 	else
+#ifdef DEBRELEASE
 		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "-" PATCHLEVEL "#" DEBRELEASE \
 		       ": restart." , LocalHostName, ADDDATE);
+#else
+		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "-" PATCHLEVEL \
+		       ": restart." , LocalHostName, ADDDATE);
+#endif
 	(void) signal(SIGHUP, sighup_handler);
 	dprintf("syslogd: restarted.\n");
 }

@@ -61,6 +61,10 @@
  *	Added patch from beta-testers to allow for reading of both
  *	ELF and a.out map files.
  *
+ * Mon Jun  9 17:12:42 CST 1997:  Martin Schulze
+ *	Added #1 and #2 to some error messages in order to being able
+ *	to divide them (ulmo@Q.Net)
+ *
  */
 
 
@@ -95,7 +99,6 @@ static char *system_maps[] =
 {
 	"/System.map",
 	"/boot/System.map",
-	"/usr/src/linux/System.map",
 #if defined(TEST)
 	"./System.map",
 #endif
@@ -195,7 +198,7 @@ extern int InitKsyms(mapfile)
 		if ( fscanf(sym_file, "%8lx %c %s\n", &address, &type, sym)
 		    != 3 )
 		{
-			Syslog(LOG_ERR, "Error in symbol table input.");
+			Syslog(LOG_ERR, "Error in symbol table input (#1).");
 			fclose(sym_file);
 			return(0);
 		}
@@ -279,21 +282,34 @@ static char * FindSymbolFile()
 			sym[512];
 
 	auto int version;
-	
+	auto struct utsname utsname;
+	char symfile[100];
+
 	auto unsigned long int address;
 
 	auto FILE *sym_file = (FILE *) 0;
 
+        if ( uname(&utsname) < 0 )
+        {
+                Syslog(LOG_ERR, "Cannot get kernel version information.");
+                return(0);
+        }
 
 	if ( debugging )
 		fputs("Searching for symbol map.\n", stderr);
 	
 	for (mf = system_maps; *mf != (char *) 0; ++mf)
 	{
+		sprintf (symfile, "%s", *mf);
 		if ( debugging )
-			fprintf(stderr, "Trying %s.\n", *mf);
-		if ( (sym_file = fopen(*mf, "r")) == (FILE *) 0 )
-			continue;
+			fprintf(stderr, "Trying %s.\n", symfile);
+		if ( (sym_file = fopen(symfile, "r")) == (FILE *) 0 ) {
+		    sprintf (symfile, "%s-%s", *mf, utsname.release);
+		    if ( debugging )
+			fprintf(stderr, "Trying %s.\n", symfile);
+		    if ( (sym_file = fopen(symfile, "r")) == (FILE *) 0 )
+		        continue;
+		}
 		
 		/*
 		 * At this point a map file was successfully opened.  We
@@ -306,7 +322,7 @@ static char * FindSymbolFile()
 			if ( fscanf(sym_file, "%8lx %c %s\n", &address, \
 				    &type, sym) != 3 )
 			{
-				Syslog(LOG_ERR, "Error in symbol table input.");
+				Syslog(LOG_ERR, "Error in symbol table input (#2).");
 				fclose(sym_file);
 				return((char *) 0);
 			}
@@ -334,14 +350,14 @@ static char * FindSymbolFile()
 			{
 				if ( debugging )
 					fputs("Saving filename.\n", stderr);
-				file = *mf;
+				file = symfile;
 			}
 			break;
 		    case 1:
 			if ( debugging )
 				fprintf(stderr, "Found table with " \
 					"matching version number.\n");
-			return(*mf);
+			return(symfile);
 			break;
 		}
 	}

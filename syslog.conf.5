@@ -40,6 +40,12 @@ priorities belonging to the specified action.
 
 Lines starting with a hash mark (``#'') and empty lines are ignored.
 
+This release of
+.B syslogd
+is able to understand an extended syntax.  One rule can be divided
+into several lines if the leading line is terminated with an backslash
+(``\\'').
+
 .SH SELECTORS
 The selector field itself again consists of two parts, a
 .I facility
@@ -114,6 +120,7 @@ field is capable to overwrite the preceding ones. Using this
 behavior you can exclude some priorities from the pattern.
 
 This 
+
 .BR syslogd (8)
 has a syntax extension to the original BSD source, that makes its use
 more intuitively. You may precede every priority with an equation sign
@@ -201,7 +208,7 @@ configuration, if not, drop me (Joey) a line.
 .LP
 This will store all messages with the priority
 .B crit
-or higher in the file
+in the file
 .IR /var/adm/critical ,
 except for any kernel message.
 
@@ -286,7 +293,8 @@ and store them in the file
 .nf
 # Log info and notice messages to messages file
 #
-*.=info;*.=notice;mail.none  /var/log/messages
+*.=info;*.=notice;\\
+	mail.none  /var/log/messages
 .fi
 .LP
 This lets the
@@ -303,7 +311,8 @@ facility.
 .nf
 # Log info messages to messages file
 #
-*.=info;mail,news.none       /var/log/messages
+*.=info;\\
+	mail,news.none       /var/log/messages
 .fi
 .LP
 This statement causes the
