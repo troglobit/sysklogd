@@ -585,7 +585,7 @@ static void LogLine(char *ptr, int len)
 
     auto   int delta = 0;              /* number of chars copied        */
 
-    while( len >= 0 )
+    while( len > 0 )
     {
         if( space == 0 )    /* line buffer is full */
         {
