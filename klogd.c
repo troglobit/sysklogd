@@ -174,6 +174,14 @@
  * Thu Aug 21 12:11:27 MET DST 1997: Martin Schulze <joey@infodrom.north.de>
  *	Fixed little mistake which prevented klogd from accepting a
  *	console log 
+ *
+ * Fri Jan  9 00:39:52 CET 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Changed the behaviour of klogd when receiving a terminate
+ *	signal.  Now the program terminates immediately instead of
+ *	completing the receipt of a kernel message, i.e the read()
+ *	call.  The old behaveiour could result in klogd being
+ *	recognized as being undead, because it'll only die after a
+ *	message has been received.
  */
 
 
@@ -308,8 +316,7 @@ void stop_daemon(sig)
 	int sig;
 
 {
-	change_state = 1;
-	terminate = 1;
+	Terminate();
 	return;
 }
 

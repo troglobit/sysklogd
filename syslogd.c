@@ -317,7 +317,7 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  * Sun Jun 15 16:23:29 MET DST 1997: Michael Alan Dorman
  *	Some more glibc patches made by <mdorman@debian.org>.
  *
- * Thu Jan  1 16:04:52 CET 1998: Martin Schulze
+ * Thu Jan  1 16:04:52 CET 1998: Martin Schulze <joey@infodrom.north.de
  *	Applied patch from Herbert Thielen <Herbert.Thielen@lpr.e-technik.tu-muenchen.de>.
  *	This included some balance parentheses for emacs and a bug in
  *	the exclamation mark handling.
@@ -325,6 +325,11 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	Fixed small bug which caused syslogd to write messages to the
  *	wrong logfile under some very rare conditions.  Thanks to
  *	Herbert Xu <herbert@gondor.apana.org.au> for fiddling this out.
+ *
+ * Thu Jan  8 22:46:35 CET 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Reworked one line of the above patch as it prevented syslogd
+ *	from binding the socket with the result that no messages were
+ *	forwarded to other hosts.
  */
 
 
@@ -849,7 +854,7 @@ int main(argc, argv)
 					(char *) &on, sizeof(on)) < 0 ) {
 				logerror("setsockopt, suspending inet");
 			}
-			else if (AcceptRemote) {
+			else {
 				if (bind(finet, (struct sockaddr *) &sin, \
 					 sizeof(sin)) < 0) {
 					logerror("bind, suspending inet");
