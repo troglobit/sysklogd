@@ -1,5 +1,6 @@
 Version 1.4.2
 
+ . Steve Grubb: fix memory calculation
  . klogd will reconnect to the logger (mostly syslogd) after it went
    away.
  . On heavily loaded system syslog will not spit out error messages
