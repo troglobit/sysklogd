@@ -2,11 +2,14 @@
 .\" May be distributed under the GNU General Public License
 .\" Sun Aug 30 11:35:55 MET: Martin Schulze: Updates
 .\"
-.TH SYSKLOGD 8 "13 December 1995" "Version 1.3" "Linux System Administration"
+.TH SYSKLOGD 8 "12 October 1998" "Version 1.3" "Linux System Administration"
 .SH NAME
 sysklogd \- Linux system logging utilities.
 .SH SYNOPSIS
 .B syslogd
+.RB [ " \-a "
+.I socket
+]
 .RB [ " \-d " ]
 .RB [ " \-f "
 .I config file
@@ -70,6 +73,18 @@ the whole line is ignored.
 
 .LP
 .SH OPTIONS
+.TP
+.BI "\-a " "socket"
+Using this argument you can specify additional sockets from that
+.B syslogd
+has to listen to.  This is needed if you're going to let some daemon
+run within a chroot() environment.  You can use up to 19 additional
+sockets.  If your environment needs even more, you have to increase
+the symbol
+.B MAXFUNIX
+within the syslogd.c source file.  An example for a chroot() daemon is
+described by the people from OpenBSD at
+http://www.psionic.com/papers/dns.html.
 .TP
 .B "\-d"
 Turns on debug mode. Using this the daemon will not proceed a 
