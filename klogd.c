@@ -216,6 +216,18 @@
  *
  * Sat Aug 21 12:27:02 CEST 1999: Martin Schulze <joey@infodrom.north.de>
  *	Skip newline when reading in messages.
+ *
+ * Tue Sep 12 22:14:33 CEST 2000: Martin Schulze <joey@infodrom.ffis.de>
+ *	Don't feed a buffer directly to a printf-type routine, use
+ *	"%s" as format string instead.  Thanks to Jouko Pynnönen
+ *	<jouko@solutions.fi> for pointing this out.
+ *
+ * Tue Sep 12 22:44:57 CEST 2000: Martin Schulze <joey@infodrom.ffis.de>
+ *      Commandline option `-2': When symbols are expanded, print the
+ *	line twice.  Once with addresses converted to symbols, once with the
+ *	raw text.  Allows external programs such as ksymoops do their own
+ *	processing on the original data.  Thanks to Keith Owens
+ *	<kaos@ocs.com.au> for the patch.
  */
 
 
@@ -279,6 +291,7 @@ static FILE *output_file = (FILE *) 0;
 static enum LOGSRC {none, proc, kernel} logsrc;
 
 int debugging = 0;
+int symbols_twice = 0;
 
 
 /* Function prototypes. */
@@ -641,6 +654,11 @@ static int copyin( char *line,      int space,
  * in length to LOG_LINE_LENGTH, the symbol will not be expanded.
  * (This should never happen, since the kernel should never generate
  * messages that long.
+ *
+ * To preserve the original addresses, lines containing kernel symbols
+ * are output twice.  Once with the symbols converted and again with the
+ * original text.  Just in case somebody wants to run their own Oops
+ * analysis on the syslog, e.g. ksymoops.
  */
 static void LogLine(char *ptr, int len)
 {
@@ -660,6 +678,10 @@ static void LogLine(char *ptr, int len)
     static char *sym_start;            /* points at the '<' of a symbol */
 
     auto   int delta = 0;              /* number of chars copied        */
+    auto   int symbols_expanded = 0;   /* 1 if symbols were expanded */
+    auto   int skip_symbol_lookup = 0; /* skip symbol lookup on this pass */
+    auto   char *save_ptr = ptr;       /* save start of input line */
+    auto   int save_len = len;         /* save length at start of input line */
 
     while( len > 0 )
     {
@@ -676,10 +698,14 @@ static void LogLine(char *ptr, int len)
 		fprintf(stderr, "\tLine: %s\n", line);
 	    }
 
-            Syslog( LOG_INFO, line_buff );
+            Syslog( LOG_INFO, "%s", line_buff );
             line  = line_buff;
             space = sizeof(line_buff)-1;
             parse_state = PARSING_TEXT;
+	    symbols_expanded = 0;
+	    skip_symbol_lookup = 0;
+	    save_ptr = ptr;
+	    save_len = len;
         }
 
         switch( parse_state )
@@ -703,9 +729,24 @@ static void LogLine(char *ptr, int len)
                   len   -= 1;
 
                   *line = 0;  /* force null terminator */
-	          Syslog( LOG_INFO, line_buff );
+	          Syslog( LOG_INFO, "%s", line_buff );
                   line  = line_buff;
                   space = sizeof(line_buff)-1;
+		  if (symbols_twice) {
+		      if (symbols_expanded) {
+			  /* reprint this line without symbol lookup */
+			  symbols_expanded = 0;
+			  skip_symbol_lookup = 1;
+			  ptr = save_ptr;
+			  len = save_len;
+		      }
+		      else
+		      {
+			  skip_symbol_lookup = 0;
+			  save_ptr = ptr;
+			  save_len = len;
+		      }
+		  }
                   break;
                }
                if( *ptr == '[' )   /* possible kernel symbol */
@@ -713,7 +754,8 @@ static void LogLine(char *ptr, int len)
                   *line++ = *ptr++;
                   space -= 1;
                   len   -= 1;
-                  parse_state = PARSING_SYMSTART;      /* at < */
+	          if (!skip_symbol_lookup)
+                     parse_state = PARSING_SYMSTART;      /* at < */
                   break;
                }
                if( *ptr == '%' )   /* dangerous printf marker */
@@ -831,6 +873,7 @@ static void LogLine(char *ptr, int len)
 
                space = sym_space + delta;
                line  = sym_start + delta;
+	       symbols_expanded = 1;
            }
                ptr++;
                len--;
@@ -915,9 +958,12 @@ int main(argc, argv)
 	chdir ("/");
 #endif
 	/* Parse the command-line. */
-	while ((ch = getopt(argc, argv, "c:df:iIk:nopsvx")) != EOF)
+	while ((ch = getopt(argc, argv, "c:df:iIk:nopsvx2")) != EOF)
 		switch((char)ch)
 		{
+		    case '2':		/* Print lines with symbols twice. */
+			symbols_twice = 1;
+			break;
 		    case 'c':		/* Set console message level. */
 			log_level = optarg;
 			break;

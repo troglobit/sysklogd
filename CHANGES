@@ -1,3 +1,10 @@
 Version 1.4
 
  . Skip newline when reading in klog messages
+ . Use lseek64() instead of llseek() which is deprecated these days
+ . Keith Owens <kaos@ocs.com.au>
+   - Fixed bug that caused klogd to die if there is no sym_array available.
+   - When symbols are expanded, print the line twice.  Once with
+     addresses converted to symbols, once with the raw text.  Allows
+     external programs such as ksymoops do their own processing on the
+     original data.

@@ -75,6 +75,9 @@
  *	Corrected return value of AddModule if /dev/kmem can't be
  *	loaded.  This will prevent klogd from segfaulting if /dev/kmem
  *	is not available.  Patch from Topi Miettinen <tom@medialab.sonera.net>.
+ *
+ * Tue Sep 12 23:11:13 CEST 2000: Martin Schulze <joey@infodrom.ffis.de>
+ *	Changed llseek() to lseek64() in order to skip a libc warning.
  */
 
 
@@ -91,7 +94,7 @@
 #include <linux/module.h>
 #else /* __GLIBC__ */
 #include <linux/module.h>
-extern loff_t llseek __P ((int __fd, loff_t __offset, int __whence));
+extern __off64_t lseek64 __P ((int __fd, __off64_t __offset, int __whence));
 extern int get_kernel_syms __P ((struct kernel_sym *__table));
 #endif /* __GLIBC__ */
 #include <stdarg.h>
@@ -400,7 +403,7 @@ static int AddModule(address, symbol)
 			Syslog(LOG_WARNING, "Error opening /dev/kmem\n");
 			return(0);
 		}
-		if ( llseek(memfd, address, SEEK_SET) < 0 )
+		if ( lseek64(memfd, address, SEEK_SET) < 0 )
 		{
 			Syslog(LOG_WARNING, "Error seeking in /dev/kmem\n");
 			Syslog(LOG_WARNING, "Symbol %s, value %08x\n", symbol, address);

@@ -99,6 +99,9 @@
  *	. extract major.minor.patch from utsname.release via sscanf()
  *	The reason lays in possible use of kernel flavours which
  *	modify utsname.release but no the Version_ symbol.
+ *
+ * Sun Feb 21 22:27:49 EST 1999: Keith Owens <kaos@ocs.com.au>
+ *	Fixed bug that caused klogd to die if there is no sym_array available.
  */
 
 
@@ -636,9 +639,12 @@ char * LookupSymbol(value, sym)
 {
 	auto int lp;
 	
-	auto char *last = sym_array[0].name;
+	auto char *last;
 
+	if (!sym_array)
+		return((char *) 0);
 
+	last = sym_array[0].name;
 	sym->offset = 0;
 	sym->size = 0;
 	if ( value < sym_array[0].value )

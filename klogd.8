@@ -27,6 +27,7 @@ klogd \- Kernel Log Daemon
 ]
 .RB [ " \-v " ]
 .RB [ " \-x " ]
+.RB [ " \-2 " ]
 .LP
 .SH DESCRIPTION
 .B klogd
@@ -80,6 +81,12 @@ Print version and exit.
 .TP
 .B "\-x"
 Omits EIP translation and therefore doesn't read the System.map file.
+.TP
+.B "\-2"
+When symbols are expanded, print the line twice.  Once with addresses
+converted to symbols, once with the raw text.  This allows external
+programs such as ksymoops do their own processing on the original
+data.
 .LP
 .SH OVERVIEW
 The functionality of klogd has been typically incorporated into other
@@ -217,7 +224,10 @@ program which is included in the kernel sources.
 As a convenience
 .B klogd
 will attempt to resolve kernel numeric addresses to their symbolic
-forms if a kernel symbol table is available at execution time.  A
+forms if a kernel symbol table is available at execution time.  If you
+require the original address of the symbol, use the
+.B -2
+switch to preserve the numeric address.  A
 symbol table may be specified by using the \fB\-k\fR switch on the
 command line.  If a symbol file is not explicitly specified the
 following filenames will be tried:
