@@ -458,6 +458,10 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	Ensure that "len" is not placed in a register, and that the
  *	endtty() signal handler is not installed too early which could
  *	cause a segmentation fault or worse.
+ *
+ * Tue May  4 16:52:01 CEST 2004: Solar Designer <solar@openwall.com>
+ *	Adjust the size of a variable to prevent a buffer overflow
+ *	should _PATH_DEV ever contain something different than "/dev/".
  */
 
 
@@ -1902,7 +1906,7 @@ void wallmsg(f, iov)
 	register struct filed *f;
 	struct iovec *iov;
 {
-	char p[6 + UNAMESZ];
+	char p[sizeof (_PATH_DEV) + UNAMESZ];
 	register int i;
 	int ttyf, len;
 	static int reenter = 0;
