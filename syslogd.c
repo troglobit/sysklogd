@@ -471,6 +471,9 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	Discard any timestamp information found in received syslog
  *	messages.  This will affect local messages sent from a
  *	different timezone.
+ *
+ * Sun Nov  7 13:47:00 CET 2004: Martin Schulze <joey@infodrom.org>
+ *	Remove trailing newline when forwarding messages.
  */
 
 
@@ -1818,7 +1821,7 @@ void fprintlog(f, from, flags, msg)
 			dprintf("Not sending message to remote.\n");
 		else {
 			f->f_time = now;
-			(void) snprintf(line, sizeof(line), "<%d>%s\n", f->f_prevpri, \
+			(void) snprintf(line, sizeof(line), "<%d>%s", f->f_prevpri, \
 				(char *) iov[4].iov_base);
 			l = strlen(line);
 			if (l > MAXLINE)
