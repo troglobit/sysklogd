@@ -117,7 +117,8 @@ logs a mark timestamp regularly.  The default
 between two \fI-- MARK --\fR lines is 20 minutes.  This can be changed
 with this option.  Setting the
 .I interval
-to zero turns it off entirely.
+to zero turns it off entirely.  Depending on other log messages
+generated these lines may not be written consecutively.
 .TP
 .B "\-n"
 Avoid auto-backgrounding.  This is needed especially if the
