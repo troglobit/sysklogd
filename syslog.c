@@ -97,7 +97,7 @@ vsyslog(pri, fmt, ap)
 	register int cnt;
 	register char *p;
 	time_t now;
-	int fd, saved_errno;
+	int fd, r, saved_errno;
 	char tbuf[2048], fmt_cpy[1024], *stdp = (char *) 0;
 
 	saved_errno = errno;
@@ -167,7 +167,13 @@ vsyslog(pri, fmt, ap)
 	}
 
 	/* output the message to the local logger */
-	if (write(LogFile, tbuf, cnt + 1) >= 0 || !(LogStat&LOG_CONS))
+	r = write(LogFile, tbuf, cnt + 1);
+
+	if (r == -1 && (errno == ECONNRESET || errno == ENOTCONN)) {
+		closelog();
+	}
+
+	if (r >= 0 || !(LogStat&LOG_CONS))
 		return;
 
 	/*
