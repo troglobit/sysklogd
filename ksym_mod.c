@@ -424,7 +424,10 @@ static int AddModule(address, symbol)
 	}
 	else
 	{
+	    if (num_modules > 0)
 		mp = &sym_array_modules[num_modules - 1];
+	    else
+		mp = &sym_array_modules[0];
 		AddSymbol(mp, address, symbol);
 	}
 
