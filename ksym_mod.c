@@ -69,7 +69,7 @@
  *	versions.  Added prototyp for llseek() which has been
  *	forgotton in <unistd.h> from glibc.  Added more log
  *	information if problems occurred while reading a system map
- *	file, by submission from Mark Simon Phillips <msp@mail.virgin.net>.
+ *	file, by submission from Mark Simon Phillips <M.S.Phillips@nortel.co.uk>.
  */
 
 

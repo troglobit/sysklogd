@@ -84,7 +84,7 @@
  * Fri Jan  9 23:00:08 CET 1998: Martin Schulze <joey@infodrom.north.de>
  *	Fixed bug that caused klogd to die if there is no System.map available.
  *
- * Sun 29 Mar 18:14:07 BST 1998: Mark Simon Phillips <msp@mail.virgin.net>
+ * Sun 29 Mar 18:14:07 BST 1998: Mark Simon Phillips <M.S.Phillips@nortel.co.uk>
  *	Switched to fgets() as gets() is not buffer overrun secure.
  *
  * Mon Apr 13 18:18:45 CEST 1998: Martin Schulze <joey@infodrom.north.de>
