@@ -107,8 +107,8 @@ static struct sym_table *sym_array = (struct sym_table *) 0;
 
 static char *system_maps[] =
 {
-	"/System.map",
 	"/boot/System.map",
+	"/System.map",
 #if defined(TEST)
 	"./System.map",
 #endif
@@ -313,18 +313,20 @@ static char * FindSymbolFile()
 	if ( debugging )
 		fputs("Searching for symbol map.\n", stderr);
 	
-	for (mf = system_maps; *mf != (char *) 0; ++mf)
+	for (mf = system_maps; *mf != (char *) 0 && sym_file == (FILE *) 0; ++mf)
 	{
-		sprintf (symfile, "%s", *mf);
+	  
+		sprintf (symfile, "%s-%s", *mf, utsname.release);
 		if ( debugging )
 			fprintf(stderr, "Trying %s.\n", symfile);
 		if ( (sym_file = fopen(symfile, "r")) == (FILE *) 0 ) {
-		    sprintf (symfile, "%s-%s", *mf, utsname.release);
+			sprintf (symfile, "%s", *mf);
 		    if ( debugging )
 			fprintf(stderr, "Trying %s.\n", symfile);
 		    if ( (sym_file = fopen(symfile, "r")) == (FILE *) 0 )
 		        continue;
 		}
+	}
 		
 		/*
 		 * At this point a map file was successfully opened.  We
@@ -352,9 +354,8 @@ static char * FindSymbolFile()
 		switch ( version )
 		{
 		    case -1:
-			if ( debugging )
-				fprintf(stderr, "Symbol table has incorrect " \
-					"version number.\n");
+			Syslog(LOG_ERR, "Symbol table has incorrect " \
+				"version number.\n");
 			break;
 			
 		    case 0:
@@ -375,7 +376,6 @@ static char * FindSymbolFile()
 			return(symfile);
 			break;
 		}
-	}
 
 
 	/*
@@ -653,6 +653,7 @@ extern char * ExpandKadds(line, el)
 			*elp = el,
 			*symbol;
 
+	char num[15];
 	auto int value;
 
 	auto struct symbol sym;
@@ -704,8 +705,9 @@ extern char * ExpandKadds(line, el)
 			return(el);
 		}
 		dlm = *kp;
-		*kp = '\0';
-		value = strtol(sl+1, (char **) 0, 16);
+		strncpy(num,sl+1,kp-sl-1);
+		num[kp-sl-1] = '\0';
+		value = strtol(num, (char **) 0, 16);
 		if ( (symbol = LookupSymbol(value, &sym)) == (char *) 0 )
 			symbol = sl;
 			
@@ -717,7 +719,6 @@ extern char * ExpandKadds(line, el)
 				(sym.size==0) ? symbol+1 : symbol, \
 				sym.offset, sym.size);
 
-		*kp = dlm;
 		value = 2;
 		if ( sym.size != 0 )
 		{

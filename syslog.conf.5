@@ -17,7 +17,7 @@
 .\" along with this program; if not, write to the Free Software
 .\" Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 .\"
-.TH SYSLOG.CONF 5 "24 November 1995" "Version 1.3" "Linux System Administration"
+.TH SYSLOG.CONF 5 "1 January 1998" "Version 1.3" "Linux System Administration"
 .SH NAME
 syslog.conf \- syslogd(8) configuration file
 .SH DESCRIPTION
@@ -108,19 +108,18 @@ stands for no priority of the given facility.
 
 You can specify multiple facilities with the same priority pattern in
 one statement using the comma (``,'') operator. You may specify as
-much facilities as you want. Remember that only the facility part from
+much facilities as you want.  Remember that only the facility part from
 such a statement is taken, a priority part would be skipped.
 
 Multiple selectors may be specified for a single
 .I action
-using the semicolon (``;'') separator. Remember that each selector in
+using the semicolon (``;'') separator.  Remember that each selector in
 the 
 .I selector
 field is capable to overwrite the preceding ones. Using this
 behavior you can exclude some priorities from the pattern.
 
 This 
-
 .BR syslogd (8)
 has a syntax extension to the original BSD source, that makes its use
 more intuitively. You may precede every priority with an equation sign

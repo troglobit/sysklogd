@@ -316,6 +316,15 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *
  * Sun Jun 15 16:23:29 MET DST 1997: Michael Alan Dorman
  *	Some more glibc patches made by <mdorman@debian.org>.
+ *
+ * Thu Jan  1 16:04:52 CET 1998: Martin Schulze
+ *	Applied patch from Herbert Thielen <Herbert.Thielen@lpr.e-technik.tu-muenchen.de>.
+ *	This included some balance parentheses for emacs and a bug in
+ *	the exclamation mark handling.
+ *
+ *	Fixed small bug which caused syslogd to write messages to the
+ *	wrong logfile under some very rare conditions.  Thanks to
+ *	Herbert Xu <herbert@gondor.apana.org.au> for fiddling this out.
  */
 
 
@@ -840,7 +849,7 @@ int main(argc, argv)
 					(char *) &on, sizeof(on)) < 0 ) {
 				logerror("setsockopt, suspending inet");
 			}
-			else {
+			else if (AcceptRemote) {
 				if (bind(finet, (struct sockaddr *) &sin, \
 					 sizeof(sin)) < 0) {
 					logerror("bind, suspending inet");
@@ -1406,13 +1415,13 @@ void logmsg(pri, msg, from, flags)
 			/* new line, save it */
 			if (f->f_prevcount)
 				fprintlog(f, (char *)from, 0, (char *)NULL);
+			f->f_prevpri = pri;
 			f->f_repeatcount = 0;
 			(void) strncpy(f->f_lasttime, timestamp, 15);
 			(void) strncpy(f->f_prevhost, from,
 					sizeof(f->f_prevhost));
 			if (msglen < MAXSVLINE) {
 				f->f_prevlen = msglen;
-				f->f_prevpri = pri;
 				(void) strcpy(f->f_prevline, msg);
 				fprintlog(f, (char *)from, flags, (char *)NULL);
 			} else {
@@ -1426,6 +1435,9 @@ void logmsg(pri, msg, from, flags)
 	(void) sigsetmask(omask);
 #endif
 }
+#if FALSE
+} /* balance parentheses for emacs */
+#endif
 
 void fprintlog(f, from, flags, msg)
 	register struct filed *f;
@@ -1638,6 +1650,9 @@ void fprintlog(f, from, flags, msg)
 		f->f_prevcount = 0;
 	return;		
 }
+#if FALSE
+}} /* balance parentheses for emacs */
+#endif
 
 jmp_buf ttybuf;
 
@@ -1915,7 +1930,7 @@ void die(sig)
 
 	/* Close the sockets. */
         close(funix);
-	close(inetm);
+	if (InetInuse) close(inetm);
 
 	/* Clean-up files. */
 	(void) unlink(LogName);
@@ -2112,6 +2127,9 @@ void init()
 	(void) signal(SIGHUP, sighup_handler);
 	dprintf("syslogd: restarted.\n");
 }
+#if FALSE
+	}}} /* balance parentheses for emacs */
+#endif
 
 /*
  * Crack a configuration file line
@@ -2167,6 +2185,9 @@ void cfline(line, f)
 			for (bp=buf; *(bp+1); bp++)
 				*bp=*(bp+1);
 			*bp='\0';
+		}
+		else {
+			ignorepri = 0;
 		}
 		if ( *buf == '=' )
 		{
