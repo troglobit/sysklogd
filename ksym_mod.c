@@ -70,6 +70,11 @@
  *	forgotton in <unistd.h> from glibc.  Added more log
  *	information if problems occurred while reading a system map
  *	file, by submission from Mark Simon Phillips <M.S.Phillips@nortel.co.uk>.
+ *
+ * Sun Jan  3 18:38:03 CET 1999: Martin Schulze <joey@infodrom.north.de>
+ *	Corrected return value of AddModule if /dev/kmem can't be
+ *	loaded.  This will prevent klogd from segfaulting if /dev/kmem
+ *	is not available.  Patch from Topi Miettinen <tom@medialab.sonera.net>.
  */
 
 
@@ -393,7 +398,7 @@ static int AddModule(address, symbol)
 		if ( (memfd = open("/dev/kmem", O_RDONLY)) < 0 )
 		{
 			Syslog(LOG_WARNING, "Error opening /dev/kmem\n");
-			return(1);
+			return(0);
 		}
 		if ( llseek(memfd, address, SEEK_SET) < 0 )
 		{

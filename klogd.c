@@ -208,6 +208,11 @@
  *
  * Mon Oct 12 13:01:27 MET DST 1998: Martin Schulze <joey@infodrom.north.de>
  *	Used unsigned long and strtoul() to resolve kernel oops symbols.
+ *
+ * Sun Jan  3 18:38:03 CET 1999: Martin Schulze <joey@infodrom.north.de>
+ *	Shortened LOG_LINE_LENGTH in order to get long lines splitted
+ *	up earlier and syslogd has a better chance concatenating them
+ *	together again.
  */
 
 
@@ -241,7 +246,7 @@ _syscall3(int,ksyslog,int, type, char *, buf, int, len);
 #endif
 
 #define LOG_BUFFER_SIZE 4096
-#define LOG_LINE_LENGTH 1024
+#define LOG_LINE_LENGTH 1000
 
 #ifndef TESTING
 #if defined(FSSTND)
@@ -876,7 +881,7 @@ static void LogProcLine(void)
 	 * from the message pseudo-file into this fresh buffer.
 	 */
 	memset(log_buffer, '\0', sizeof(log_buffer));
-	if ( (rdcnt = read(kmsg, log_buffer, sizeof(log_buffer))) < 0 )
+	if ( (rdcnt = read(kmsg, log_buffer, sizeof(log_buffer)-1)) < 0 )
 	{
 		if ( errno == EINTR )
 			return;

@@ -404,6 +404,13 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  * Mon Oct 12 22:18:34 CEST 1998: Martin Schulze <joey@infodrom.north.de>
  *	Modified printline() to support 8bit characters - such as
  *	russion letters.  Thanks to Vladas Lapinskas <lapinskas@mail.iae.lt>.
+ *
+ * Sat Nov 14 02:29:37 CET 1998: Martin Schulze <joey@infodrom.north.de>
+ *	``-m 0'' now turns of MARK logging entirely.
+ *
+ * Tue Jan 19 01:04:18 MET 1999: Martin Schulze <joey@infodrom.north.de>
+ *	Finally fixed an error with `-a' processing, thanks to Topi
+ *	Miettinen <tom@medialab.sonera.net>.
  */
 
 
@@ -453,7 +460,7 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
 #include <syscall.h>
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
-#include <resolv.h>
+p#include <resolv.h>
 #ifndef TESTING
 #include "pidfile.h"
 #endif
@@ -555,7 +562,6 @@ int funix[MAXFUNIX] = { -1, };
  * This table contains plain text for h_errno errors used by the
  * net subsystem.
  */
-const char *sys_h_errlist[] = {
     "No problem",						/* NETDB_SUCCESS */
     "Authoritative answer: host not found",			/* HOST_NOT_FOUND */
     "Non-authoritative answer: host not found, or serverfail",	/* TRY_AGAIN */
@@ -754,12 +760,12 @@ int main(argc, argv)
 	int num_fds;
 #endif /* __GLIBC__ */
 	/*
-	 * It took me quite some time to figure out so I guess I
-	 * should better write it down.  unixm is a list of file
-	 * descriptors from which one can read().  This is contrary to
-	 * readfds which is a list of file descriptors where activity
-	 * is monitored by select() and from which one cannot read().
-	 * -Joey
+	 * It took me quite some time to figure out how this is
+	 * supposed to work so I guess I should better write it down.
+	 * unixm is a list of file descriptors from which one can
+	 * read().  This is in contrary to readfds which is a list of
+	 * file descriptors where activity is monitored by select()
+	 * and from which one cannot read().  -Joey
 	 */
 	fd_set unixm, readfds;
 
@@ -785,7 +791,7 @@ int main(argc, argv)
 #ifndef TESTING
 	chdir ("/");
 #endif
-	for (i = 1; i < nfunix; i++) {
+	for (i = 1; i < MAXFUNIX; i++) {
 		funixn[i] = "";
 		funix[i]  = -1;
 	}
@@ -2058,6 +2064,7 @@ void domark()
 	int lognum;
 #endif
 
+	if (MarkInterval > 0) {
 	now = time(0);
 	MarkSeq += TIMERINTVL;
 	if (MarkSeq >= MarkInterval) {
@@ -2078,6 +2085,7 @@ void domark()
 			fprintlog(f, LocalHostName, 0, (char *)NULL);
 			BACKOFF(f);
 		}
+	}
 	}
 	(void) signal(SIGALRM, domark);
 	(void) alarm(TIMERINTVL);

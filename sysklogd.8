@@ -113,8 +113,11 @@ and not the fqdn. Multiple hosts may be specified using the colon
 The
 .B syslogd
 logs a mark timestamp regularly. The default
-\fIinterval\fR between two \fI-- MARK --\fR lines is 20 minutes. This
-can be changed with this option.
+.I interval
+between two \fI-- MARK --\fR lines is 20 minutes.  This can be changed
+with this option.  Setting the
+.I interval
+to zero turns it off entirely.
 .TP
 .B "\-n"
 Avoid auto-backgrounding. This is needed especially if the
@@ -548,7 +551,7 @@ passwords.
 .LP
 .SH COLLABORATORS
 .B Syslogd
-is taken from BSD sources, Greg Wettstein (greg@wind.rmcc.com)
+is taken from BSD sources, Greg Wettstein (greg@wind.enjellic.com)
 performed the port to Linux, Martin Schulze (joey@linux.de)
 fixed some bugs and added several new features.
 .B Klogd 
@@ -567,7 +570,7 @@ Roger Maris Cancer Center
 .TP
 Fargo, ND
 .TP
-greg@wind.rmcc.com
+greg@wind.enjellic.com
 
 .TP
 Stephen Tweedie
