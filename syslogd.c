@@ -462,6 +462,9 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  * Tue May  4 16:52:01 CEST 2004: Solar Designer <solar@openwall.com>
  *	Adjust the size of a variable to prevent a buffer overflow
  *	should _PATH_DEV ever contain something different than "/dev/".
+ * Tue Nov  2 20:28:23 CET 2004: Colin Phipps <cph@cph.demon.co.uk>
+ *	Don't block on the network socket, in case a packet gets lost
+ *	between select and recv.
  */
 
 
@@ -1237,6 +1240,7 @@ static int create_inet_socket()
 {
 	int fd, on = 1;
 	struct sockaddr_in sin;
+	int sockflags;
 
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd < 0) {
@@ -1259,6 +1263,24 @@ static int create_inet_socket()
 	if (setsockopt(fd, SOL_SOCKET, SO_BSDCOMPAT, \
 			(char *) &on, sizeof(on)) < 0) {
 		logerror("setsockopt(BSDCOMPAT), suspending inet");
+		close(fd);
+		return -1;
+	}
+	/* We must not block on the network socket, in case a packet
+	 * gets lost between select and recv, otherise the process
+	 * will stall until the timeout, and other processes trying to
+	 * log will also stall.
+	 */
+	if ((sockflags = fcntl(fd, F_GETFL)) != -1) {
+		sockflags |= O_NONBLOCK;
+		/*
+		 * SETFL could fail too, so get it caught by the subsequent
+		 * error check.
+		 */
+		sockflags = fcntl(fd, F_SETFL, sockflags);
+	}
+	if (sockflags == -1) {
+		logerror("fcntl(O_NONBLOCK), suspending inet");
 		close(fd);
 		return -1;
 	}
