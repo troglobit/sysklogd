@@ -52,7 +52,7 @@ daemon to reload the kernel module symbols.  The \-I switch signals for a
 reload of both the static kernel symbols and the kernel module symbols.
 .TP
 .B "\-n"
-Avoid auto-backgrounding. This is needed especially if the
+Avoid auto-backgrounding.  This is needed especially if the
 .B klogd
 is started and controlled by 
 .BR init (8).
@@ -96,10 +96,10 @@ ultimately they are one and the same.  Klogd is designed to choose
 whichever source of information is the most appropriate.  It does this
 by first checking for the presence of a mounted 
 .I /proc
-file system. If this is found the 
+file system.  If this is found the 
 .I /proc/kmsg
 file is used as the source of kernel log
-information. If the proc file system is not mounted 
+information.  If the proc file system is not mounted 
 .B klogd
 uses a
 system call to obtain kernel messages.  The command line switch
@@ -110,8 +110,8 @@ messaging source.
 If kernel messages are directed through the 
 .BR syslogd " daemon the " klogd
 daemon, as of version 1.1, has the ability to properly prioritize
-kernel messages. Prioritization of the kernel messages was added to it
-at approximately version 0.99pl13 of the kernel. The raw kernel messages
+kernel messages.  Prioritization of the kernel messages was added to it
+at approximately version 0.99pl13 of the kernel.  The raw kernel messages
 are of the form:
 .IP
 \<[0\-7]\>Something said by the kernel.
@@ -331,14 +331,15 @@ always consistent with the current kernel state.
 The 
 .B klogd
 will respond to eight signals:
-.BR SIGHUP ", " SIGINT ", " SIGKILL ", " SIGTERM ", " SIGTSTP ", " SIGUSR1 ", "SIGUSR2 " and " SIGCONT ". The"
+.BR SIGHUP ", " SIGINT ", " SIGKILL ", " SIGTERM ", " SIGTSTP ", "
+.BR SIGUSR1 ", "SIGUSR2 " and " SIGCONT ".  The"
 .BR SIGINT ", " SIGKILL ", " SIGTERM " and " SIGHUP
 signals will cause the daemon to close its kernel log sources and
 terminate gracefully.
 
 The 
 .BR SIGTSTP " and " SIGCONT
-signals are used to start and stop kernel logging. Upon receipt of a 
+signals are used to start and stop kernel logging.  Upon receipt of a 
 .B SIGTSTP
 signal the daemon will close its
 log sources and spin in an idle loop.  Subsequent receipt of a 
