@@ -44,8 +44,8 @@ The lists address is sysklogd@Infodrom.North.DE .  To subscribe send a
 mail to Majordomo@Infodrom.North.DE with a line "subscribe sysklogd"
 in the message body.
 
-New versions of this package will be available at Joey's ftp server.
-ftp://ftp.infodrom.north.de/pub/people/joey/sysklogd/
+New versions of this package will be available at Joey's server.
+  http://www.infodrom.org/projects/sysklogd/
 
 Best regards,
 
@@ -67,6 +67,6 @@ shane@ion.apana.org.au
 
 Martin Schulze
 Infodrom Oldenburg
-joey@linux.de
+joey@infodrom.org
 
 And a host of bug reporters whose contributions cannot be underestimated.
