@@ -378,7 +378,7 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	Added `ftp' facility which was introduced in glibc version 2.
  *	It's #ifdef'ed so won't harm with older libraries.
  *
- * Mon Oct 12 19:59:21 MET DST 1998: Martin Schulze <joey@infodrom.north.de
+ * Mon Oct 12 19:59:21 MET DST 1998: Martin Schulze <joey@infodrom.north.de>
  *	Code cleanups with regard to bsd -> posix transition and
  *	stronger security (buffer length checking).  Thanks to Topi
  *	Miettinen <tom@medialab.sonera.net>
@@ -389,10 +389,21 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	. UNAMESZ --> UT_NAMESIZE
  *	. sys_errlist --> strerror()
  *
- * Mon Oct 12 20:22:59 CEST 1998: Martin Schulze <joey@infodrom.north.de
+ * Mon Oct 12 20:22:59 CEST 1998: Martin Schulze <joey@infodrom.north.de>
  *	Added support for setutent()/getutent()/endutend() instead of
  *	binary reading the UTMP file.  This is the the most portable
- *	way.  Thanks to Topi Miettinen <tom@medialab.sonera.net>.
+ *	way.  This allows /var/run/utmp format to change, even to a
+ *	real database or utmp daemon. Also if utmp file locking is
+ *	implemented in libc, syslog will use it immediately.  Thanks
+ *	to Topi Miettinen <tom@medialab.sonera.net>.
+ *
+ * Mon Oct 12 20:49:18 MET DST 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Avoid logging of SIGCHLD when syslogd is in the process of
+ *	exiting and closing its files.  Again thanks to Topi.
+ *
+ * Mon Oct 12 22:18:34 CEST 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Modified printline() to support 8bit characters - such as
+ *	russion letters.  Thanks to Vladas Lapinskas <lapinskas@mail.iae.lt>.
  */
 
 
@@ -1385,13 +1396,14 @@ void printline(hname, msg)
 	char *msg;
 {
 	register char *p, *q;
-	register int c;
+	register unsigned char c;
 	char line[MAXLINE + 1];
 	int pri;
 
 	/* test for special codes */
 	pri = DEFUPRI;
 	p = msg;
+
 	if (*p == '<') {
 		pri = 0;
 		while (isdigit(*++p))
@@ -1404,16 +1416,17 @@ void printline(hname, msg)
 	if (pri &~ (LOG_FACMASK|LOG_PRIMASK))
 		pri = DEFUPRI;
 
+	memset (line, 0, sizeof(line));
 	q = line;
-	while ((c = *p++ & 0177) != '\0' &&
-	    q < &line[sizeof(line) - 1])
+	while ((c = *p++) && q < &line[sizeof(line) - 1]) {
 		if (c == '\n')
 			*q++ = ' ';
-		else if (iscntrl(c)) {
+		else if (iscntrl(c)&&(c<0177)) {
 			*q++ = '^';
 			*q++ = c ^ 0100;
 		} else
 			*q++ = c;
+	}
 	*q = '\0';
 
 	logmsg(pri, line, hname, SYNC_FILE);
@@ -2089,6 +2102,10 @@ void die(sig)
 	char buf[100];
 	int lognum;
 	int i;
+	int was_initialized = Initialized;
+
+	Initialized = 0;	/* Don't log SIGCHLDs in case we
+				   receive one during exiting */
 
 	for (lognum = 0; lognum <= nlogs; lognum++) {
 		f = &Files[lognum];
@@ -2097,6 +2114,7 @@ void die(sig)
 			fprintlog(f, LocalHostName, 0, (char *)NULL);
 	}
 
+	Initialized = was_initialized;
 	if (sig) {
 		dprintf("syslogd: exiting on signal %d\n", sig);
 		(void) snprintf(buf, sizeof(buf), "exiting on signal %d", sig);
