@@ -243,6 +243,9 @@
  *	people have submitted patches: Troels Walsted Hansen
  *	<troels@thule.no>, Wolfgang Oertl <Wolfgang.Oertl@uibk.ac.at>
  *	and Thomas Roessler.
+ * Thu Apr 29 15:24:07 2004: Solar Designer <solar@openwall.com>
+ *	Prevent potential buffer overflow in reading messages from the
+ *	kernel log rinbuffer.
  */
 
 
@@ -938,7 +941,7 @@ static void LogKernelLine(void)
 	 * messages into this fresh buffer.
 	 */
 	memset(log_buffer, '\0', sizeof(log_buffer));
-	if ( (rdcnt = ksyslog(2, log_buffer, sizeof(log_buffer))) < 0 )
+	if ( (rdcnt = ksyslog(2, log_buffer, sizeof(log_buffer)-1)) < 0 )
 	{
 		if ( errno == EINTR )
 			return;
