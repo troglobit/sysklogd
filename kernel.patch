@@ -1,0 +1,70 @@
+diff -u --recursive --new-file v1.3.42/linux/arch/alpha/kernel/process.c linux/arch/alpha/kernel/process.c
+--- v1.3.42/linux/arch/alpha/kernel/process.c	Tue Oct 10 18:46:30 1995
++++ linux/arch/alpha/kernel/process.c	Sat Nov 18 12:23:19 1995
+@@ -57,8 +57,8 @@
+ 
+ void show_regs(struct pt_regs * regs)
+ {
+-	printk("\nps: %04lx pc: %016lx\n", regs->ps, regs->pc);
+-	printk("rp: %016lx sp: %p\n", regs->r26, regs+1);
++	printk("\nps: %04lx pc: [<%016lx>]\n", regs->ps, regs->pc);
++	printk("rp: [<%016lx>] sp: %p\n", regs->r26, regs+1);
+ 	printk(" r0: %016lx  r1: %016lx  r2: %016lx  r3: %016lx\n",
+ 	       regs->r0, regs->r1, regs->r2, regs->r3);
+ 	printk(" r4: %016lx  r5: %016lx  r6: %016lx  r7: %016lx\n",
+diff -u --recursive --new-file v1.3.42/linux/arch/alpha/kernel/traps.c linux/arch/alpha/kernel/traps.c
+--- v1.3.42/linux/arch/alpha/kernel/traps.c	Wed Sep 27 15:59:56 1995
++++ linux/arch/alpha/kernel/traps.c	Sat Nov 18 12:22:52 1995
+@@ -25,8 +25,8 @@
+ 		return;
+ 	printk("%s(%d): %s %ld\n", current->comm, current->pid, str, err);
+ 	sp = (unsigned long) (regs+1);
+-	printk("pc = %lx ps = %04lx\n", regs->pc, regs->ps);
+-	printk("rp = %lx sp = %lx\n", regs->r26, sp);
++	printk("pc = [<%lx>] ps = %04lx\n", regs->pc, regs->ps);
++	printk("rp = [<%lx>] sp = %lx\n", regs->r26, sp);
+ 	printk("r0=%lx r1=%lx r2=%lx r3=%lx\n",
+ 		regs->r0, regs->r1, regs->r2, regs->r3);
+ 	printk("r8=%lx\n", regs->r8);
+diff -u --recursive --new-file v1.3.42/linux/arch/i386/kernel/process.c linux/arch/i386/kernel/process.c
+--- v1.3.42/linux/arch/i386/kernel/process.c	Wed Nov  8 07:11:29 1995
++++ linux/arch/i386/kernel/process.c	Sat Nov 18 12:08:28 1995
+@@ -124,7 +124,7 @@
+ void show_regs(struct pt_regs * regs)
+ {
+ 	printk("\n");
+-	printk("EIP: %04x:%08lx",0xffff & regs->cs,regs->eip);
++	printk("EIP: %04x:[<%08lx>]",0xffff & regs->cs,regs->eip);
+ 	if (regs->cs & 3)
+ 		printk(" ESP: %04x:%08lx",0xffff & regs->ss,regs->esp);
+ 	printk(" EFLAGS: %08lx\n",regs->eflags);
+diff -u --recursive --new-file v1.3.42/linux/arch/i386/kernel/traps.c linux/arch/i386/kernel/traps.c
+--- v1.3.42/linux/arch/i386/kernel/traps.c	Wed Nov  8 07:11:30 1995
++++ linux/arch/i386/kernel/traps.c	Tue Nov 21 08:34:54 1995
+@@ -27,7 +27,7 @@
+ 
+ asmlinkage int system_call(void);
+ asmlinkage void lcall7(void);
+-struct desc_struct default_ldt;
++struct desc_struct default_ldt;
+ 
+ static inline void console_verbose(void)
+ {
+@@ -113,7 +113,7 @@
+ 	console_verbose();
+ 	printk("%s: %04lx\n", str, err & 0xffff);
+ 	printk("CPU:    %d\n", smp_processor_id());
+-	printk("EIP:    %04x:%08lx\nEFLAGS: %08lx\n", 0xffff & regs->cs,regs->eip,regs->eflags);
++	printk("EIP:    %04x:[<%08lx>]\nEFLAGS: %08lx\n", 0xffff & regs->cs,regs->eip,regs->eflags);
+ 	printk("eax: %08lx   ebx: %08lx   ecx: %08lx   edx: %08lx\n",
+ 		regs->eax, regs->ebx, regs->ecx, regs->edx);
+ 	printk("esi: %08lx   edi: %08lx   ebp: %08lx   esp: %08lx\n",
+@@ -153,7 +153,7 @@
+ 		    ((addr >= module_start) && (addr <= module_end))) {
+ 			if (i && ((i % 8) == 0))
+ 				printk("\n       ");
+-			printk("%08lx ", addr);
++			printk("[<%08lx>] ", addr);
+ 			i++;
+ 		}
+ 	}

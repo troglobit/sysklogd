@@ -1,0 +1,271 @@
+.\" Copyright 1994 Dr. Greg Wettstein, Enjellic Systems Development.
+.\" May be distributed under the GNU General Public License
+.\" Sun Jul 30 01:35:55 MET: Martin Schulze: Updates
+.\" Sun Nov 19 23:22:21 MET: Martin Schulze: Updates
+.\"
+.TH KLOGD 8 "24 November 1995" "Version 1.3" "Linux System Administration"
+.SH NAME
+klogd \- kernel log daemon.
+.LP
+.SH SYNOPSIS
+.B klogd
+.RB [ " \-c "
+.I n
+]
+.RB [ " \-d " ]
+.RB [ " \-f "
+.I fname
+]
+.RB [ " \-n " ]
+.RB [ " \-o " ]
+.RB [ " \-s " ]
+.RB [ " \-k "
+.I fname
+]
+.RB [ " \-v " ]
+.LP
+.SH DESCRIPTION
+.B klogd
+is a system daemon which intercepts and logs Linux kernel
+messages.
+.LP
+.SH OPTIONS
+.TP
+.BI "\-c " n
+Sets the default log level of console messages to \fIn\fR.
+.TP
+.B "\-d"
+Enable debugging mode.  This will generate \fBLOTS\fR of output to
+stderr.
+.TP
+.BI "\-f " file
+Log messages to the specified filename rather than to the syslog facility.
+.TP
+.B "\-n"
+Avoid auto-backgrounding. This is needed especially if the
+.B klogd
+is started and controlled by 
+.BR init (8).
+.TP
+.B "-o"
+Execute in 'one\-shot' mode.  This causes \fBklogd\fP to read and log
+all the messages that are found in the kernel message buffers.  After
+a single read and log cycle the daemon exits.
+.TP
+.B "-s"
+Force \fBklogd\fP to use the system call interface to the kernel message
+buffers.
+.TP
+.BI "\-k " file
+Use the specified file as the source of kernel symbol information.
+.TP
+.B "\-v"
+Print version and exit.
+.LP
+.SH OVERVIEW
+The functionality of klogd has been typically incorporated into other
+versions of syslogd but this seems to be a poor place for it.  In the
+modern Linux kernel a number of kernel messaging issues such as
+sourcing, prioritization and resolution of kernel addresses must be
+addressed.  Incorporating kernel logging into a separate process
+offers a cleaner separation of services.
+
+In Linux there are two potential sources of kernel log information: the 
+.I /proc
+filesystem and the syscall (sys_syslog) interface, although
+ultimately they are one and the same.  Klogd is designed to choose
+whichever source of information is the most appropriate.  It does this
+by first checking for the presence of a mounted 
+.I /proc
+filesystem. If this is found the 
+.I /proc/kmsg
+file is used as the source of kernel log
+information. If the proc filesystem is not mounted 
+.B klogd
+uses a
+system call to obtain kernel messages.  The command line switch
+.RB ( "\-s" )
+can be used to force klogd to use the system call interface as its
+messaging source.
+
+If kernel messages are directed through the 
+.BR syslogd " daemon the " klogd
+daemon, as of version 1.1, has the ability to properly prioritize
+kernel messages. Prioritization of the kernel messages was added to it
+at approximately version 0.99pl13 of the kernel. The raw kernel messages
+are of the form:
+.IP
+\<[0\-7]\>Something said by the kernel.
+.PP
+The priority of the kernel message is encoded as a single numeric
+digit enclosed inside the <> pair.  The definitions of these values is
+given in the kernel include file kernel.h.  When a message is received
+from the kernel the klogd daemon reads this priority level and assigns
+the appropriate priority level to the syslog message.  If file output
+(\fB-f\fR) is used the prioritization sequence is left pre\-pended to the
+kernel message.
+
+The
+.B klogd
+daemon also allows the ability to alter the presentation of
+kernel messages to the system console.  Consequent with the
+prioritization of kernel messages was the inclusion of default
+messaging levels for the kernel.  In a stock kernel the the default
+console log level is set to 7.  Any messages with a priority level
+numerically lower than 7 (higher priority) appear on the console.
+
+Messages of priority level 7 are considered to be 'debug' messages and
+will thus not appear on the console.  Many administrators,
+particularly in a multi\-user environment, prefer that all kernel
+messages be handled by klogd and either directed to a file or to
+the syslogd daemon.  This prevents 'nuisance' messages such as line
+printer out of paper or disk change detected from cluttering the
+console.
+
+By default the
+.B klogd
+daemon executes a system call to inhibit all
+kernel messages (except for panics) from being displayed on the
+console.  The \fB\-c\fR switch can be used to alter this behavior.  The
+argument given to the \fB\-c\fR switch specifies the priority level of
+messages which will be directed to the console.  Note that messages of
+a priority value LOWER than the indicated number will be directed to
+the console.
+.IP
+For example, to have the kernel display all messages with a
+priority level of 3
+.BR "" ( KERN_ERR )
+or more severe the following
+command would be executed:
+.IP
+.nf
+	klogd \-c 4
+.fi
+.PP
+The definitions of the numeric values for kernel messages are given in
+the file 
+.IR kernel.h " which can be found in the " /usr/include/linux
+directory if the kernel sources are installed.  These values parallel
+the syslog priority values which are defined in the file 
+.IR syslog.h " found in the " /usr/include/sys " sub\-directory."
+
+The klogd daemon can also be used in a 'one\-shot' mode for reading the
+kernel message buffers.  One shot mode is selected by specifying the
+\fB\-o\fR switch on the command line.  Output will be directed to either the
+syslogd daemon or to an alternate file specified by the \fB-f\fR switch.
+.IP
+For example, to read all the kernel messages after a system
+boot and record them in a file called krnl.msg the following
+command would be given.
+.IP
+.nf
+	klogd -o -f ./krnl.msg
+.fi
+.PP
+.SH KERNEL ADDRESS RESOLUTION
+.B klogd
+will attempt to resolve kernel numeric addresses to their symbolic
+forms if a kernel symbol table is available at execution time.
+A symbol table may be specified by using the \fB\-k\fR switch on the
+command line.  If a symbol file is not explicitly specified the
+following filenames will be tried:
+
+.nf
+.I /boot/System.map
+.I /System.map
+.I /usr/src/linux/System.map
+.fi
+
+Version information is supplied in the system maps as of kernel
+1.3.43.  This version information is used to direct an intelligent
+search of the list of symbol tables.  This feature is useful since it
+provides support for both production and experimental kernels.
+
+For example a production kernel may have its map file stored in
+/boot/System.map.  If an experimental or test kernel is compiled with
+the sources in the 'standard' location of /usr/src/linux the system
+map will be found in /usr/src/linux/System.map.  When klogd starts
+under the experimental kernel the map in /boot/System.map will be
+bypassed in favor of the map in /usr/src/linux/System.map.
+
+Modern kernels as of 1.3.43 properly format important kernel addresses
+so that they will be recognized and translated by klogd.  Earlier
+kernels require a source code patch be applied to the kernel sources.
+This patch is supplied with the sysklogd sources.
+.PP
+.SH SIGNAL HANDLING
+The 
+.B klogd
+will respond to six signals:
+.BR SIGHUP ", " SIGINT ", " SIGKILL ", " SIGTERM ", " SIGTSTP " and " SIGCONT ". The"
+.BR SIGINT ", " SIGKILL ", " SIGTERM " and " SIGHUP
+signals will cause the daemon to close its kernel log sources and
+terminate gracefully.
+
+The 
+.BR SIGTSTP " and " SIGCONT
+singals are used to start and stop kernel logging. Upon receipt of a 
+.B SIGTSTP
+signal the daemon will close its
+log sources and spin in an idle loop.  Subsequent receipt of a 
+.B SIGCONT
+signal will cause the daemon to go through its initialization sequence
+and re-choose an input source.  Using
+.BR SIGSTOP " and " SIGCONT
+in combination the kernel log input can be re-chosen without stopping and
+restarting the daemon.  For example if the \fI/proc\fR file system is to be
+un-mounted the following command sequence should be used:
+.PP
+.PD 0
+.TP
+	# kill -TSTP pid
+.TP
+	# umount /proc
+.TP
+	# kill -CONT pid
+.PD
+.PP
+Notations will be made in the system logs with 
+.B LOG_INFO
+priority
+documenting the start/stop of logging.
+.LP
+.SH FILES
+.PD 0
+.TP
+.I /proc/kmsg
+One Source for kernel messages
+.B klogd
+.TP
+.I /var/run/klogd.pid
+The file containing the process id of 
+.B klogd
+.TP
+.I /System.map, /usr/src/linux/System.map
+Default locations for kernel system maps.
+.PD
+.SH BUGS
+Probably numerous.  Well formed context diffs appreciated.
+.LP
+.SH AUTHOR
+The
+.B klogd
+was originally written by Steve Lord (lord@cray.com), Greg Wettstein
+made major improvements.
+
+.PD 0
+.TP
+Dr. Greg Wettstein (greg@wind.rmcc.com)
+.TP
+Enjellic Systems Development
+.PD
+.PP
+.PD 0
+.TP
+Oncology Research Divsion Computing Facility
+.TP
+Roger Maris Cancer Center
+.TP
+Fargo, ND 58122
+.PD
+.zZ
