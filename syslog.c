@@ -180,7 +180,9 @@ vsyslog(pri, fmt, ap)
 	(void)close(fd);
 }
 
+#ifndef TESTING
 static struct sockaddr SyslogAddr;	/* AF_UNIX address of local logger */
+#endif
 /*
  * OPENLOG -- open system log
  */
@@ -200,6 +202,7 @@ openlog(ident, logstat, logfac)
 #endif
 		LogFacility = logfac;
 
+#ifndef TESTING
 	if (LogFile == -1) {
 		SyslogAddr.sa_family = AF_UNIX;
 		strncpy(SyslogAddr.sa_data, _PATH_LOGNAME,
@@ -212,6 +215,9 @@ openlog(ident, logstat, logfac)
 	if (LogFile != -1 && !connected &&
 	    connect(LogFile, &SyslogAddr, sizeof(SyslogAddr.sa_family)+
 			strlen(SyslogAddr.sa_data)) != -1)
+#else
+	  LogFile = fileno(stdout);
+#endif
 		connected = 1;
 }
 
@@ -221,7 +227,9 @@ openlog(ident, logstat, logfac)
 void
 closelog()
 {
+#ifndef TESTING
 	(void) close(LogFile);
+#endif
 	LogFile = -1;
 	connected = 0;
 }
