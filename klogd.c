@@ -197,10 +197,17 @@
  *	unevaluated priorities I've worked out a real fix that strips
  *	%'s to an even number which is harmless for printf.
  *
+ * Sat Oct 10 20:01:48 CEST 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Added support for TESTING define which will turn klogd into
+ *	stdio-mode used for debugging.
+ *
  * Mon Apr 13 18:18:45 CEST 1998: Martin Schulze <joey@infodrom.north.de>
  *	Modified System.map read function to try all possible map
  *	files until a file with matching version is found.  Added support for
  *	Debian release.
+ *
+ * Mon Oct 12 13:01:27 MET DST 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Used unsigned long and strtoul() to resolve kernel oops symbols.
  */
 
 
@@ -218,7 +225,9 @@
 #include <stdlib.h>
 #include "klogd.h"
 #include "ksyms.h"
+#ifndef TESTING
 #include "pidfile.h"
+#endif
 #include "version.h"
 
 #define __LIBRARY__
@@ -234,10 +243,12 @@ _syscall3(int,ksyslog,int, type, char *, buf, int, len);
 #define LOG_BUFFER_SIZE 4096
 #define LOG_LINE_LENGTH 1024
 
+#ifndef TESTING
 #if defined(FSSTND)
 static char	*PidFile = _PATH_VARRUN "klogd.pid";
 #else
 static char	*PidFile = "/etc/klogd.pid";
+#endif
 #endif
 
 static int	kmsg,
@@ -371,7 +382,9 @@ static void Terminate()
 	if ( output_file != (FILE *) 0 )
 		fclose(output_file);
 	closelog();
+#ifndef TESTING
 	(void) remove_pid(PidFile);
+#endif
 	exit(1);
 }
 
@@ -380,9 +393,13 @@ static void SignalDaemon(sig)
      int sig;
 
 {
+#ifndef TESTING
 	auto int pid = check_pid(PidFile);
 
 	kill(pid, sig);
+#else
+	kill(getpid(), sig);
+#endif
 	return;
 }
 
@@ -489,7 +506,8 @@ static enum LOGSRC GetKernelLogSrc(void)
 #endif
 		return(kernel);
 	}
-	
+
+#ifndef TESTING
 	if ( (kmsg = open(_PATH_KLOG, O_RDONLY)) < 0 )
 	{
 		fprintf(stderr, "klogd: Cannot open proc file system, " \
@@ -497,6 +515,9 @@ static enum LOGSRC GetKernelLogSrc(void)
 		ksyslog(7, NULL, 0);
 		exit(1);
 	}
+#else
+	kmsg = fileno(stdin);
+#endif
 
 #ifdef DEBRELEASE
 	Syslog(LOG_INFO, "klogd %s-%s#%s, log source = %s started.", \
@@ -570,6 +591,9 @@ extern void Syslog(int priority, char *fmt, ...)
 	va_start(ap, fmt);
 	vsyslog(priority, fmt, ap);
 	va_end(ap);
+#ifdef TESTING
+	printf ("\n");
+#endif
 
 	return;
 }
@@ -769,12 +793,12 @@ static void LogLine(char *ptr, int len)
            {
 	       auto int sym_space;
 
-	       auto int value;
+	       unsigned long value;
 	       auto struct symbol sym;
 	       auto char *symbol;
 
                *(line-1) = 0;    /* null terminate the address string */
-               value  = strtol(sym_start+1, (char **) 0, 16);
+               value  = strtoul(sym_start+1, (char **) 0, 16);
                *(line-1) = '>';  /* put back delim */
 
                symbol = LookupSymbol(value, &sym);
@@ -879,7 +903,9 @@ int main(argc, argv)
 	auto char	*log_level = (char *) 0,
 			*output = (char *) 0;
 
+#ifndef TESTING
 	chdir ("/");
+#endif
 	/* Parse the command-line. */
 	while ((ch = getopt(argc, argv, "c:df:iIk:nopsvx")) != EOF)
 		switch((char)ch)
@@ -938,6 +964,7 @@ int main(argc, argv)
 	}		
 
 
+#ifndef TESTING
 	/*
 	 * The following code allows klogd to auto-background itself.
 	 * What happens is that the program forks and the parent quits.
@@ -991,7 +1018,7 @@ int main(argc, argv)
 		fputs("klogd: Already running.\n", stderr);
 		Terminate();
 	}
-	
+#endif	
 
 	/* Signal setups. */
 	for (ch= 1; ch < NSIG; ++ch)
