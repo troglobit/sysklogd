@@ -59,6 +59,10 @@
  * Sun Jan 25 20:57:34 CET 1998: Martin Schulze <joey@infodrom.north.de>
  *	Another patch for Linux/alpha by Christopher C Chimelis
  *	<chris@classnet.med.miami.edu>.
+ *
+ * Thu Mar 19 23:39:29 CET 1998: Manuel Rodrigues <pmanuel@cindy.fe.up.pt>
+ *	Changed lseek() to llseek() in order to support > 2GB address
+ *	space which provided by kernels > 2.1.70.
  */
 
 
@@ -386,7 +390,7 @@ static int AddModule(address, symbol)
 			Syslog(LOG_WARNING, "Error opening /dev/kmem\n");
 			return(1);
 		}
-		if ( lseek(memfd, address, SEEK_SET) < 0 )
+		if ( llseek(memfd, address, SEEK_SET) < 0 )
 		{
 			Syslog(LOG_WARNING, "Error seeking in /dev/kmem\n");
 			return(0);
