@@ -105,6 +105,10 @@
  *
  * Tue Sep 12 23:48:12 CEST 2000: Martin Schulze <joey@infodrom.ffis.de>
  *	Close symbol file in InitKsyms() when an error occurred.
+ *
+ * Thu Apr 29 18:07:16 CEST 2004: Dmitry Levin <ldv@altlinux.org>
+ *	Close file descriptor in FindSymbolFile() in order not to leak
+ *	file descriptors.
  */
 
 
@@ -344,6 +348,7 @@ static char * FindSymbolFile()
 		if ( (sym_file = fopen(symfile, "r")) != (FILE *) 0 ) {
 			if (CheckMapVersion(symfile) == 1)
 				file = symfile;
+			fclose (sym_file);
 		}
 		if (sym_file == (FILE *) 0 || file == (char *) 0) {
 			sprintf (symfile, "%s", *mf);
@@ -352,6 +357,7 @@ static char * FindSymbolFile()
 			if ( (sym_file = fopen(symfile, "r")) != (FILE *) 0 ) {
 				if (CheckMapVersion(symfile) == 1)
 					file = symfile;
+				fclose (sym_file);
 			}
 		}
 
@@ -899,3 +905,11 @@ extern void Syslog(int priority, char *fmt, ...)
 	return;
 }
 #endif
+
+/*
+ * Local variables:
+ *  c-indent-level: 8
+ *  c-basic-offset: 8
+ *  tab-width: 8
+ * End:
+ */
