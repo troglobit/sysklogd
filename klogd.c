@@ -170,6 +170,10 @@
  *
  * Sun Jun 15 16:23:29 MET DST 1997: Michael Alan Dorman
  *	Some more glibc patches made by <mdorman@debian.org>.
+ *
+ * Thu Aug 21 12:11:27 MET DST 1997: Martin Schulze <joey@infodrom.north.de>
+ *	Fixed little mistake which prevented klogd from accepting a
+ *	console log 
  */
 
 
@@ -856,7 +860,7 @@ int main(argc, argv)
 	if ( log_level != (char *) 0 )
 	{
 		if ( (strlen(log_level) > 1) || \
-		     (strchr("1234567", *log_level) == (char *) 0) )
+		     (strchr("12345678", *log_level) == (char *) 0) )
 		{
 			fprintf(stderr, "klogd: Invalid console logging "
 				"level <%s> specified.\n", log_level);
