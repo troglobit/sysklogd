@@ -453,6 +453,11 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *
  * Thu Apr 29 12:38:39 2004: Solar Designer <solar@openwall.com>
  *	Applied Openwall paranoia patches to improve crunch_list().
+ *
+ * Tue May  4 16:47:30 CEST 2004: Solar Designer <solar@openwall.com>
+ *	Ensure that "len" is not placed in a register, and that the
+ *	endtty() signal handler is not installed too early which could
+ *	cause a segmentation fault or worse.
  */
 
 
@@ -1905,6 +1910,8 @@ void wallmsg(f, iov)
 	struct utmp *uptr;
 	char greetings[200];
 
+	(void) &len;
+
 	if (reenter++)
 		return;
 
@@ -1919,7 +1926,6 @@ void wallmsg(f, iov)
 	if (fork() == 0) {
 		(void) signal(SIGTERM, SIG_DFL);
 		(void) alarm(0);
-		(void) signal(SIGALRM, endtty);
 #ifndef SYSV
 		(void) signal(SIGTTOU, SIG_IGN);
 		(void) sigsetmask(0);
@@ -1965,6 +1971,7 @@ void wallmsg(f, iov)
 				iov[1].iov_len = 0;
 			}
 			if (setjmp(ttybuf) == 0) {
+				(void) signal(SIGALRM, endtty);
 				(void) alarm(15);
 				/* open the terminal */
 				ttyf = open(p, O_WRONLY|O_NOCTTY);
