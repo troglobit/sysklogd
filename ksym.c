@@ -93,8 +93,8 @@ static int num_syms = 0;
 
 static char *system_maps[] =
 {
-	"/boot/System.map",
 	"/System.map",
+	"/boot/System.map",
 	"/usr/src/linux/System.map",
 #if defined(TEST)
 	"./System.map",
@@ -403,7 +403,7 @@ static int CheckVersion(version)
 	
 
 {
-	auto char vstring[6];
+	auto char vstring[12];
 
 	auto int	vnum,
 			major,

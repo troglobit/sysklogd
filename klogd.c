@@ -140,7 +140,11 @@
  *	Added a second patch to remove the pidfile as part of the
  *	termination cleanup sequence.  This minimizes the potential for
  *	conflicting pidfiles causing immediate termination at boot time.
- *	
+ *
+ * Sun May 12 12:18:21 MET DST 1996:  Martin Schulze
+ *	Corrected incorrect/insecure use of strpbrk for a not necessarily
+ *	null-terminated buffer.  Used a patch from Chris Hanson
+ *	(cph@martigny.ai.mit.edu), thanks.
  */
 
 
@@ -350,8 +354,8 @@ static enum LOGSRC GetKernelLogSrc(void)
 	{
 	  	/* Initialize kernel logging. */
 	  	sys_syslog(1, NULL, 0);
-		Syslog(LOG_INFO, "klogd %s-%s, log source = sys_syslog "
-		       "started.", VERSION, PATCHLEVEL);
+		Syslog(LOG_INFO, "klogd %s-%s#%s, log source = sys_syslog "
+		       "started.", VERSION, PATCHLEVEL, DEBRELEASE);
 		return(kernel);
 	}
 	
@@ -362,8 +366,8 @@ static enum LOGSRC GetKernelLogSrc(void)
 		exit(1);
 	}
 
-	Syslog(LOG_INFO, "klogd %s-%s, log source = %s started.", \
-	       VERSION, PATCHLEVEL, _PATH_KLOG);
+	Syslog(LOG_INFO, "klogd %s-%s#%s, log source = %s started.", \
+	       VERSION, PATCHLEVEL, DEBRELEASE, _PATH_KLOG);
 	return(proc);
 }
 
@@ -439,6 +443,7 @@ static void LogLine(char *ptr, int len)
 	auto int idx = 0;
 	static int index = 0;
 	auto char *nl;
+	auto char *pend = ptr + len;
 	static char line[LOG_LINE_LENGTH],
 		    eline[LOG_LINE_LENGTH];
 
@@ -467,8 +472,10 @@ static void LogLine(char *ptr, int len)
 		memset(line, '\0', sizeof(line));
 	
 	while (len) {
-		nl = strpbrk(ptr, "\r\n"); /* Find first line terminator */
-		if (nl) {
+		for (nl = ptr; nl < pend; nl += 1)
+			if ((*nl == '\n') || (*nl == '\r'))
+				break;
+		if (nl != pend) {
 			len -= nl - ptr + 1;
 			strncat(line, ptr, nl - ptr);
 			ptr = nl + 1;
@@ -595,7 +602,7 @@ int main(argc, argv)
 			use_syscall = 1;
 			break;
 		    case 'v':
-			printf("klogd %s-%s\n", VERSION, PATCHLEVEL);
+			printf("klogd %s-%s#%s\n", VERSION, PATCHLEVEL,DEBRELEASE);
 			exit (1);
 		}
 

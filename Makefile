@@ -3,8 +3,8 @@
 CC= gcc
 #CFLAGS= -g -DSYSV -Wall
 #LDFLAGS= -g
-CFLAGS= -O6 -DSYSV -fomit-frame-pointer -Wall
-LDFLAGS= -s -N
+CFLAGS= -O4 -DSYSV -fomit-frame-pointer -Wall
+LDFLAGS= -s
 
 # Look where your install program is
 #
@@ -36,12 +36,12 @@ MAN_OWNER = root
 # name for the syslogd pid to be syslog.pid.  A number of people have
 # suggested that this should be syslogd.pid.  You may cast your
 # ballot below.
-# SYSLOGD_PIDNAME = -DSYSLOGD_PIDNAME=\"syslogd.pid\"
+SYSLOGD_PIDNAME = -DSYSLOGD_PIDNAME=\"syslogd.pid\"
 
 SYSLOGD_FLAGS= -DSYSLOG_INET -DSYSLOG_UNIXAF -DNO_SCCS ${FSSTND} \
-	${SYSLOGD_PIDNAME}
+	${SYSLOGD_PIDNAME} -DDEBRELEASE=\"$(revision)\"
 SYSLOG_FLAGS= -DALLOW_KERNEL_LOGGING
-KLOGD_FLAGS = ${FSSTND} ${KLOGD_START_DELAY}
+KLOGD_FLAGS = ${FSSTND} ${KLOGD_START_DELAY} -DDEBRELEASE=\"$(revision)\"
 
 .c.o:
 	${CC} ${CFLAGS} -c $*.c
@@ -88,4 +88,4 @@ install_man:
 	${INSTALL} -o ${MAN_OWNER} -g ${MAN_OWNER} -m 644 sysklogd.8 ${MANDIR}/man8/sysklogd.8
 	${INSTALL} -o ${MAN_OWNER} -g ${MAN_OWNER} -m 644 syslogd.8 ${MANDIR}/man8/syslogd.8
 	${INSTALL} -o ${MAN_OWNER} -g ${MAN_OWNER} -m 644 syslog.conf.5 ${MANDIR}/man5/syslog.conf.5
-	${INSTALL} -o ${MAN_OWNER} -g ${MAN_OWNER} -m 644 klogd.8 ${MANDIR}/MAN8/klogd.8
+	${INSTALL} -o ${MAN_OWNER} -g ${MAN_OWNER} -m 644 klogd.8 ${MANDIR}/man8/klogd.8

@@ -269,6 +269,30 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	when syslogd starts up.
  *
  *	Minor code cleanups.
+ *
+ * Tue May 14 00:03:35 MET DST 1996:  Martin Schulze
+ *	Corrected a mistake that causes the syslogd to stop logging at
+ *	some virtual consoles under Linux. This was caused by checking
+ *	the wrong error code. Thanks to Michael Nonweiler
+ *	<mrn20@hermes.cam.ac.uk> for sending me a patch.
+ *
+ * Tue May 28 00:58:45 MET DST 1996:  Martin Schulze
+ *	Corrected behaviour of blocking pipes - i.e. the whole system
+ *	hung.  Michael Nonweiler <mrn20@hermes.cam.ac.uk> has sent us
+ *	a patch to correct this.  A new logfile type F_PIPE has been
+ *	introduced.
+ *
+ * Mon Feb 3 10:12:15 MET DST 1997:  Martin Schulze
+ *	Corrected behaviour of logfiles if the file can't be opened.
+ *	There was a bug that causes syslogd to try to log into non
+ *	existing files which ate cpu power.
+ *
+ * Sun Feb 9 03:22:12 MET DST 1997:  Martin Schulze
+ *	Modified syslogd.c to not kill itself which confuses bash 2.0.
+ *
+ * Mon Feb 10 00:09:11 MET DST 1997:  Martin Schulze
+ *	Improved debug code to decode the numeric facility/priority
+ *	pair into textual information.
  */
 
 
@@ -290,6 +314,7 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
 #include <setjmp.h>
 #include <stdarg.h>
 
+#define SYSLOG_NAMES
 #include <sys/syslog.h>
 #include <sys/param.h>
 #include <sys/errno.h>
@@ -473,10 +498,11 @@ int	repeatinterval[] = { 30, 60 };	/* # of secs before flush */
 #define F_WALL		6		/* everyone logged on */
 #define F_FORW_SUSP	7		/* suspended host forwarding */
 #define F_FORW_UNKN	8		/* unknown host forwarding */
-char	*TypeNames[9] = {
+#define F_PIPE		9		/* named pipe */
+char	*TypeNames[] = {
 	"UNUSED",	"FILE",		"TTY",		"CONSOLE",
 	"FORW",		"USERS",	"WALL",		"FORW(SUSPENDED)",
-	"FORW(UNKNOWN)"
+	"FORW(UNKNOWN)", "PIPE"
 };
 
 struct	filed *Files = (struct filed *) 0;
@@ -642,7 +668,7 @@ int main(argc, argv)
 			break;
 		case 'v':
 			printf("syslogd %s-%s\n", VERSION, PATCHLEVEL);
-			exit (1);
+			exit (0);
 		case '?':
 		default:
 			usage();
@@ -717,11 +743,14 @@ int main(argc, argv)
 		 * we want to distribute good software.  Joey
 		 */
 		hent = gethostbyname(LocalHostName);
-		sprintf(LocalHostName, "%s", hent->h_name);
-		if ( (p = index(LocalHostName, '.')) )
+		if (hent != NULL)
 		{
-			*p++ = '\0';
-			LocalDomain = p;
+			sprintf(LocalHostName, "%s", hent->h_name);
+			if ( (p = index(LocalHostName, '.')) )
+			{	
+				*p++ = '\0';
+				LocalDomain = p;
+			}
 		}
 	}
 
@@ -813,11 +842,11 @@ int main(argc, argv)
 		dprintf("Debugging disabled, SIGUSR1 to turn on debugging.\n");
 		debugging_on = 0;
 	}
-
+/*
 	if (quitpid) {
 		kill(quitpid, SIGINT);
 	}
-
+*/
 	/* Main loop begins here. */
 	FD_ZERO(&unixm);
 	FD_ZERO(&readfds);
@@ -1223,6 +1252,24 @@ void printsys(msg)
 	return;
 }
 
+/*
+ * Decode a priority into textual information like auth.emerg.
+ */
+char *textpri(pri)
+	int pri;
+{
+	static char res[20];
+	CODE *c_pri, *c_fac;
+
+	for (c_fac = facilitynames; c_fac->c_name && !(c_fac->c_val == LOG_FAC(pri)<<3); c_fac++);
+	for (c_pri = prioritynames; c_pri->c_name && !(c_pri->c_val == LOG_PRI(pri)); c_pri++);
+
+	/*	sprintf (res, "%d.%d", LOG_FAC(pri), LOG_PRI(pri));*/
+	sprintf (res, "%s.%s<%d>", c_fac->c_name, c_pri->c_name, pri);
+
+	return res;
+}
+
 time_t	now;
 
 /*
@@ -1241,7 +1288,7 @@ void logmsg(pri, msg, from, flags)
 	int msglen;
 	char *timestamp;
 
-	dprintf("logmsg: pri %o, flags %x, from %s, msg %s\n", pri, flags, from, msg);
+	dprintf("logmsg: %s, flags %x, from %s, msg %s\n", textpri(pri), flags, from, msg);
 
 #ifndef SYSV
 	omask = sigblock(sigmask(SIGHUP)|sigmask(SIGALRM));
@@ -1497,9 +1544,10 @@ void fprintlog(f, from, flags, msg)
 
 	case F_TTY:
 	case F_FILE:
+	case F_PIPE:
 		f->f_time = now;
 		dprintf(" %s\n", f->f_un.f_fname);
-		if (f->f_type != F_FILE) {
+		if (f->f_type == F_TTY || f->f_type == F_CONSOLE) {
 			v->iov_base = "\r\n";
 			v->iov_len = 2;
 		} else {
@@ -1507,13 +1555,30 @@ void fprintlog(f, from, flags, msg)
 			v->iov_len = 1;
 		}
 	again:
+		/* f->f_file == -1 is an indicator that the we couldn't
+		   open the file at startup. */
+		if (f->f_file == -1)
+			break;
+
 		if (writev(f->f_file, iov, 6) < 0) {
 			int e = errno;
+
+			/* If a named pipe is full, just ignore it for now
+			   - mrn 24 May 96 */
+			if (f->f_type == F_PIPE && e == EAGAIN)
+				break;
+
 			(void) close(f->f_file);
 			/*
 			 * Check for EBADF on TTY's due to vhangup() XXX
+			 * Linux uses EIO instead (mrn 12 May 96)
 			 */
-			if (e == EBADF && f->f_type != F_FILE) {
+			if ((f->f_type == F_TTY || f->f_type == F_CONSOLE)
+#ifdef linux
+				&& e == EIO) {
+#else
+				&& e == EBADF) {
+#endif
 				f->f_file = open(f->f_un.f_fname, O_WRONLY|O_APPEND|O_NOCTTY);
 				if (f->f_file < 0) {
 					f->f_type = F_UNUSED;
@@ -1846,6 +1911,7 @@ void init()
 	/*
 	 *  Close all open log files.
 	 */
+/*
 	Initialized = 0;
 	if ( nlogs > -1 )
 	{
@@ -1854,6 +1920,7 @@ void init()
 		free((void *) Files);
 		Files = (struct filed *) 0;
 	}
+*/
 	
 #ifdef SYSV
 	for (lognum = 0; lognum <= nlogs; lognum++ ) {
@@ -1867,6 +1934,7 @@ void init()
 
 		switch (f->f_type) {
 		  case F_FILE:
+		  case F_PIPE:
 		  case F_TTY:
 		  case F_CONSOLE:
 			(void) close(f->f_file);
@@ -1949,9 +2017,12 @@ void init()
 				printf("%s: ", TypeNames[f->f_type]);
 				switch (f->f_type) {
 				case F_FILE:
+				case F_PIPE:
 				case F_TTY:
 				case F_CONSOLE:
 					printf("%s", f->f_un.f_fname);
+					if (f->f_file == -1)
+						printf(" (unused)");
 					break;
 
 				case F_FORW:
@@ -1971,11 +2042,11 @@ void init()
 	}
 
 	if ( AcceptRemote )
-		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "-" PATCHLEVEL \
+		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "-" PATCHLEVEL "#" DEBRELEASE \
 		       ": restart (remote reception)." , LocalHostName, \
 		       	ADDDATE);
 	else
-		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "-" PATCHLEVEL \
+		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "-" PATCHLEVEL "#" DEBRELEASE \
 		       ": restart." , LocalHostName, ADDDATE);
 	(void) signal(SIGHUP, sighup_handler);
 	dprintf("syslogd: restarted.\n");
@@ -2182,14 +2253,17 @@ void cfline(line, f)
 		dprintf ("filename: %s\n", p);	/*ASP*/
 		if (syncfile)
 			f->f_flags |= SYNC_FILE;
-		if ( *p == '|' )
-			f->f_file = open(++p, O_RDWR);
-	        else
+		if ( *p == '|' ) {
+			f->f_file = open(++p, O_RDWR|O_NONBLOCK);
+			f->f_type = F_PIPE;
+	        } else {
 			f->f_file = open(p, O_WRONLY|O_APPEND|O_CREAT|O_NOCTTY,
 					 0644);
+			f->f_type = F_FILE;
+		}
 		        
 	  	if ( f->f_file < 0 ){
-			f->f_file = F_UNUSED;
+			f->f_file = -1;
 			dprintf("Error opening log file: %s\n", p);
 			logerror(p);
 			break;
@@ -2198,8 +2272,6 @@ void cfline(line, f)
 			f->f_type = F_TTY;
 			untty();
 		}
-		else
-			f->f_type = F_FILE;
 		if (strcmp(p, ctty) == 0)
 			f->f_type = F_CONSOLE;
 		break;
