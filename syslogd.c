@@ -780,6 +780,7 @@ int main(argc, argv)
 	char line[MAXLINE +1];
 	extern int optind;
 	extern char *optarg;
+	int maxfds;
 
 #ifndef TESTING
 	chdir ("/");
@@ -986,26 +987,26 @@ int main(argc, argv)
 	for (;;) {
 		int nfds;
 		errno = 0;
-#ifdef SYSLOG_UNIXAF
 		FD_ZERO(&readfds);
+		maxfds = 0;
+#ifdef SYSLOG_UNIXAF
 #ifndef TESTING
 		/*
 		 * Add the Unix Domain Sockets to the list of read
 		 * descriptors.
 		 */
-		len = 0;
 		/* Copy master connections */
 		for (i = 0; i < nfunix; i++) {
 			if (funix[i] != -1) {
 				FD_SET(funix[i], &readfds);
-				if (i>len) len=i;
+				if (funix[i]>maxfds) maxfds=funix[i];
 			}
 		}
 		/* Copy accepted connections */
 		for (nfds= 0; nfds < FD_SETSIZE; ++nfds)
 			if (FD_ISSET(nfds, &unixm)) {
 				FD_SET(nfds, &readfds);
-				if (i>nfds) len=nfds;
+				if (nfds>maxfds) maxfds=nfds;
 			}
 #endif
 #endif
@@ -1017,24 +1018,27 @@ int main(argc, argv)
 		 */
 		if ( InetInuse && AcceptRemote ) {
 			FD_SET(inetm, &readfds);
+			if (inetm>maxfds) maxfds=inetm;
 			dprintf("Listening on syslog UDP port.\n");
 		}
 #endif
 #endif
 #ifdef TESTING
 		FD_SET(fileno(stdin), &readfds);
+		if (fileno(stdin) > maxfds) maxfds = fileno(stdin);
+
 		dprintf("Listening on stdin.  Press Ctrl-C to interrupt.\n");
 #endif
 
 		if ( debugging_on )
 		{
-			dprintf("Calling select, active file descriptors: ");
-			for (nfds= 0; nfds < FD_SETSIZE; ++nfds)
+			dprintf("Calling select, active file descriptors (max %d): ", maxfds);
+			for (nfds= 0; nfds <= maxfds; ++nfds)
 				if ( FD_ISSET(nfds, &readfds) )
 					dprintf("%d ", nfds);
 			dprintf("\n");
 		}
-		nfds = select(len, (fd_set *) &readfds, (fd_set *) NULL,
+		nfds = select(maxfds+1, (fd_set *) &readfds, (fd_set *) NULL,
 				  (fd_set *) NULL, (struct timeval *) NULL);
 		if ( restart )
 		{
@@ -1058,7 +1062,7 @@ int main(argc, argv)
 		{
 			dprintf("\nSuccessful select, descriptor count = %d, " \
 				"Activity on: ", nfds);
-			for (nfds= 0; nfds < FD_SETSIZE; ++nfds)
+			for (nfds= 0; nfds <= maxfds; ++nfds)
 				if ( FD_ISSET(nfds, &readfds) )
 					dprintf("%d ", nfds);
 			dprintf(("\n"));
@@ -1069,12 +1073,12 @@ int main(argc, argv)
 		if ( debugging_on )
 		{
 			dprintf("Checking UNIX connections, active: ");
-			for (nfds= 0; nfds < FD_SETSIZE; ++nfds)
+			for (nfds= 0; nfds < maxfds; ++nfds)
 				if ( FD_ISSET(nfds, &unixm) )
 					dprintf("%d ", nfds);
 			dprintf("\n");
 		}
-		for (fd= 0; fd < FD_SETSIZE; ++fd)
+		for (fd= 0; fd <= maxfds; ++fd)
 		  if ( FD_ISSET(fd, &readfds) && FD_ISSET(fd, &unixm) ) {
 			dprintf("Message from UNIX socket #%d.\n", fd);
 			memset(line, '\0', sizeof(line));
@@ -1095,9 +1099,13 @@ int main(argc, argv)
 						     strlen(parts[fd]) + 1, \
 						     fd);
 				}
+				/* reset it */
+				for (i = 1; i < nfunix; i++) {
+					if (funix[i] == fd)
+						funix[i] = -1;
+				}
 		    		close(fd);
 		    		FD_CLR(fd, &unixm);
-		    		FD_CLR(fd, &readfds);
 		  	}
 	      	}
 		/* Accept a new unix connection */
@@ -2312,9 +2320,12 @@ void init()
 	(void) fclose(cf);
 
 #ifdef SYSLOG_UNIXAF
-	for (i = 0; i < nfunix; i++)
+	for (i = 0; i < nfunix; i++) {
+		if (funix[i] != -1)
+			close(funix[i]);
 		if ((funix[i] = create_unix_socket(funixn[i])) != -1)
 			dprintf("Opened UNIX socket `%s'.\n", funixn[i]);
+	}
 #endif
 
 #ifdef SYSLOG_INET
