@@ -416,6 +416,12 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	Removed superflous call to utmpname().  The path to the utmp
  *	file is defined in the used libc and should not be hardcoded
  *	into the syslogd binary referring the system it was compiled on.
+ *
+ * Sun Sep 17 20:45:33 CEST 2000: Martin Schulze <joey@infodrom.ffis.de>
+ *	Fixed some bugs in printline() code that did not escape
+ *	control characters '\177' through '\237' and contained a
+ *	single-byte buffer overflow.  Thanks to Solar Designer
+ *	<solar@false.com>.
  */
 
 
@@ -1448,12 +1454,17 @@ void printline(hname, msg)
 
 	memset (line, 0, sizeof(line));
 	q = line;
-	while ((c = *p++) && q < &line[sizeof(line) - 1]) {
+	while ((c = *p++) && q < &line[sizeof(line) - 4]) {
 		if (c == '\n')
 			*q++ = ' ';
-		else if (iscntrl(c)&&(c<0177)) {
+		else if (c < 040) {
 			*q++ = '^';
 			*q++ = c ^ 0100;
+		} else if (c == 0177 || (c & 0177) < 040) {
+			*q++ = '\\';
+			*q++ = '0' + ((c & 0300) >> 6);
+			*q++ = '0' + ((c & 0070) >> 3);
+			*q++ = '0' + (c & 0007);
 		} else
 			*q++ = c;
 	}
