@@ -91,8 +91,10 @@
 #include <sys/stat.h>
 #if !defined(__GLIBC__)
 #include <linux/time.h>
+#include <linux/linkage.h>
 #include <linux/module.h>
 #else /* __GLIBC__ */
+#include <linux/linkage.h>
 #include <linux/module.h>
 extern __off64_t lseek64 __P ((int __fd, __off64_t __offset, int __whence));
 extern int get_kernel_syms __P ((struct kernel_sym *__table));
