@@ -1,3 +1,8 @@
+Version 1.4.2
+
+ . klogd will reconnect to the logger (mostly syslogd) after it went
+   away.
+
 Version 1.4.1
 
  . klogd will set the console log level only if `-c' is given on the
@@ -31,3 +36,9 @@ Version 1.4
    - Remove Unix Domain Sockets and switch to Datagram Unix Sockets
  . Several bugfixes and improvements, please refer to the .c files
 
+
+Local variables:
+mode: indented-text
+mode: iso-accents
+fill-column: 72
+End:

@@ -47,6 +47,9 @@ static char sccsid[] = "@(#)syslog.c	5.28 (Berkeley) 6/27/90";
  * Sun Mar 11 20:23:44 CET 2001: Martin Schulze <joey@infodrom.ffis.de>
  *	Use SOCK_DGRAM for loggin, renables it to work.	
  *
+ * Wed Aug 27 17:48:16 CEST 2003: Martin Schulze <joey@Infodrom.org>
+ *	Improved patch by Michael Pomraning <mjp@securepipe.com> to
+ *	reconnect klogd to the logger after it went away.
  */
 
 #include <sys/types.h>
@@ -97,7 +100,8 @@ vsyslog(pri, fmt, ap)
 	register int cnt;
 	register char *p;
 	time_t now;
-	int fd, r, saved_errno;
+	int fd, saved_errno;
+	int result;
 	char tbuf[2048], fmt_cpy[1024], *stdp = (char *) 0;
 
 	saved_errno = errno;
@@ -167,13 +171,16 @@ vsyslog(pri, fmt, ap)
 	}
 
 	/* output the message to the local logger */
-	r = write(LogFile, tbuf, cnt + 1);
+	result = write(LogFile, tbuf, cnt + 1);
 
-	if (r == -1 && (errno == ECONNRESET || errno == ENOTCONN)) {
+	if (result == -1
+	    && (errno == ECONNRESET || errno == ENOTCONN || errno == ECONNREFUSED)) {
 		closelog();
+		openlog(LogTag, LogStat | LOG_NDELAY, LogFacility);
+		result = write(LogFile, tbuf, cnt + 1);
 	}
 
-	if (r >= 0 || !(LogStat&LOG_CONS))
+	if (result >= 0 || !(LogStat&LOG_CONS))
 		return;
 
 	/*
