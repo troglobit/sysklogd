@@ -228,6 +228,11 @@
  *	raw text.  Allows external programs such as ksymoops do their own
  *	processing on the original data.  Thanks to Keith Owens
  *	<kaos@ocs.com.au> for the patch.
+ *
+ * Mon Sep 18 09:32:27 CEST 2000: Martin Schulze <joey@infodrom.ffis.de>
+ *	Added patch to fix priority decoding after moving kernel
+ *	messgages into "%s".  Thanks to Solar Designer
+ *	<solar@false.com> for the patch.
  */
 
 
@@ -555,6 +560,7 @@ extern void Syslog(int priority, char *fmt, ...)
 
 {
 	va_list ap;
+	char *argl;
 
 	if ( debugging )
 	{
@@ -577,38 +583,49 @@ extern void Syslog(int priority, char *fmt, ...)
 	}
 	
 	/* Output using syslog. */
-	if ( *fmt == '<' )
+	if (!strcmp(fmt, "%s"))
 	{
-		switch ( *(fmt+1) )
+		va_start(ap, fmt);
+		argl = va_arg(ap, char *);
+		if (argl[0] == '<' && argl[1] && argl[2] == '>')
 		{
-		    case '0':
-			priority = LOG_EMERG;
-			break;
-		    case '1':
-			priority = LOG_ALERT;
-			break;
-		    case '2':
-			priority = LOG_CRIT;
-			break;
-		    case '3':
-			priority = LOG_ERR;
-			break;
-		    case '4':
-			priority = LOG_WARNING;
-			break;
-		    case '5':
-			priority = LOG_NOTICE;
-			break;
-		    case '6':
-			priority = LOG_INFO;
-			break;
-		    case '7':
-		    default:
-			priority = LOG_DEBUG;
+			switch ( argl[1] )
+			{
+			case '0':
+				priority = LOG_EMERG;
+				break;
+			case '1':
+				priority = LOG_ALERT;
+				break;
+			case '2':
+				priority = LOG_CRIT;
+				break;
+			case '3':
+				priority = LOG_ERR;
+				break;
+			case '4':
+				priority = LOG_WARNING;
+				break;
+			case '5':
+				priority = LOG_NOTICE;
+				break;
+			case '6':
+				priority = LOG_INFO;
+				break;
+			case '7':
+			default:
+				priority = LOG_DEBUG;
+			}
+			argl += 3;
 		}
-		fmt += 3;
+		syslog(priority, fmt, argl);
+		va_end(ap);
+#ifdef TESTING
+		putchar('\n');
+#endif
+		return;
 	}
-	
+
 	va_start(ap, fmt);
 	vsyslog(priority, fmt, ap);
 	va_end(ap);
@@ -1148,8 +1165,8 @@ int main(argc, argv)
 }
 /*
  * Local variables:
- *  c-indent-level: 4
- *  c-basic-offset: 4
+ *  c-indent-level: 8
+ *  c-basic-offset: 8
  *  tab-width: 8
  * End:
  */
