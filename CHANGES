@@ -9,6 +9,7 @@ Version 1.4.2
      guaranteed to be available when the child is forked, hence, fixing a
      race condition.  This used to create problems with UML and fast
      machines.
+ . local copy of module.h
 
 Version 1.4.1
 

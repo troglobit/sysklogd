@@ -78,6 +78,11 @@
  *
  * Tue Sep 12 23:11:13 CEST 2000: Martin Schulze <joey@infodrom.ffis.de>
  *	Changed llseek() to lseek64() in order to skip a libc warning.
+ *
+ * Wed Mar 31 17:35:01 CEST 2004: Martin Schulze <joey@infodrom.org>
+ *	Removed references to <linux/module.h> since it doesn't work
+ *	anymore with its recent content from Linux 2.4/2.6, created
+ *	module.h locally instead.
  */
 
 
@@ -89,13 +94,12 @@
 #include <errno.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
+#include "module.h"
 #if !defined(__GLIBC__)
 #include <linux/time.h>
 #include <linux/linkage.h>
-#include <linux/module.h>
 #else /* __GLIBC__ */
 #include <linux/linkage.h>
-#include <linux/module.h>
 extern __off64_t lseek64 __P ((int __fd, __off64_t __offset, int __whence));
 extern int get_kernel_syms __P ((struct kernel_sym *__table));
 #endif /* __GLIBC__ */
@@ -109,7 +113,7 @@ extern int get_kernel_syms __P ((struct kernel_sym *__table));
 
 #if !defined(__GLIBC__)
 /*
- * The following bit uses some kernel/library magic to product what
+ * The following bit uses some kernel/library magic to produce what
  * looks like a function call to user level code.  This function is
  * actually a system call in disguise.  The purpose of the getsyms
  * call is to return a current copy of the in-kernel symbol table.
