@@ -1141,13 +1141,13 @@ int main(argc, argv)
 				 */
 				printchopped(from, line, \
  					     i + 2,  finet);
-			} else if (i < 0 && errno != EINTR) {
+			} else if (i < 0 && errno != EINTR && errno != EAGAIN) {
 				dprintf("INET socket error: %d = %s.\n", \
 					errno, strerror(errno));
 				logerror("recvfrom inet");
 				/* should be harmless now that we set
 				 * BSDCOMPAT on the socket */
-				sleep(10);
+				sleep(1);
 			}
 		}
 #endif
