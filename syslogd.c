@@ -1484,11 +1484,13 @@ void fprintlog(f, from, flags, msg)
 {
 	struct iovec iov[6];
 	register struct iovec *v = iov;
+	char repbuf[80];
+#ifdef SYSLOG_INET
 	register int l;
 	char line[MAXLINE + 1];
-	char repbuf[80];
 	time_t fwd_suspend;
 	struct hostent *hp;
+#endif
 
 	dprintf("Called fprintlog, ");
 
@@ -1526,6 +1528,7 @@ void fprintlog(f, from, flags, msg)
 		dprintf("\n");
 		break;
 
+#ifdef SYSLOG_INET
 	case F_FORW_SUSP:
 		fwd_suspend = time((time_t *) 0) - f->f_time;
 		if ( fwd_suspend >= INET_SUSPEND_TIME ) {
@@ -1608,6 +1611,7 @@ void fprintlog(f, from, flags, msg)
 			}
 		}
 		break;
+#endif
 
 	case F_CONSOLE:
 		f->f_time = now;
@@ -1963,7 +1967,7 @@ void die(sig)
 		dprintf("syslogd: exiting on signal %d\n", sig);
 		(void) sprintf(buf, "exiting on signal %d", sig);
 		errno = 0;
-		logmsg(LOG_SYSLOG|LOG_INFO, buf);
+		logmsg(LOG_SYSLOG|LOG_INFO, buf, LocalHostName, ADDDATE);
 	}
 
 	/* Close the sockets. */
@@ -2223,7 +2227,9 @@ void cfline(line, f)
 	int singlpri = 0;
 	int ignorepri = 0;
 	int syncfile;
+#ifdef SYSLOG_INET
 	struct hostent *hp;
+#endif
 	char buf[MAXLINE];
 
 	dprintf("cfline(%s)\n", line);
