@@ -460,7 +460,7 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
 #include <syscall.h>
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
-p#include <resolv.h>
+#include <resolv.h>
 #ifndef TESTING
 #include "pidfile.h"
 #endif
@@ -562,6 +562,7 @@ int funix[MAXFUNIX] = { -1, };
  * This table contains plain text for h_errno errors used by the
  * net subsystem.
  */
+const char *sys_h_errlist[] = {
     "No problem",						/* NETDB_SUCCESS */
     "Authoritative answer: host not found",			/* HOST_NOT_FOUND */
     "Non-authoritative answer: host not found, or serverfail",	/* TRY_AGAIN */
