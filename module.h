@@ -30,7 +30,7 @@
 
 #include <asm/atomic.h>
 
-#define MODULE_NAME_LEN (64 - sizeof(unsigned long))
+#define MODULE_NAME_LEN 60
 
 struct kernel_sym
 {
