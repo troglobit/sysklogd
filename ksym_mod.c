@@ -49,6 +49,12 @@
  *
  * Sun Jun 15 16:23:29 MET DST 1997: Michael Alan Dorman
  *	Some more glibc patches made by <mdorman@debian.org>.
+ *
+ * Sat Jan 10 15:00:18 CET 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Fixed problem with klogd not being able to be built on a kernel
+ *	newer than 2.1.18.  It was caused by modified structures
+ *	inside the kernel that were included.  I have worked in a
+ *	patch from Alessandro Suardi <asuardi@uninetcom.it>.
  */
 
 
@@ -68,6 +74,7 @@
 #endif /* __GLIBC__ */
 #include <stdarg.h>
 #include <paths.h>
+#include <linux/version.h>
 
 #include "klogd.h"
 #include "ksyms.h"
@@ -104,6 +111,9 @@ struct Module
 
 	char *name;
 	struct module module;
+#if LINUX_VERSION_CODE >= 0x20112
+	struct module_info module_info;
+#endif
 };
 
 static int num_modules = 0;
@@ -535,9 +545,15 @@ extern char * LookupModuleSymbol(value, sym)
 		 * If it is in this range we can at least return the
 		 * name of the module.
 		 */
+#if LINUX_VERSION_CODE < 0x20112
 		if ( (void *) value >= mp->module.addr &&
 		     (void *) value <= (mp->module.addr + \
 					mp->module.size * 4096) )
+#else
+		if ( value >= mp->module_info.addr &&
+		     value <= (mp->module_info.addr + \
+					mp->module.size * 4096) )
+#endif
 		{
 			/*
 			 * A special case needs to be checked for.  The above
@@ -556,8 +572,13 @@ extern char * LookupModuleSymbol(value, sym)
 			if ( mp->num_syms > 0 )
 			{
 				last = &mp->sym_array[mp->num_syms - 1];
+#if LINUX_VERSION_CODE < 0x20112
 				sym->size = (int) mp->module.addr + \
 					(mp->module.size * 4096) - value;
+#else
+				sym->size = (int) mp->module_info.addr + \
+					(mp->module.size * 4096) - value;
+#endif
 				sym->offset = value - last->value;
 				return(last->name);
 			}
@@ -568,7 +589,11 @@ extern char * LookupModuleSymbol(value, sym)
 			 * faulting address in the module.
 			 */
 			sym->size = mp->module.size * 4096;
+#if LINUX_VERSION_CODE < 0x20112
 			sym->offset = (void *) value - mp->module.addr;
+#else
+			sym->offset = value - mp->module_info.addr;
+#endif
 			return(mp->name);
 		}
 	}

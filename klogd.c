@@ -182,6 +182,15 @@
  *	call.  The old behaveiour could result in klogd being
  *	recognized as being undead, because it'll only die after a
  *	message has been received.
+ *
+ * Fri Jan  9 11:03:48 CET 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Corrected some code that caused klogd to dump core when
+ *	receiving messages containing '%', some of them exist in
+ *	2.1.78.  Thanks to Chu-yeon Park <kokids@doit.ajou.ac.kr> for
+ *	informing me.
+ *
+ * Fri Jan  9 23:38:19 CET 1998: Florian La Roche <florian@knorke.saar.de>
+ *	Added -x switch to omit EIP translation and System.map evaluation.
  */
 
 
@@ -230,7 +239,8 @@ static int	kmsg,
 
 static int	use_syscall = 0,
 		one_shot = 0,
-		NoFork = 0;	/* don't fork - don't run in daemon mode */
+		symbol_lookup = 1,
+		no_fork = 0;	/* don't fork - don't run in daemon mode */
 
 static char	*symfile = (char *) 0,
 		log_buffer[LOG_BUFFER_SIZE];
@@ -370,9 +380,11 @@ static void SignalDaemon(sig)
 static void ReloadSymbols()
 
 {
-	if ( reload_symbols > 1 )
-		InitKsyms(symfile);
-	InitMsyms();
+	if (symbol_lookup) {
+		if ( reload_symbols > 1 )
+			InitKsyms(symfile);
+		InitMsyms();
+	}
 	reload_symbols = change_state = 0;
 	return;
 }
@@ -497,7 +509,8 @@ extern void Syslog(int priority, char *fmt, ...)
 		va_end(ap);
 		fputc('\n', output_file);
 		fflush(output_file);
-		fsync(fileno(output_file));
+		if (!one_shot)
+			fsync(fileno(output_file));
 		return;
 	}
 	
@@ -611,7 +624,7 @@ static void LogLine(char *ptr, int len)
 		fprintf(stderr, "\tLine: %s\n", line);
 	    }
 
-            Syslog( LOG_INFO, line_buff );
+            Syslog( LOG_INFO, "%s", line_buff );
             line  = line_buff;
             space = sizeof(line_buff)-1;
             parse_state = PARSING_TEXT;
@@ -638,7 +651,7 @@ static void LogLine(char *ptr, int len)
                   len   -= 1;
 
                   *line = 0;  /* force null terminator */
-	          Syslog( LOG_INFO, line_buff );
+	          Syslog( LOG_INFO, "%s", line_buff );
                   line  = line_buff;
                   space = sizeof(line_buff)-1;
                   break;
@@ -721,7 +734,8 @@ static void LogLine(char *ptr, int len)
                *(line-1) = '>';  /* put back delim */
 
                symbol = LookupSymbol(value, &sym);
-               if ( symbol == (char *) 0 )
+               if ( !symbol_lookup || symbol == (char *) 0 )
+
                {
                   parse_state = PARSING_TEXT;
                   break;
@@ -823,7 +837,7 @@ int main(argc, argv)
 			*output = (char *) 0;
 
 	/* Parse the command-line. */
-	while ((ch = getopt(argc, argv, "c:df:iIk:nopsv")) != EOF)
+	while ((ch = getopt(argc, argv, "c:df:iIk:nopsvx")) != EOF)
 		switch((char)ch)
 		{
 		    case 'c':		/* Set console message level. */
@@ -846,7 +860,7 @@ int main(argc, argv)
 			symfile = optarg;
 			break;
 		    case 'n':		/* don't fork */
-			NoFork++;
+			no_fork++;
 			break;
 		    case 'o':		/* One-shot mode. */
 			one_shot = 1;
@@ -860,6 +874,9 @@ int main(argc, argv)
 		    case 'v':
 			printf("klogd %s-%s\n", VERSION, PATCHLEVEL);
 			exit (1);
+		    case 'x':
+			symbol_lookup = 0;
+			break;
 		}
 
 
@@ -888,7 +905,7 @@ int main(argc, argv)
 	 * not disabled with the command line argument and there's no
 	 * such process running.
 	 */
-	if ( (!one_shot) && (!NoFork) )
+	if ( (!one_shot) && (!no_fork) )
 	{
 		if (!check_pid(PidFile))
 		{
@@ -964,8 +981,10 @@ int main(argc, argv)
 	/* Handle one-shot logging. */
 	if ( one_shot )
 	{
-		InitKsyms(symfile);
-		InitMsyms();
+		if (symbol_lookup) {
+			InitKsyms(symfile);
+			InitMsyms();
+		}
 		if ( (logsrc = GetKernelLogSrc()) == kernel )
 			LogKernelLine();
 		else
@@ -978,8 +997,10 @@ int main(argc, argv)
 	sleep(KLOGD_DELAY);
 #endif
 	logsrc = GetKernelLogSrc();
-	InitKsyms(symfile);
-	InitMsyms();
+	if (symbol_lookup) {
+		InitKsyms(symfile);
+		InitMsyms();
+	}
 
         /* The main loop. */
 	while (1)

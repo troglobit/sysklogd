@@ -208,19 +208,19 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	reception on with the "-r" option.
  *
  *	Not defining SYSLOG_INET will result in not doing any network
- *	activity, i.e. not sending or receiving messages. I changed
+ *	activity, i.e. not sending or receiving messages.  I changed
  *	this because the old idea is implemented with the "-r" option
  *	and the old thing didn't work anyway.
  *
  * Thu Oct 26 13:14:06 MET 1995:  Martin Schulze
- *	Added another logfile type F_FORW_UNKN. The problem I ran into
+ *	Added another logfile type F_FORW_UNKN.  The problem I ran into
  *	was a name server that runs on my machine and a forwarder of
- *	kern.crit to another host. The hosts address can only be
- *	fetched using the nameserver. But named is started after
+ *	kern.crit to another host.  The hosts address can only be
+ *	fetched using the nameserver.  But named is started after
  *	syslogd, so syslogd complained.
  *
  *	This logfile type will retry to get the address of the
- *	hostname ten times and then complain. This should be enough to
+ *	hostname ten times and then complain.  This should be enough to
  *	get the named up and running during boot sequence.
  *
  * Fri Oct 27 14:08:15 1995:  Dr. Wettstein
@@ -330,6 +330,10 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	Reworked one line of the above patch as it prevented syslogd
  *	from binding the socket with the result that no messages were
  *	forwarded to other hosts.
+ *
+ * Sat Jan 10 01:33:06 CET 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Fixed small bugs in F_FORW_UNKN meachanism.  Thanks to Torsten
+ *	Neumann <torsten@londo.rhein-main.de> for pointing me to it.
  */
 
 
@@ -795,6 +799,7 @@ int main(argc, argv)
 		hent = gethostbyname(LocalHostName);
 		if ( hent )
 			sprintf(LocalHostName, "%s", hent->h_name);
+			
 		if ( (p = index(LocalHostName, '.')) )
 		{
 			*p++ = '\0';
@@ -1536,6 +1541,7 @@ void fprintlog(f, from, flags, msg)
 			else {
 			        dprintf("%s found, resuming.\n", f->f_un.f_forw.f_hname);
 				bcopy(hp->h_addr, (char *) &f->f_un.f_forw.f_addr.sin_addr, hp->h_length);
+				f->f_prevcount = 0;
 				f->f_type = F_FORW;
 				goto f_forw;
 			}
@@ -2316,6 +2322,7 @@ void cfline(line, f)
 		if ( (hp = gethostbyname(p)) == NULL ) {
 			f->f_type = F_FORW_UNKN;
 			f->f_prevcount = INET_RETRY_MAX;
+			f->f_time = time ( (time_t *)0 );
 		} else {
 			f->f_type = F_FORW;
 		}
@@ -2399,7 +2406,7 @@ int decode(name, codetab)
 {
 	register struct code *c;
 	register char *p;
-	char buf[40];
+	char buf[80];
 
 	dprintf ("symbolic name: %s", name);
 	if (isdigit(*name))
@@ -2407,7 +2414,7 @@ int decode(name, codetab)
 		dprintf ("\n");
 		return (atoi(name));
 	}
-	(void) strcpy(buf, name);
+	(void) strncpy(buf, name, 79);
 	for (p = buf; *p; p++)
 		if (isupper(*p))
 			*p = tolower(*p);

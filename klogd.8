@@ -26,6 +26,7 @@ klogd \- kernel log daemon.
 .I fname
 ]
 .RB [ " \-v " ]
+.RB [ " \-x " ]
 .LP
 .SH DESCRIPTION
 .B klogd
@@ -76,6 +77,9 @@ Use the specified file as the source of kernel symbol information.
 .TP
 .B "\-v"
 Print version and exit.
+.TP
+.B "\-x"
+Omits EIP translation and there doesn't read the System.map.
 .LP
 .SH OVERVIEW
 The functionality of klogd has been typically incorporated into other

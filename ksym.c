@@ -80,6 +80,9 @@
  * Fri Jun 13 10:50:23 CST 1997:  Martin Schulze
  *	Changed definition of LookupSymbol to non-static because it is
  *	used in klogd.c, too.
+ *
+ * Fri Jan  9 23:00:08 CET 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Fixed bug that caused klogd to die if there is no System.map available.
  */
 
 
@@ -327,7 +330,8 @@ static char * FindSymbolFile()
 		        continue;
 		}
 	}
-		
+
+	if (sym_file) {
 		/*
 		 * At this point a map file was successfully opened.  We
 		 * now need to search this file and look for a version
@@ -376,7 +380,7 @@ static char * FindSymbolFile()
 			return(symfile);
 			break;
 		}
-
+	}
 
 	/*
 	 * At this stage of the game we are at the end of the symbol
