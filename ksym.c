@@ -91,6 +91,14 @@
  *	Modified loop for detecting the correct system map.  Now it won't
  *	stop if a file has been found but doesn't contain the correct map.
  *	Special thanks go go Mark Simon Phillips for the hint.
+ *
+ * Mon Oct 12 00:42:30 CEST 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Modified CheckVersion()
+ *	. Use shift to decode the kernel version
+ *	. Compare integers of kernel version
+ *	. extract major.minor.patch from utsname.release via sscanf()
+ *	The reason lays in possible use of kernel flavours which
+ *	modify utsname.release but no the Version_ symbol.
  */
 
 
@@ -400,7 +408,10 @@ static int CheckVersion(version)
 			minor,
 			patch;
 
+#ifndef TESTING
+	int kvnum;
 	auto struct utsname utsname;
+#endif
 
 	static char *prefix = { "Version_" };
 
@@ -420,10 +431,9 @@ static int CheckVersion(version)
 	 * parts.
 	 */
 	vnum = atoi(version + strlen(prefix));
-	major = vnum / 65536;
-	vnum -= (major * 65536);
-	minor = vnum / 256;
-	patch = vnum - (minor * 256);
+	patch = vnum & 0x000000FF;
+	minor = (vnum >> 8) & 0x000000FF;
+	major = (vnum >> 16) & 0x000000FF;
 	if ( debugging )
 		fprintf(stderr, "Version string = %s, Major = %d, " \
 		       "Minor = %d, Patch = %d.\n", version +
@@ -431,6 +441,7 @@ static int CheckVersion(version)
 		       patch);
 	sprintf(vstring, "%d.%d.%d", major, minor, patch);
 
+#ifndef TESTING
 	/*
 	 * We should now have the version string in the vstring variable in
 	 * the same format that it is stored in by the kernel.  We now
@@ -447,11 +458,22 @@ static int CheckVersion(version)
 		fprintf(stderr, "Comparing kernel %s with symbol table %s.\n",\
 		       utsname.release, vstring);
 
+	if ( sscanf (utsname.release, "%d.%d.%d", &major, &minor, &patch) < 3 )
+	{
+		Syslog(LOG_ERR, "Kernel send bogus release string `%s'.",
+		       utsname.release);
+		return(0);
+	}
+
+	/* Compute the version code from data sent by the kernel */
+	kvnum = (major << 16) | (minor << 8) | patch;
+
 	/* Failure. */
-	if ( strcmp(vstring, utsname.release) != 0 )
+	if ( vnum != kvnum )
 		return(-1);
 
 	/* Success. */
+#endif
 	return(1);
 }
 
