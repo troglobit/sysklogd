@@ -3,7 +3,7 @@
 CC= gcc
 #CFLAGS= -g -DSYSV -Wall
 #LDFLAGS= -g
-CFLAGS= -O3 -DSYSV -fomit-frame-pointer -Wall -fno-strength-reduce
+CFLAGS= $(RPM_OPT_FLAGS) -O3 -DSYSV -fomit-frame-pointer -Wall -fno-strength-reduce
 LDFLAGS= -s
 
 # Look where your install program is.

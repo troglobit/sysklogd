@@ -83,6 +83,14 @@
  *
  * Fri Jan  9 23:00:08 CET 1998: Martin Schulze <joey@infodrom.north.de>
  *	Fixed bug that caused klogd to die if there is no System.map available.
+ *
+ * Sun 29 Mar 18:14:07 BST 1998: Mark Simon Phillips <msp@mail.virgin.net>
+ *	Switched to fgets() as gets() is not buffer overrun secure.
+ *
+ * Mon Apr 13 18:18:45 CEST 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Modified loop for detecting the correct system map.  Now it won't
+ *	stop if a file has been found but doesn't contain the correct map.
+ *	Special thanks go go Mark Simon Phillips for the hint.
  */
 
 
@@ -131,6 +139,7 @@ static char * FindSymbolFile(void);
 static int AddSymbol(unsigned long, char*);
 static void FreeSymbols(void);
 static int CheckVersion(char *);
+static int CheckMapVersion(char *);
 
 
 /**************************************************************************
@@ -294,16 +303,11 @@ extern int InitKsyms(mapfile)
 static char * FindSymbolFile()
 
 {
-	auto char	type,
-			*file = (char *) 0,
-			**mf = system_maps,
-			sym[512];
+	auto char	*file = (char *) 0,
+			**mf = system_maps;
 
-	auto int version;
 	auto struct utsname utsname;
 	static char symfile[100];
-
-	auto unsigned long int address;
 
 	auto FILE *sym_file = (FILE *) 0;
 
@@ -316,78 +320,31 @@ static char * FindSymbolFile()
 	if ( debugging )
 		fputs("Searching for symbol map.\n", stderr);
 	
-	for (mf = system_maps; *mf != (char *) 0 && sym_file == (FILE *) 0; ++mf)
+	for (mf = system_maps; *mf != (char *) 0 && file == (char *) 0; ++mf)
 	{
-	  
+ 
 		sprintf (symfile, "%s-%s", *mf, utsname.release);
 		if ( debugging )
 			fprintf(stderr, "Trying %s.\n", symfile);
-		if ( (sym_file = fopen(symfile, "r")) == (FILE *) 0 ) {
-			sprintf (symfile, "%s", *mf);
-		    if ( debugging )
-			fprintf(stderr, "Trying %s.\n", symfile);
-		    if ( (sym_file = fopen(symfile, "r")) == (FILE *) 0 )
-		        continue;
-		}
-	}
-
-	if (sym_file) {
-		/*
-		 * At this point a map file was successfully opened.  We
-		 * now need to search this file and look for a version
-		 * version information.
-		 */
-		version = 0;
-		while ( !feof(sym_file) && (version == 0) )
-		{
-			if ( fscanf(sym_file, "%lx %c %s\n", &address, \
-				    &type, sym) != 3 )
-			{
-				Syslog(LOG_ERR, "Error in symbol table input (#2).");
-				fclose(sym_file);
-				return((char *) 0);
-			}
-			if ( VERBOSE_DEBUGGING && debugging )
-				fprintf(stderr, "Address: %lx, Type: %c, " \
-				    "Symbol: %s\n", address, type, sym);
-
-			version = CheckVersion(sym);
-		}
-		fclose(sym_file);
-
-		switch ( version )
-		{
-		    case -1:
-			Syslog(LOG_ERR, "Symbol table has incorrect " \
-				"version number.\n");
-			break;
-			
-		    case 0:
-			if ( debugging )
-				fprintf(stderr, "No version information " \
-					"found.\n");
-			if ( file == (char *) 0 )
-			{
-				if ( debugging )
-					fputs("Saving filename.\n", stderr);
+		if ( (sym_file = fopen(symfile, "r")) != (FILE *) 0 ) {
+			if (CheckMapVersion(symfile) == 1)
 				file = symfile;
-			}
-			break;
-		    case 1:
-			if ( debugging )
-				fprintf(stderr, "Found table with " \
-					"matching version number.\n");
-			return(symfile);
-			break;
 		}
+		if (sym_file == (FILE *) 0 || file == (char *) 0) {
+			sprintf (symfile, "%s", *mf);
+			if ( debugging )
+				fprintf(stderr, "Trying %s.\n", symfile);
+			if ( (sym_file = fopen(symfile, "r")) != (FILE *) 0 ) {
+				if (CheckMapVersion(symfile) == 1)
+					file = symfile;
+			}
+		}
+
 	}
 
 	/*
 	 * At this stage of the game we are at the end of the symbol
-	 * tables.  We have evidently not found a symbol map whose version
-	 * information matches the currently executing kernel.  If possible
-	 * we return a pointer to the first valid symbol map that was
-	 * encountered.
+	 * tables.
 	 */
 	if ( debugging )
 		fprintf(stderr, "End of search list encountered.\n");
@@ -400,7 +357,7 @@ static char * FindSymbolFile()
  *
  * Purpose:	This function is responsible for determining whether or
  *		the system map being loaded matches the version of the
- *		currently running kernrel.
+ *		currently running kernel.
  *
  *		The kernel version is checked by examing a variable which
  *		is of the form:	_Version_66347 (a.out) or Version_66437 (ELF).
@@ -496,6 +453,95 @@ static int CheckVersion(version)
 
 	/* Success. */
 	return(1);
+}
+
+
+/**************************************************************************
+ * Function:	CheckMapVersion
+ *
+ * Purpose:	This function is responsible for determining whether or
+ *		the system map being loaded matches the version of the
+ *		currently running kernel.  It uses CheckVersion as
+ *		backend.
+ *
+ * Arguements:	(char *) fname
+ *
+ *			fname:->	A pointer to the string which
+ *					references the system map file to
+ *					be used.
+ *
+ * Return:	int
+ *
+ *		       -1:->	The currently running kernel version does
+ *				not match the version in the given file.
+ *
+ *			0:->	No system map file or no version information.
+ *
+ *			1:->	The executing kernel is of the same version
+ *				as the version of the map file.
+ **************************************************************************/
+
+static int CheckMapVersion(fname)
+
+	char *fname;
+	
+
+{
+	int	version;
+	FILE	*sym_file;
+	auto unsigned long int address;
+	auto char	type,
+			sym[512];
+
+	if ( (sym_file = fopen(fname, "r")) != (FILE *) 0 ) {
+		/*
+		 * At this point a map file was successfully opened.  We
+		 * now need to search this file and look for version
+		 * information.
+		 */
+		Syslog(LOG_INFO, "Inspecting %s", fname);
+
+		version = 0;
+		while ( !feof(sym_file) && (version == 0) )
+		{
+			if ( fscanf(sym_file, "%lx %c %s\n", &address, \
+				    &type, sym) != 3 )
+			{
+				Syslog(LOG_ERR, "Error in symbol table input (#2).");
+				fclose(sym_file);
+				return(0);
+			}
+			if ( VERBOSE_DEBUGGING && debugging )
+				fprintf(stderr, "Address: %lx, Type: %c, " \
+				    "Symbol: %s\n", address, type, sym);
+
+			version = CheckVersion(sym);
+		}
+		fclose(sym_file);
+
+		switch ( version )
+		{
+		    case -1:
+			Syslog(LOG_ERR, "Symbol table has incorrect " \
+				"version number.\n");
+			break;
+			
+		    case 0:
+			if ( debugging )
+				fprintf(stderr, "No version information " \
+					"found.\n");
+			break;
+		    case 1:
+			if ( debugging )
+				fprintf(stderr, "Found table with " \
+					"matching version number.\n");
+			break;
+		}
+
+		return(version);
+	}
+
+	return(0);
 }
 
 	
@@ -658,7 +704,7 @@ extern char * ExpandKadds(line, el)
 			*symbol;
 
 	char num[15];
-	auto int value;
+	auto unsigned long int value;
 
 	auto struct symbol sym;
 
@@ -711,14 +757,14 @@ extern char * ExpandKadds(line, el)
 		dlm = *kp;
 		strncpy(num,sl+1,kp-sl-1);
 		num[kp-sl-1] = '\0';
-		value = strtol(num, (char **) 0, 16);
+		value = strtoul(num, (char **) 0, 16);
 		if ( (symbol = LookupSymbol(value, &sym)) == (char *) 0 )
 			symbol = sl;
 			
 		strcat(elp, symbol);
 		elp += strlen(symbol);
 		if ( debugging )
-			fprintf(stderr, "Symbol: %s = %x = %s, %d/%d\n", \
+			fprintf(stderr, "Symbol: %s = %lx = %s, %x/%d\n", \
 				sl+1, value, \
 				(sym.size==0) ? symbol+1 : symbol, \
 				sym.offset, sym.size);
@@ -728,7 +774,7 @@ extern char * ExpandKadds(line, el)
 		{
 			--value;
 			++kp;
-			elp += sprintf(elp, "+%d/%d", sym.offset, sym.size);
+			elp += sprintf(elp, "+%x/%d", sym.offset, sym.size);
 		}
 		strncat(elp, kp, value);
 		elp += value;
@@ -796,7 +842,8 @@ extern int main(int argc, char *argv[])
 
 	while ( !feof(stdin) )
 	{
-		gets(line);
+		fgets(line, sizeof(line), stdin);
+		if (line[strlen(line)-1] == '\n') line[strlen(line)-1] = '\0'; /* Trash NL char */
 		memset(eline, '\0', sizeof(eline));
 		ExpandKadds(line, eline);
 		fprintf(stdout, "%s\n", eline);

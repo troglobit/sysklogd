@@ -63,6 +63,13 @@
  * Thu Mar 19 23:39:29 CET 1998: Manuel Rodrigues <pmanuel@cindy.fe.up.pt>
  *	Changed lseek() to llseek() in order to support > 2GB address
  *	space which provided by kernels > 2.1.70.
+ *
+ * Mon Apr 13 18:18:45 CEST 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Removed <sys/module.h> as it's no longer part of recent glibc
+ *	versions.  Added prototyp for llseek() which has been
+ *	forgotton in <unistd.h> from glibc.  Added more log
+ *	information if problems occurred while reading a system map
+ *	file, by submission from Mark Simon Phillips <msp@mail.virgin.net>.
  */
 
 
@@ -78,11 +85,9 @@
 #include <linux/time.h>
 #include <linux/module.h>
 #else /* __GLIBC__ */
-#if !defined(__alpha)
-#include <sys/module.h>
-#else
 #include <linux/module.h>
-#endif /* __alpha */
+extern loff_t llseek __P ((int __fd, loff_t __offset, int __whence));
+extern int get_kernel_syms __P ((struct kernel_sym *__table));
 #endif /* __GLIBC__ */
 #include <stdarg.h>
 #include <paths.h>
@@ -393,6 +398,7 @@ static int AddModule(address, symbol)
 		if ( llseek(memfd, address, SEEK_SET) < 0 )
 		{
 			Syslog(LOG_WARNING, "Error seeking in /dev/kmem\n");
+			Syslog(LOG_WARNING, "Symbol %s, value %08x\n", symbol, address);
 			return(0);
 		}
 		if ( read(memfd, \

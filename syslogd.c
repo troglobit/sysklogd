@@ -113,7 +113,7 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	priority information is encoded as a leader on the messages this
  *	was causing lines to be placed in erroneous files.
  *
- *	Also added a patch from Shane Alderton (shane@scs.apana.org.au) to
+ *	Also added a patch from Shane Alderton (shane@ion.apana.org.au) to
  *	correct a problem with syslogd dumping core when an attempt was made
  *	to write log messages to a logged-on user.  Thank you.
  *

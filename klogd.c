@@ -196,6 +196,11 @@
  *	As the bug covering the %'s introduced a problem with
  *	unevaluated priorities I've worked out a real fix that strips
  *	%'s to an even number which is harmless for printf.
+ *
+ * Mon Apr 13 18:18:45 CEST 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Modified System.map read function to try all possible map
+ *	files until a file with matching version is found.  Added support for
+ *	Debian release.
  */
 
 
@@ -475,8 +480,13 @@ static enum LOGSRC GetKernelLogSrc(void)
 	{
 	  	/* Initialize kernel logging. */
 	  	ksyslog(1, NULL, 0);
+#ifdef DEBRELEASE
+		Syslog(LOG_INFO, "klogd %s-%s#%s, log source = ksyslog "
+		       "started.", VERSION, PATCHLEVEL, DEBRELEASE);
+#else
 		Syslog(LOG_INFO, "klogd %s-%s, log source = ksyslog "
 		       "started.", VERSION, PATCHLEVEL);
+#endif
 		return(kernel);
 	}
 	
@@ -488,8 +498,13 @@ static enum LOGSRC GetKernelLogSrc(void)
 		exit(1);
 	}
 
+#ifdef DEBRELEASE
+	Syslog(LOG_INFO, "klogd %s-%s#%s, log source = %s started.", \
+	       VERSION, PATCHLEVEL, DEBRELEASE, _PATH_KLOG);
+#else
 	Syslog(LOG_INFO, "klogd %s-%s, log source = %s started.", \
 	       VERSION, PATCHLEVEL, _PATH_KLOG);
+#endif
 	return(proc);
 }
 
