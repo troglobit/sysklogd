@@ -422,6 +422,9 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	control characters '\177' through '\237' and contained a
  *	single-byte buffer overflow.  Thanks to Solar Designer
  *	<solar@false.com>.
+ *
+ * Sun Sep 17 21:26:16 CEST 2000: Martin Schulze <joey@infodrom.ffis.de>
+ *	Don't close open sockets upon reload.  Thanks to Bill Nottingham.
  */
 
 
@@ -2346,7 +2349,10 @@ void init()
 #ifdef SYSLOG_UNIXAF
 	for (i = 0; i < nfunix; i++) {
 		if (funix[i] != -1)
+			/* Don't close the socket, preserve it instead
 			close(funix[i]);
+			*/
+			continue;
 		if ((funix[i] = create_unix_socket(funixn[i])) != -1)
 			dprintf("Opened UNIX socket `%s'.\n", funixn[i]);
 	}
