@@ -40,12 +40,17 @@ sources.  Hopefully the Linux community will find these sources to be
 a useful addition to the software gene pool.
 
 There is a mailing list covering this package and syslog in general.
-The lists address is sysklogd@Infodrom.North.DE .  To subscribe send a
-mail to Majordomo@Infodrom.North.DE with a line "subscribe sysklogd"
+The lists address is infodrom-sysklogd@lists.infodrom.org .  To subscribe send a
+mail to majordomo@lists.infodrom.org with a line "subscribe infodrom-sysklogd"
 in the message body.
 
-New versions of this package will be available at Joey's server.
-  http://www.infodrom.org/projects/sysklogd/
+A second mailing list exists as infodrom-sysklogd-cvs@lists.infodrom.org.  Only
+CVS messages and diffs are distributed there. Whenever new code is added to
+sysklogd, CVS generates a mail from these changes which will be sent to
+this list.  Discussions will take place on the first list.
+
+The latest version of this software can be found at:
+http://www.infodrom.org/projects/sysklogd/download.php3
 
 Best regards,
 
@@ -69,4 +74,4 @@ Martin Schulze
 Infodrom Oldenburg
 joey@infodrom.org
 
-And a host of bug reporters whose contributions cannot be underestimated.
+And a number of bug reporters whose contributions cannot be underestimated.
