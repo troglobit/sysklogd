@@ -462,9 +462,15 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  * Tue May  4 16:52:01 CEST 2004: Solar Designer <solar@openwall.com>
  *	Adjust the size of a variable to prevent a buffer overflow
  *	should _PATH_DEV ever contain something different than "/dev/".
+ *
  * Tue Nov  2 20:28:23 CET 2004: Colin Phipps <cph@cph.demon.co.uk>
  *	Don't block on the network socket, in case a packet gets lost
  *	between select and recv.
+ *
+ * Sun Nov  7 12:28:47 CET 2004: Martin Schulze <joey@infodrom.org>
+ *	Discard any timestamp information found in received syslog
+ *	messages.  This will affect local messages sent from a
+ *	different timezone.
  */
 
 
@@ -1585,20 +1591,24 @@ void logmsg(pri, msg, from, flags)
 
 	/*
 	 * Check to see if msg looks non-standard.
+	 *
+	 * A message looks like
+	 * Nov 17 11:42:33 CRON[
+	 * 01234567890123456
+	 *    ^  ^  ^  ^  ^
+	 *
+	 * Remote messages are not accompanied by a timestamp.
+	 * Local messages are accompanied by a timestamp (program's timezone)
 	 */
 	msglen = strlen(msg);
-	if (msglen < 16 || msg[3] != ' ' || msg[6] != ' ' ||
-	    msg[9] != ':' || msg[12] != ':' || msg[15] != ' ')
-		flags |= ADDDATE;
-
-	(void) time(&now);
-	if (flags & ADDDATE)
-		timestamp = ctime(&now) + 4;
-	else {
-		timestamp = msg;
+	if (!(msglen < 16 || msg[3] != ' ' || msg[6] != ' ' ||
+	    msg[9] != ':' || msg[12] != ':' || msg[15] != ' ')) {
 		msg += 16;
 		msglen -= 16;
 	}
+
+	(void) time(&now);
+	timestamp = ctime(&now) + 4;
 
 	/* extract facility and priority level */
 	if (flags & MARK)
