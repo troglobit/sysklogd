@@ -1,0 +1,3 @@
+Version 1.4
+
+ . Skip newline when reading in klog messages

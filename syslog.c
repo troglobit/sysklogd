@@ -103,7 +103,7 @@ vsyslog(pri, fmt, ap)
 	if (!LOG_MASK(LOG_PRI(pri)) || (pri &~ (LOG_PRIMASK|LOG_FACMASK)))
 		return;
 	if (LogFile < 0 || !connected)
-		openlog(LogTag, LogStat | LOG_NDELAY, 0);
+		openlog(LogTag, LogStat | LOG_NDELAY, LogFacility);
 
 	/* set default facility if none specified */
 	if ((pri & LOG_FACMASK) == 0)

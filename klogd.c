@@ -213,6 +213,9 @@
  *	Shortened LOG_LINE_LENGTH in order to get long lines splitted
  *	up earlier and syslogd has a better chance concatenating them
  *	together again.
+ *
+ * Sat Aug 21 12:27:02 CEST 1999: Martin Schulze <joey@infodrom.north.de>
+ *	Skip newline when reading in messages.
  */
 
 
@@ -695,7 +698,7 @@ static void LogLine(char *ptr, int len)
 
                if( *ptr == '\n' )  /* newline */
                {
-                  *line++ = *ptr++;  /* copy it in */
+                  ptr++;	/* skip newline */
                   space -= 1;
                   len   -= 1;
 
