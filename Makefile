@@ -55,7 +55,7 @@ DEB =
 
 all: syslogd klogd
 
-test: syslog_tst ksym oops_test
+test: syslog_tst ksym oops_test tsyslogd
 
 install: install_man install_exec
 
@@ -68,6 +68,12 @@ klogd:	klogd.o syslog.o pidfile.o ksym.o ksym_mod.o
 
 syslog_tst: syslog_tst.o
 	${CC} ${LDFLAGS} -o syslog_tst syslog_tst.o
+
+tsyslogd: syslogd.c version.h
+	$(CC) $(CFLAGS) -g -DTESTING $(SYSLOGD_FLAGS) -o tsyslogd syslogd.c
+
+tklogd: klogd.c syslog.c ksym.c ksym_mod.c version.h
+	$(CC) $(CFLAGS) -g -DTESTING $(KLOGD_FLAGS) -o tklogd klogd.c syslog.c ksym.c ksym_mod.c
 
 syslogd.o: syslogd.c version.h
 	${CC} ${CFLAGS} ${SYSLOGD_FLAGS} $(DEB) -c syslogd.c
@@ -103,7 +109,7 @@ clean:
 	rm -f *.o *.log *~ *.orig
 
 clobber: clean
-	rm -f syslogd klogd ksym syslog_tst oops_test TAGS
+	rm -f syslogd klogd ksym syslog_tst oops_test TAGS tsyslogd
 
 install_exec: syslogd klogd
 	${INSTALL} -m 500 -s syslogd ${BINDIR}/syslogd
