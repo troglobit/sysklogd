@@ -441,17 +441,17 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	Don't return a closed fd if `-a' is called with a wrong path.
  *	Thanks to Bill Nottingham <notting@redhat.com> for providing
  *	a patch.
- * Thu Aep 13 05:08:10 2001: Jon Burgess <Jon_Burgess@eur.3com.com>
+ * Thu Apr 13 05:08:10 CEST 2001: Jon Burgess <Jon_Burgess@eur.3com.com>
  *	Moved the installation of the signal handler up a little bit
  *	so it guaranteed to be available when the child is forked,
  *	hence, fixing a  race condition.  This used to create problems
  *	with UML and fast machines.
  *
- * Sat Apr 17 18:03:05 2004: Steve Grubb <linux_4ever@yahoo.com>
+ * Sat Apr 17 18:03:05 CEST 2004: Steve Grubb <linux_4ever@yahoo.com>
  *	Correct memory allocation for for commandline arguments in
  *	crunch_list().
  *
- * Thu Apr 29 12:38:39 2004: Solar Designer <solar@openwall.com>
+ * Thu Apr 29 12:38:39 CEST 2004: Solar Designer <solar@openwall.com>
  *	Applied Openwall paranoia patches to improve crunch_list().
  *
  * Tue May  4 16:47:30 CEST 2004: Solar Designer <solar@openwall.com>
