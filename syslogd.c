@@ -441,6 +441,11 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	Don't return a closed fd if `-a' is called with a wrong path.
  *	Thanks to Bill Nottingham <notting@redhat.com> for providing
  *	a patch.
+ * Thu Aep 13 05:08:10 2001: Jon Burgess <Jon_Burgess@eur.3com.com>
+ *	Moved the installation of the signal handler up a little bit
+ *	so it guaranteed to be available when the child is forked,
+ *	hence, fixing a  race condition.  This used to create problems
+ *	with UML and fast machines.
  */
 
 
@@ -890,11 +895,11 @@ int main(argc, argv)
 		dprintf("Checking pidfile.\n");
 		if (!check_pid(PidFile))
 		{
+			signal (SIGTERM, doexit);
 			if (fork()) {
 				/*
 				 * Parent process
 				 */
-				signal (SIGTERM, doexit);
 				sleep(300);
 				/*
 				 * Not reached unless something major went wrong.  5
@@ -1815,7 +1820,7 @@ void fprintlog(f, from, flags, msg)
 			v->iov_len = 1;
 		}
 	again:
-		/* f->f_file == -1 is an indicator that the we couldn't
+		/* f->f_file == -1 is an indicator that we couldn't
 		   open the file at startup. */
 		if (f->f_file == -1)
 			break;
