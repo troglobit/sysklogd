@@ -362,6 +362,21 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	will raise if it is initialized.  Only after that one the
  *	parent process may exit.  Otherwise klogd might try to flush
  *	its log cache while syslogd can't receive the messages yet.
+ *
+ * Mon Oct 12 13:30:35 CEST 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Redirected some error output with regard to argument parsing to
+ *	stderr.
+ *
+ * Mon Oct 12 14:02:51 CEST 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Applied patch provided vom Topi Miettinen with regard to the
+ *	people from OpenBSD.  This provides the additional '-a'
+ *	argument used for specifying additional UNIX domain sockets to
+ *	listen to.  This is been used with chroot()'ed named's for
+ *	example.
+ *
+ * Mon Oct 12 18:29:44 CEST 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Added `ftp' facility which was introduced in glibc version 2.
+ *	It's #ifdef'ed so won't harm with older libraries.
  */
 
 
@@ -469,17 +484,22 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
 #define _PATH_LOG	"/dev/log"
 #endif
 
-char	*LogName = _PATH_LOG;
 char	*ConfFile = _PATH_LOGCONF;
 char	*PidFile = _PATH_LOGPID;
 char	ctty[] = _PATH_CONSOLE;
 
 char	**parts;
 
-int inetm = 0, funix = -1;
+int inetm = 0;
 static int debugging_on = 0;
 static int nlogs = -1;
 static int restart = 0;
+
+#define MAXFUNIX	20
+
+int nfunix = 1;
+char *funixn[MAXFUNIX] = { _PATH_LOG };
+int funix[MAXFUNIX] = { -1, };
 
 #define UNAMESZ		8	/* length of a login name */
 #define MAXUNAMES	20	/* maximum number of user names */
@@ -617,6 +637,9 @@ struct code	FacNames[] = {
 	{"syslog",       LOG_SYSLOG},
 	{"user",         LOG_USER},
 	{"uucp",         LOG_UUCP},
+#if defined(__GLIBC__) && __GLIBC__ >= 2
+	{"ftp",          LOG_FTP},
+#endif
 	{"local0",       LOG_LOCAL0},
 	{"local1",       LOG_LOCAL1},
 	{"local2",       LOG_LOCAL2},
@@ -682,7 +705,7 @@ static void allocate_log(void);
 void sighup_handler();
 
 #ifdef SYSLOG_UNIXAF
-static int create_unix_socket();
+static int create_unix_socket(const char *path);
 #endif
 #ifdef SYSLOG_INET
 static int create_inet_socket();
@@ -702,6 +725,14 @@ int main(argc, argv)
 #endif
 	int num_fds;
 #endif /* __GLIBC__ */
+	/*
+	 * It took me quite some time to figure out so I guess I
+	 * should better write it down.  unixm is a list of file
+	 * descriptors from which one can read().  This is contrary to
+	 * readfds which is a list of file descriptors where activity
+	 * is monitored by select() and from which one cannot read().
+	 * -Joey
+	 */
 	fd_set unixm, readfds;
 
 #ifndef TESTING
@@ -725,8 +756,19 @@ int main(argc, argv)
 #ifndef TESTING
 	chdir ("/");
 #endif
-	while ((ch = getopt(argc, argv, "dhf:l:m:np:rs:v")) != EOF)
+	for (i = 1; i < nfunix; i++) {
+		funixn[i] = "";
+		funix[i]  = -1;
+	}
+
+	while ((ch = getopt(argc, argv, "a:dhf:l:m:np:rs:v")) != EOF)
 		switch((char)ch) {
+		case 'a':
+			if (nfunix < MAXFUNIX)
+				funixn[nfunix++] = optarg;
+			else
+				fprintf(stderr, "Out of descriptors, ignoring %s\n", optarg);
+			break;
 		case 'd':		/* debug */
 			Debug = 1;
 			break;
@@ -738,7 +780,7 @@ int main(argc, argv)
 			break;
 		case 'l':
 			if (LocalHosts) {
-				printf ("Only one -l argument allowed," \
+				fprintf (stderr, "Only one -l argument allowed," \
 					"the first one is taken.\n");
 				break;
 			}
@@ -750,15 +792,15 @@ int main(argc, argv)
 		case 'n':		/* don't fork */
 			NoFork = 1;
 			break;
-		case 'p':		/* path */
-			LogName = optarg;
+		case 'p':		/* path to regular log socket */
+			funixn[0] = optarg;
 			break;
 		case 'r':		/* accept remote messages */
 			AcceptRemote = 1;
 			break;
 		case 's':
 			if (StripDomains) {
-				printf ("Only one -s argument allowed," \
+				fprintf (stderr, "Only one -s argument allowed," \
 					"the first one is taken.\n");
 				break;
 			}
@@ -883,7 +925,6 @@ int main(argc, argv)
 	(void) signal(SIGALRM, domark);
 	(void) signal(SIGUSR1, Debug ? debug_switch : SIG_IGN);
 	(void) alarm(TIMERINTVL);
-	(void) unlink(LogName);
 
 	/* Create a partial message table for all file descriptors. */
 	num_fds = getdtablesize();
@@ -921,14 +962,12 @@ int main(argc, argv)
 #ifdef SYSLOG_UNIXAF
 #ifndef TESTING
 		/*
-		 * Add the Unix Domain Socket to the list of read
+		 * Add the Unix Domain Sockets to the list of read
 		 * descriptors.
 		 */
-		if (funix >= 0) {
-		FD_SET(funix, &readfds);
-		for (nfds= 0; nfds < FD_SETSIZE; ++nfds)
-			if ( FD_ISSET(nfds, &unixm) )
-				FD_SET(nfds, &readfds);
+		for (i = 0; i < nfunix; i++) {
+			if (funix[i] != -1)
+				FD_SET(funix[i], &readfds);
 		}
 #endif
 #endif
@@ -1024,21 +1063,20 @@ int main(argc, argv)
 		  	}
 	      	}
 		/* Accept a new unix connection */
-		if (FD_ISSET(funix, &readfds)) {
-			len = sizeof(fromunix);
-			if ((fd = accept(funix, (struct sockaddr *) &fromunix,\
-					 &len)) >= 0) {
-			  	FD_SET(fd, &unixm);
-				dprintf("New UNIX connect assigned to fd: " \
-					"%d.\n", fd);
-				FD_SET(fd, &readfds);
+		for (i = 0; i < nfunix; i++)
+			if (funix[i] != -1 && FD_ISSET(funix[i], &readfds)) {
+				len = sizeof(fromunix);
+				if ((fd = accept(funix[i], (struct sockaddr *) &fromunix,
+						 &len)) >= 0) {
+					FD_SET(fd, &unixm);
+					dprintf("New UNIX connect assigned to fd: " \
+						"%d.\n", fd);
+					FD_SET(fd, &readfds);
+				} else {
+					dprintf("Error accepting UNIX connection: " \
+						"%d = %s.\n", errno, strerror(errno));
+				}
 			}
-			else {
-				dprintf("Error accepting UNIX connection: " \
-					"%d = %s.\n", errno, strerror(errno));
-			}
-		}
-
 #endif
 
 #ifdef SYSLOG_INET
@@ -1100,21 +1138,27 @@ int usage()
 }
 
 #ifdef SYSLOG_UNIXAF
-static int create_unix_socket()
+static int create_unix_socket(const char *path)
 {
 	struct sockaddr_un sunx;
 	int fd;
 	char line[MAXLINE +1];
 
+	if (path[0] == '\0')
+		return -1;
+
+	(void) unlink(path);
+
+	memset(&sunx, 0, sizeof(sunx));
 	sunx.sun_family = AF_UNIX;
-	(void) strncpy(sunx.sun_path, LogName, sizeof(sunx.sun_path));
+	(void) strncpy(sunx.sun_path, path, sizeof(sunx.sun_path));
 	fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (fd < 0 || bind(fd, (struct sockaddr *) &sunx,
 			   sizeof(sunx.sun_family)+strlen(sunx.sun_path)) < 0 ||
-	    chmod(LogName, 0666) < 0 || listen(fd, 5) < 0) {
-		(void) sprintf(line, "cannot create %s", LogName);
+	    chmod(path, 0666) < 0 || listen(fd, 5) < 0) {
+		(void) sprintf(line, "cannot create %s", path);
 		logerror(line);
-		dprintf("cannot create %s (%d).\n", LogName, errno);
+		dprintf("cannot create %s (%d).\n", path, errno);
 		close(fd);
 #ifndef SYSV
 		die(0);
@@ -2029,6 +2073,7 @@ void die(sig)
 	register struct filed *f;
 	char buf[100];
 	int lognum;
+	int i;
 
 	for (lognum = 0; lognum <= nlogs; lognum++) {
 		f = &Files[lognum];
@@ -2044,12 +2089,17 @@ void die(sig)
 		logmsg(LOG_SYSLOG|LOG_INFO, buf, LocalHostName, ADDDATE);
 	}
 
-	/* Close the sockets. */
-        close(funix);
+	/* Close the UNIX sockets. */
+        for (i = 0; i < nfunix; i++)
+		if (funix[i] != -1)
+			close(funix[i]);
+	/* Close the inet socket. */
 	if (InetInuse) close(inetm);
 
 	/* Clean-up files. */
-	(void) unlink(LogName);
+        for (i = 0; i < nfunix; i++)
+		if (funixn[i] && funix[i] != -1)
+			(void)unlink(funixn[i]);
 #ifndef TESTING
 	(void) remove_pid(PidFile);
 #endif
@@ -2219,8 +2269,9 @@ void init()
 	(void) fclose(cf);
 
 #ifdef SYSLOG_UNIXAF
-	if (funix < 0)
-		funix = create_unix_socket();
+	for (i = 0; i < nfunix; i++)
+		if ((funix[i] = create_unix_socket(funixn[i])) != -1)
+			dprintf("Opened UNIX socket `%s'.\n", funixn[i]);
 #endif
 
 #ifdef SYSLOG_INET
