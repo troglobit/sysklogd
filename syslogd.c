@@ -347,6 +347,10 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  * Wed Feb 25 10:54:09 CET 1998: Martin Schulze <joey@infodrom.north.de>
  *	Fixed little comparison mistake that prevented the MARK
  *	feature to work properly.
+ *
+ * Wed Feb 25 13:21:44 CET 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Corrected Topi's patch as it prevented forwarding during
+ *	startup due to an unknown LogPort.
  */
 
 
@@ -1050,7 +1054,6 @@ static int create_unix_socket()
 static int create_inet_socket()
 {
 	int fd, on = 1;
-	struct servent *sp;
 	struct sockaddr_in sin;
 
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -1059,17 +1062,8 @@ static int create_inet_socket()
 		return fd;
 	}
 
-	sp = getservbyname("syslog", "udp");
-	if (sp == NULL) {
-		errno = 0;
-		logerror("network logging disabled (syslog/udp service unknown).");
-		logerror("see syslogd(8) for details of whether and how to enable it.");
-		close(fd);
-		return -1;
-	}
-
 	sin.sin_family = AF_INET;
-	sin.sin_port = LogPort = sp->s_port;
+	sin.sin_port = LogPort;
 	sin.sin_addr.s_addr = 0;
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, \
 		       (char *) &on, sizeof(on)) < 0 ) {
@@ -1936,7 +1930,7 @@ void logerror(type)
 {
 	char buf[100];
 
-	dprintf("Called loggerr, msg: %s\n", type);
+	dprintf("Called logerr, msg: %s\n", type);
 
 	if (errno == 0)
 		(void) sprintf(buf, "syslogd: %s", type);
@@ -1999,6 +1993,16 @@ void init()
 #else
 	char cline[BUFSIZ];
 #endif
+	struct servent *sp;
+
+	sp = getservbyname("syslog", "udp");
+	if (sp == NULL) {
+		errno = 0;
+		logerror("network logging disabled (syslog/udp service unknown).");
+		logerror("see syslogd(8) for details of whether and how to enable it.");
+		return;
+	}
+	LogPort = sp->s_port;
 
 	/*
 	 *  Close all open log files and free log descriptor array.
@@ -2385,6 +2389,7 @@ void cfline(line, f)
 		} else {
 			f->f_type = F_FORW;
 		}
+
 		bzero((char *) &f->f_un.f_forw.f_addr,
 			 sizeof(f->f_un.f_forw.f_addr));
 		f->f_un.f_forw.f_addr.sin_family = AF_INET;
