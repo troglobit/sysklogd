@@ -191,6 +191,11 @@
  *
  * Fri Jan  9 23:38:19 CET 1998: Florian La Roche <florian@knorke.saar.de>
  *	Added -x switch to omit EIP translation and System.map evaluation.
+ *
+ * Sun Jan 25 20:47:46 CET 1998: Martin Schulze <joey@infodrom.north.de>
+ *	As the bug covering the %'s introduced a problem with
+ *	unevaluated priorities I've worked out a real fix that strips
+ *	%'s to an even number which is harmless for printf.
  */
 
 
@@ -624,7 +629,7 @@ static void LogLine(char *ptr, int len)
 		fprintf(stderr, "\tLine: %s\n", line);
 	    }
 
-            Syslog( LOG_INFO, "%s", line_buff );
+            Syslog( LOG_INFO, line_buff );
             line  = line_buff;
             space = sizeof(line_buff)-1;
             parse_state = PARSING_TEXT;
@@ -633,7 +638,7 @@ static void LogLine(char *ptr, int len)
         switch( parse_state )
         {
         case PARSING_TEXT:
-               delta = copyin( line, space, ptr, len, "\n[" );
+               delta = copyin( line, space, ptr, len, "\n[%" );
                line  += delta;
                ptr   += delta;
                space -= delta;
@@ -651,7 +656,7 @@ static void LogLine(char *ptr, int len)
                   len   -= 1;
 
                   *line = 0;  /* force null terminator */
-	          Syslog( LOG_INFO, "%s", line_buff );
+	          Syslog( LOG_INFO, line_buff );
                   line  = line_buff;
                   space = sizeof(line_buff)-1;
                   break;
@@ -664,6 +669,30 @@ static void LogLine(char *ptr, int len)
                   parse_state = PARSING_SYMSTART;      /* at < */
                   break;
                }
+               if( *ptr == '%' )   /* dangerous printf marker */
+	       {
+		   delta = 0;
+		   while (len && *ptr == '%')
+		   {
+		       *line++ = *ptr++;	/* copy it in */
+		       space -= 1;
+		       len   -= 1;
+		       delta++;
+		   }
+		   if (delta % 2)	/* odd amount of %'s */
+		   {
+		       if (space)
+		       {
+			   *line++ = '%';	/* so simply add one */
+			   space -= 1;
+		       }
+		       else 
+		       {
+			   *line++ = '\0';	/* remove the last one / terminate the string */
+		       }
+
+		   }
+	       }
                break;
         
         case PARSING_SYMSTART:
@@ -735,7 +764,6 @@ static void LogLine(char *ptr, int len)
 
                symbol = LookupSymbol(value, &sym);
                if ( !symbol_lookup || symbol == (char *) 0 )
-
                {
                   parse_state = PARSING_TEXT;
                   break;
@@ -1021,3 +1049,10 @@ int main(argc, argv)
 		}
 	}
 }
+/*
+ * Local variables:
+ *  c-indent-level: 4
+ *  c-basic-offset: 4
+ *  tab-width: 8
+ * End:
+ */
