@@ -154,7 +154,7 @@
  *	Added the -i and -I command line switches to signal the currently
  *	executing daemon.
  *
- * Tue Nov 19 10:15:36 PST 1996: Lee Olds
+ * Tue Nov 19 10:15:36 PST 1996: Leland Olds <olds@eskimo.com>
  *	Corrected vulnerability to buffer overruns by rewriting LogLine
  *	routine.  Obscenely long kernel messages will now be broken up
  *	into lines no longer than LOG_LINE_LENGTH.
@@ -614,10 +614,12 @@ static void LogLine(char *ptr, int len)
                ptr   += delta;
                space -= delta;
                len   -= delta;
+
                if( space == 0 || len == 0 )
                {
 		  break;  /* full line_buff or end of input buffer */
                }
+
                if( *ptr == '\n' )  /* newline */
                {
                   *line++ = *ptr++;  /* copy it in */
