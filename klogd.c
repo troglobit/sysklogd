@@ -233,6 +233,16 @@
  *	Added patch to fix priority decoding after moving kernel
  *	messgages into "%s".  Thanks to Solar Designer
  *	<solar@false.com> for the patch.
+ *
+ * Sun Mar 11 20:23:44 CET 2001: Martin Schulze <joey@infodrom.ffis.de>
+ *	Stop LogLine() from being called with wrong argument when a
+ *	former calculation failed already.  Thanks to Thomas Roessler
+ *	<roessler@does-not-exist.org> for providing a patch.
+ *
+ *	Ignore zero bytes, no busy loop is entered anymore.  Several
+ *	people have submitted patches: Troels Walsted Hansen
+ *	<troels@thule.no>, Wolfgang Oertl <Wolfgang.Oertl@uibk.ac.at>
+ *	and Thomas Roessler.
  */
 
 
@@ -281,7 +291,7 @@ static int	kmsg,
 		terminate = 0,
 		caught_TSTP = 0,
 		reload_symbols = 0,
-		console_log_level = 6;
+		console_log_level = -1;
 
 static int	use_syscall = 0,
 		one_shot = 0,
@@ -499,7 +509,8 @@ static enum LOGSRC GetKernelLogSrc(void)
 
 
 	/* Set level of kernel console messaging.. */
-	if ( (ksyslog(8, NULL, console_log_level) < 0) && \
+	if ( (console_log_level != -1)
+	&& (ksyslog(8, NULL, console_log_level) < 0) && \
 	     (errno == EINVAL) )
 	{
 		/*
@@ -509,10 +520,9 @@ static enum LOGSRC GetKernelLogSrc(void)
 		 * logging completely.
 		 */
 		Syslog(LOG_WARNING, "Cannot set console log level - disabling "
-			      "console output.");
+		       "console output.");
 		ksyslog(6, NULL, 0);
 	}
-	
 
 	/*
 	 * First do a stat to determine whether or not the proc based
@@ -739,6 +749,15 @@ static void LogLine(char *ptr, int len)
 		  break;  /* full line_buff or end of input buffer */
                }
 
+               if( *ptr == '\0' )  /* zero byte */
+               {
+                  ptr++;	/* skip zero byte */
+                  space -= 1;
+                  len   -= 1;
+
+		  break;
+	       }
+
                if( *ptr == '\n' )  /* newline */
                {
                   ptr++;	/* skip newline */
@@ -926,8 +945,8 @@ static void LogKernelLine(void)
 		fprintf(stderr, "klogd: Error return from sys_sycall: " \
 			"%d - %s\n", errno, strerror(errno));
 	}
-	
-	LogLine(log_buffer, rdcnt);
+	else
+		LogLine(log_buffer, rdcnt);
 	return;
 }
 
@@ -951,8 +970,8 @@ static void LogProcLine(void)
 		Syslog(LOG_ERR, "Cannot read proc file system: %d - %s.", \
 		       errno, strerror(errno));
 	}
-	
-	LogLine(log_buffer, rdcnt);
+	else
+		LogLine(log_buffer, rdcnt);
 
 	return;
 }
