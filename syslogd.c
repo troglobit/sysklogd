@@ -334,6 +334,9 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  * Sat Jan 10 01:33:06 CET 1998: Martin Schulze <joey@infodrom.north.de>
  *	Fixed small bugs in F_FORW_UNKN meachanism.  Thanks to Torsten
  *	Neumann <torsten@londo.rhein-main.de> for pointing me to it.
+ *
+ * Mon Jan 12 19:50:58 CET 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Modified debug output concerning remote receiption.
  */
 
 
@@ -866,7 +869,8 @@ int main(argc, argv)
 				} else {
 					inetm = finet;
 					InetInuse = 1;
-					dprintf("listening on syslog UDP port.\n");
+					if ( AcceptRemote )
+						dprintf("Opened syslog UDP port.\n");
 				}
 			}
 		}
@@ -917,8 +921,10 @@ int main(argc, argv)
 		 * Add the Internet Domain Socket to the list of read
 		 * descriptors.
 		 */
-		if ( InetInuse && AcceptRemote )
+		if ( InetInuse && AcceptRemote ) {
 			FD_SET(inetm, &readfds);
+			dprintf("Listening on syslog UDP port.\n");
+		}
 #endif
 
 		if ( debugging_on )
