@@ -38,6 +38,12 @@ messages.
 .TP
 .BI "\-c " n
 Sets the default log level of console messages to \fIn\fR.
+This should nowardays be configured with the
+.BR sysctl (8)
+program, e.g. via
+.BI "sysctl kernel.printk=" n
+or via
+.IR /etc/sysctl.conf .
 .TP
 .B "\-d"
 Enable debugging mode.  This will generate \fBLOTS\fR of output to
