@@ -343,6 +343,10 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	opening of them in order to have it open only if it is needed
  *	either for forwarding to a remote host or by receiption from
  *	the network.
+ *
+ * Wed Feb 25 10:54:09 CET 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Fixed little comparison mistake that prevented the MARK
+ *	feature to work properly.
  */
 
 
@@ -2281,7 +2285,7 @@ void cfline(line, f)
 				*bp++ = *p++;
 			*bp = '\0';
 			if (*buf == '*') {
-				for (i = 0; i < LOG_NFACILITIES; i++) {
+				for (i = 0; i <= LOG_NFACILITIES; i++) {
 					if ( pri == INTERNAL_NOPRI ) {
 						if ( ignorepri )
 							f->f_pmask[i] = TABLE_ALLPRI;
