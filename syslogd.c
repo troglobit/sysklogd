@@ -1025,6 +1025,7 @@ int main(argc, argv)
 	(void) signal(SIGCHLD, reapchild);
 	(void) signal(SIGALRM, domark);
 	(void) signal(SIGUSR1, Debug ? debug_switch : SIG_IGN);
+	(void) signal(SIGXFSZ, SIG_IGN);
 	(void) alarm(TIMERINTVL);
 
 	/* Create a partial message table for all file descriptors. */
@@ -1902,7 +1903,7 @@ void fprintlog(f, from, flags, msg)
 				errno = e;
 				logerror(f->f_un.f_fname);
 			}
-		} else if (f->f_flags & SYNC_FILE)
+		} else if (f->f_type == F_FILE && (f->f_flags & SYNC_FILE))
 			(void) fsync(f->f_file);
 		break;
 
