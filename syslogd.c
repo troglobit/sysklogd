@@ -351,6 +351,17 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  * Wed Feb 25 13:21:44 CET 1998: Martin Schulze <joey@infodrom.north.de>
  *	Corrected Topi's patch as it prevented forwarding during
  *	startup due to an unknown LogPort.
+ *
+ * Sat Oct 10 20:01:48 CEST 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Added support for TESTING define which will turn syslogd into
+ *	stdio-mode used for debugging.
+ *
+ * Sun Oct 11 20:16:59 CEST 1998: Martin Schulze <joey@infodrom.north.de>
+ *	Reworked the initialization/fork code.  Now the parent
+ *	process activates a signal handler which the daughter process
+ *	will raise if it is initialized.  Only after that one the
+ *	parent process may exit.  Otherwise klogd might try to flush
+ *	its log cache while syslogd can't receive the messages yet.
  */
 
 
@@ -400,7 +411,9 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
 #include <resolv.h>
+#ifndef TESTING
 #include "pidfile.h"
+#endif
 #include "version.h"
 
 #if defined(__linux__)
@@ -655,6 +668,9 @@ void domark();
 void debug_switch();
 void logerror(char *type);
 void die(int sig);
+#ifndef TESTING
+void doexit(int sig);
+#endif
 void init();
 void cfline(char *line, register struct filed *f);
 int decode(char *name, struct code *codetab);
@@ -681,11 +697,14 @@ int main(argc, argv)
 #if !defined(__GLIBC__)
 	int len, num_fds;
 #else /* __GLIBC__ */
+#ifndef TESTING
 	size_t len;
+#endif
 	int num_fds;
 #endif /* __GLIBC__ */
 	fd_set unixm, readfds;
 
+#ifndef TESTING
 	int	fd;
 #ifdef SYSLOG_UNIXAF
 	struct sockaddr_un fromunix;
@@ -694,6 +713,8 @@ int main(argc, argv)
 	struct sockaddr_in frominet;
 	char *from;
 #endif
+	pid_t ppid = getpid();
+#endif
 	int ch;
 	struct hostent *hent;
 
@@ -701,7 +722,9 @@ int main(argc, argv)
 	extern int optind;
 	extern char *optarg;
 
+#ifndef TESTING
 	chdir ("/");
+#endif
 	while ((ch = getopt(argc, argv, "dhf:l:m:np:rs:v")) != EOF)
 		switch((char)ch) {
 		case 'd':		/* debug */
@@ -751,16 +774,28 @@ int main(argc, argv)
 	if (argc -= optind)
 		usage();
 
+#ifndef TESTING
 	if ( !(Debug || NoFork) )
 	{
 		dprintf("Checking pidfile.\n");
 		if (!check_pid(PidFile))
 		{
-			if (fork())
+			if (fork()) {
 				/*
 				 * Parent process
 				 */
-				exit(0);
+				signal (SIGTERM, doexit);
+				sleep(300);
+				/*
+				 * Not reached unless something major went wrong.  5
+				 * minutes should be a fair amount of time to wait.
+				 * Please note that this procedure is important since
+				 * the father must not exit before syslogd isn't
+				 * initialized or the klogd won't be able to flush its
+				 * logs.  -Joey
+				 */
+				exit(1);
+			}
 			num_fds = getdtablesize();
 			for (i= 0; i < num_fds; i++)
 				(void) close(i);
@@ -773,12 +808,14 @@ int main(argc, argv)
 		}
 	}
 	else
+#endif
 		debugging_on = 1;
 #ifndef SYSV
 	else
 		setlinebuf(stdout);
 #endif
 
+#ifndef TESTING
 	/* tuck my process id away */
 	if ( !Debug )
 	{
@@ -797,6 +834,7 @@ int main(argc, argv)
 			exit(1);
 		}
 	} /* if ( !Debug ) */
+#endif
 
 	consfile.f_type = F_CONSOLE;
 	(void) strcpy(consfile.f_un.f_fname, ctty);
@@ -861,11 +899,18 @@ int main(argc, argv)
 
 	dprintf("Starting.\n");
 	init();
+#ifndef TESTING
 	if ( Debug )
 	{
 		dprintf("Debugging disabled, SIGUSR1 to turn on debugging.\n");
 		debugging_on = 0;
 	}
+	/*
+	 * Send a signal to the parent to it can terminate.
+	 */
+	if (getpid() != ppid)
+		kill (ppid, SIGTERM);
+#endif
 
 	/* Main loop begins here. */
 	FD_ZERO(&unixm);
@@ -874,16 +919,21 @@ int main(argc, argv)
 		int nfds;
 		errno = 0;
 #ifdef SYSLOG_UNIXAF
+#ifndef TESTING
 		/*
 		 * Add the Unix Domain Socket to the list of read
 		 * descriptors.
 		 */
+		if (funix >= 0) {
 		FD_SET(funix, &readfds);
 		for (nfds= 0; nfds < FD_SETSIZE; ++nfds)
 			if ( FD_ISSET(nfds, &unixm) )
 				FD_SET(nfds, &readfds);
+		}
+#endif
 #endif
 #ifdef SYSLOG_INET
+#ifndef TESTING
 		/*
 		 * Add the Internet Domain Socket to the list of read
 		 * descriptors.
@@ -892,6 +942,11 @@ int main(argc, argv)
 			FD_SET(inetm, &readfds);
 			dprintf("Listening on syslog UDP port.\n");
 		}
+#endif
+#endif
+#ifdef TESTING
+		FD_SET(fileno(stdin), &readfds);
+		dprintf("Listening on stdin.  Press Ctrl-C to interrupt.\n");
 #endif
 
 		if ( debugging_on )
@@ -932,6 +987,7 @@ int main(argc, argv)
 			dprintf(("\n"));
 		}
 
+#ifndef TESTING
 #ifdef SYSLOG_UNIXAF
 		if ( debugging_on )
 		{
@@ -1014,6 +1070,24 @@ int main(argc, argv)
 				sleep(10);
 			}
 		}
+#endif
+#else
+		if ( FD_ISSET(fileno(stdin), &readfds) ) {
+			dprintf("Message from stdin.\n");
+			memset(line, '\0', sizeof(line));
+			line[0] = '.';
+			parts[fileno(stdin)] = (char *) 0;
+			i = read(fileno(stdin), line, MAXLINE);
+			if (i > 0) {
+				printchopped(LocalHostName, line, i+1, fileno(stdin));
+		  	} else if (i < 0) {
+		    		if (errno != EINTR) {
+		      			logerror("stdin");
+				}
+		  	}
+			FD_CLR(fileno(stdin), &readfds);
+		  }
+
 #endif
 	}
 }
@@ -1976,9 +2050,22 @@ void die(sig)
 
 	/* Clean-up files. */
 	(void) unlink(LogName);
+#ifndef TESTING
 	(void) remove_pid(PidFile);
+#endif
 	exit(0);
 }
+
+/*
+ * Signal handler to terminate the parent process.
+ */
+#ifndef TESTING
+void doexit(sig)
+	int sig;
+{
+	exit (0);
+}
+#endif
 
 /*
  *  INIT -- Initialize syslogd from configuration table
@@ -1988,7 +2075,12 @@ void init()
 {
 	register int i, lognum;
 	register FILE *cf;
-	register struct filed *f, **nextp = (struct filed **) 0;
+	register struct filed *f;
+#ifndef TESTING
+#ifndef SYSV
+	register struct filed **nextp = (struct filed **) 0;
+#endif
+#endif
 	register char *p;
 	register unsigned int Forwarding = 0;
 #ifdef CONT_LINE
@@ -2044,11 +2136,24 @@ void init()
 	}
 	
 
+#ifdef SYSV
+	lognum = 0;
+#else
+	f = NULL;
+#endif
+
 	/* open the configuration file */
 	if ((cf = fopen(ConfFile, "r")) == NULL) {
 		dprintf("cannot open %s.\n", ConfFile);
 #ifdef SYSV
-		cfline("*.ERR\t" _PATH_CONSOLE, *nextp);
+		allocate_log();
+		f = &Files[lognum++];
+#ifndef TESTING
+		cfline("*.err\t" _PATH_CONSOLE, f);
+#else
+		snprintf(cbuf,sizeof(cbuf), "*.*\t%s", ttyname(0));
+		cfline(cbuf, f);
+#endif
 #else
 		*nextp = (struct filed *)calloc(1, sizeof(*f));
 		cfline("*.ERR\t" _PATH_CONSOLE, *nextp);
@@ -2062,11 +2167,6 @@ void init()
 	/*
 	 *  Foreach line in the conf table, open that file.
 	 */
-#ifdef SYSV
-	lognum = 0;
-#else
-	f = NULL;
-#endif
 #if CONT_LINE
 	cline = cbuf;
 	while (fgets(cline, sizeof(cbuf) - (cline - cbuf), cf) != NULL) {
