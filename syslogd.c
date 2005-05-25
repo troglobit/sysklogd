@@ -1586,11 +1586,25 @@ void logmsg(pri, msg, from, flags)
 	int fac, prilev, lognum;
 	int msglen;
 	char *timestamp;
+#ifdef __gnu_linux__
+	sigset_t mask;
+#else
+#ifndef SYSV
+	sigset_t omask;
+#endif
+#endif
 
 	dprintf("logmsg: %s, flags %x, from %s, msg %s\n", textpri(pri), flags, from, msg);
 
+#ifdef __gnu_linux__
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGALRM);
+	sigprocmask(SIG_BLOCK, &mask, NULL);
+#else
 #ifndef SYSV
 	omask = sigblock(sigmask(SIGHUP)|sigmask(SIGALRM));
+#endif
 #endif
 
 	/*
@@ -1632,8 +1646,12 @@ void logmsg(pri, msg, from, flags)
 			(void) close(f->f_file);
 			f->f_file = -1;
 		}
+#ifdef __gnu_linux__
+		sigprocmask(SIG_UNBLOCK, &mask, NULL);
+#else
 #ifndef SYSV
 		(void) sigsetmask(omask);
+#endif
 #endif
 		return;
 	}
@@ -1697,8 +1715,12 @@ void logmsg(pri, msg, from, flags)
 			}
 		}
 	}
+#ifdef __gnu_linux__
+	sigprocmask(SIG_UNBLOCK, &mask, NULL);
+#else
 #ifndef SYSV
 	(void) sigsetmask(omask);
+#endif
 #endif
 }
 #if FALSE
