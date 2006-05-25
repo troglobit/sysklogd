@@ -65,8 +65,31 @@ differences:
   executions have been terminated harshly.
 
 * Large file support, i.e. support to write to log files that are
-  larger than 2 GB is not part of syslogd, but a matter of the Glibc
+  larger than 2 GB is not part of syslogd, but a matter of the glibc
   emitting different system calls to the kernel interface.  To support
   large files you'll have to compile syslogd with the compiler defines
-  -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE so that glibc adjusts the
-  system calls.
+  commented out in the main Makefile so that glibc adjusts the system
+  calls.
+
+Modifying the kernel console log level
+--------------------------------------
+
+  There are two ways to alter the kernel console log level.  This
+  setting controls whether log messages from the kernel should appear
+  on the system console or not.
+
+  In the past, klogd had to do this with the -c parameter.  Using '-c
+  4' will set the log level of console messages to 4 and only display
+  warnings and errors but not regular debug or information messages.
+
+  This behaviour is deprecated and hencely not enforced anymore via
+  the RC script of klogd.  Instead sysctl(8) should be used as
+  interface to various kernel variables.  These can be stored
+  non-volatile in /etc/sysctl.conf.
+
+  The prevent the kernel to flood the system console and to achieve
+  the same behaviour of '-c 4' simply add the following to the
+  configuration file and let sysctl set this kernel parameter upon
+  system boot.
+
+  kernel/printk = 4 4 1 7
