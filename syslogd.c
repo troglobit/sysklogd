@@ -474,6 +474,12 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *
  * Sun Nov  7 13:47:00 CET 2004: Martin Schulze <joey@infodrom.org>
  *	Remove trailing newline when forwarding messages.
+ *
+ * Thu May 25 09:47:38 CEST 2006: Martin Schulze <joey@infodrom.org>
+ *	Reset the 'restart' flag immediately after entering the
+ *	restart code, so that subsequent SIGHUPs are able to set it
+ *	again and cause a new restart.  This fixes a race condition
+ *	when somebody sends tons of HUP signals.
  */
 
 
@@ -1108,9 +1114,9 @@ int main(argc, argv)
 				  (fd_set *) NULL, (struct timeval *) NULL);
 		if ( restart )
 		{
+			restart = 0;
 			dprintf("\nReceived SIGHUP, reloading syslogd.\n");
 			init();
-			restart = 0;
 			continue;
 		}
 		if (nfds == 0) {
