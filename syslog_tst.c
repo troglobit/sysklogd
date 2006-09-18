@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
 					if ( (nl = strrchr(bufr, '\n')) != \
 					    (char *) 0)
 						*nl = '\0';
-					syslog(LOG_INFO, bufr);
+                                       syslog(LOG_INFO, "%s", bufr);
 					logged += strlen(bufr);
 					if ( logged > 1024 )
 					{
@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
 		}
 		else
 			while (argc-- > 1)
-				syslog(LOG_INFO, argv++[1]);
+                               syslog(LOG_INFO, "%s", argv++[1]);
 	}
 	else
 	{
