@@ -80,6 +80,13 @@ programs log with the mail facility
 .BR "" ( LOG_MAIL )
 if they log using syslog.
 
+In most cases anyone can log to any facility, so we rely on convention
+for the correct facility to be chosen.  However, generally only the
+kernel can log to the "kern" facility.  This is because the implementation
+of openlog() and syslog() in glibc does not allow logging to the "kern"
+facility.  Klogd circumvents this restriction when logging to syslogd
+by reimplementing those functions itself.
+
 The
 .I priority
 is one of the following keywords, in ascending order: 
@@ -232,9 +239,10 @@ kern.crit                    /dev/console
 kern.info;kern.!err          /var/adm/kernel-info
 .fi
 .LP
-The first rule direct any message that has the kernel facility to the
+The first rule directs any message that has the kernel facility to the
 file
 .IR /var/adm/kernel .
+(But recall that only the kernel itself can log to this facility.)
 
 The second statement directs all kernel messages of the priority
 .B crit
