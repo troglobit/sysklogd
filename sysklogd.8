@@ -104,6 +104,8 @@ By default syslogd will not forward messages it receives from remote hosts.
 Specifying this switch on the command line will cause the log daemon to
 forward any remote messages it receives to forwarding hosts which have been
 defined.
+This can cause syslog loops that fill up hard disks quite fast and
+thus needs to be used with caution.
 .TP
 .BI "\-l " "hostlist"
 Specify a hostname that should be logged only with its simple hostname
@@ -364,12 +366,14 @@ host that sends it back to the first one, and so on).  In my domain
 (Infodrom Oldenburg) we accidently got one and our disks filled up
 with the same single message. :-(
 
-To avoid this in the future no messages that were received from a
+To avoid this no messages received from a
 remote host are sent out to another (or the same) remote host
-anymore.  If you experience are setup in which this doesn't make
-sense, please use the
+anymore.  If you experience are setup in which you need this behaviour,
+please use the
 .B \-h
-commandline switch.
+command line switch.
+However, this option needs to be handled with caution since a syslog
+loop can fill up hard disks quite fast.
 
 If the remote host is located in the same domain as the host, 
 .B syslogd
