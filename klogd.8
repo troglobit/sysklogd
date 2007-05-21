@@ -65,18 +65,18 @@ Avoid auto-backgrounding.  This is needed especially if the
 is started and controlled by 
 .BR init (8).
 .TP
-.B "-o"
+.B "\-o"
 Execute in 'one\-shot' mode.  This causes \fBklogd\fP to read and log
 all the messages that are found in the kernel message buffers.  After
 a single read and log cycle the daemon exits.
 .TP
-.B "-p"
+.B "\-p"
 Enable paranoia.  This option controls when klogd loads kernel module symbol
 information.  Setting this switch causes klogd to load the kernel module
 symbol information whenever an Oops string is detected in the kernel message
 stream.
 .TP
-.B "-s"
+.B "\-s"
 Force \fBklogd\fP to use the system call interface to the kernel message
 buffers.
 .TP
