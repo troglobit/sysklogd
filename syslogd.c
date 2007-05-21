@@ -2288,11 +2288,15 @@ void init()
 
 	sp = getservbyname("syslog", "udp");
 	if (sp == NULL) {
+		if (errno == ENOENT) {
+			errno = 0;
+			logerror("The file /etc/services does not seem exist.");
+		}
 		errno = 0;
 		logerror("network logging disabled (syslog/udp service unknown).");
 		logerror("see syslogd(8) for details of whether and how to enable it.");
-		return;
-	}
+		LogPort = 0;
+	} else
 	LogPort = sp->s_port;
 
 	/*
@@ -2686,6 +2690,12 @@ void cfline(line, f)
 	{
 	case '@':
 #ifdef SYSLOG_INET
+		if (!LogPort) {
+			f->f_type = F_UNUSED;
+			logerror("Forward rule without networking enabled");
+			break;
+		}
+
 		(void) strcpy(f->f_un.f_forw.f_hname, ++p);
 		dprintf("forwarding host: %s\n", p);	/*ASP*/
 		if ( (hp = gethostbyname(p)) == NULL ) {
