@@ -1,7 +1,7 @@
 /*
     module.h - Miscellaneous module definitions
     Copyright (c) 1996 Richard Henderson <rth@tamu.edu>
-    Copyright (c) 2004 Martin Schulze <joey@infodrom.org>
+    Copyright (c) 2004,7 Martin Schulze <joey@infodrom.org>
 
     This file is part of the sysklogd package.
 
@@ -26,6 +26,7 @@
  *	Created local copy of module.h based on the content of Linux
  *	2.2 since <linux/module.h> doesn't work anymore with its
  *	recent content from Linux 2.4/2.6.
+ *
  * Thu May 25 09:14:33 CEST 2006: Martin Schulze <joey@infodrom.org>
  *	Removed asm/atomic.h since it is not needed anymore.
  */
