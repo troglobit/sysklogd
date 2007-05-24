@@ -1277,15 +1277,6 @@ static int create_inet_socket()
 		close(fd);
 		return -1;
 	}
-	/* We need to enable BSD compatibility. Otherwise an attacker
-	 * could flood our log files by sending us tons of ICMP errors.
-	 */
-	if (setsockopt(fd, SOL_SOCKET, SO_BSDCOMPAT, \
-			(char *) &on, sizeof(on)) < 0) {
-		logerror("setsockopt(BSDCOMPAT), suspending inet");
-		close(fd);
-		return -1;
-	}
 	/* We must not block on the network socket, in case a packet
 	 * gets lost between select and recv, otherise the process
 	 * will stall until the timeout, and other processes trying to
