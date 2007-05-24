@@ -93,7 +93,7 @@ klogd.o: klogd.c klogd.h version.h
 ksym.o: ksym.c klogd.h
 	${CC} ${CFLAGS} ${KLOGD_FLAGS} -c ksym.c
 
-ksym_mod.o: ksym_mod.c klogd.h module.h
+ksym_mod.o: ksym_mod.c klogd.h ksyms.h module.h
 	${CC} ${CFLAGS} ${KLOGD_FLAGS} -c ksym_mod.c
 
 syslog_tst.o: syslog_tst.c
