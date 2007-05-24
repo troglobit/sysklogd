@@ -480,6 +480,7 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	restart code, so that subsequent SIGHUPs are able to set it
  *	again and cause a new restart.  This fixes a race condition
  *	when somebody sends tons of HUP signals.
+ *
  * Thu May 24 15:24:49 CEST 2007: Martin Schulze <joey@infodrom.org>
  *	Ignore errors caused by filled up disks so that the log
  *	continues to be written as soon as space becomes available
@@ -1897,8 +1898,7 @@ void fprintlog(f, from, flags, msg)
 		if (writev(f->f_file, iov, 6) < 0) {
 			int e = errno;
 
-			/* If a named pipe is full, just ignore it for now
-			   - mrn 24 May 96 */
+			/* If a named pipe is full, just ignore it for now */
 			if (f->f_type == F_PIPE && e == EAGAIN)
 				break;
 
