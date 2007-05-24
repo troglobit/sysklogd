@@ -829,7 +829,7 @@ int main(argc, argv)
 	int len, num_fds;
 #else /* __GLIBC__ */
 #ifndef TESTING
-	size_t len;
+	socklen_t len;
 #endif
 	int num_fds;
 #endif /* __GLIBC__ */
