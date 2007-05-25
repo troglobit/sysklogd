@@ -128,6 +128,8 @@ extern int getsyms(struct kernel_sym *);
 #define getsyms get_kernel_syms
 #endif /* __GLIBC__ */
 
+extern int query_module(const char *, int, void *, size_t, size_t *);
+
 /* Variables static to this module. */
 struct sym_table
 {
@@ -148,7 +150,7 @@ struct Module
 };
 
 static int num_modules = 0;
-struct Module *sym_array_modules = (struct Module *) 0;
+struct Module *sym_array_modules = NULL;
 
 static int have_modules = 0;
 
@@ -161,8 +163,8 @@ extern int debugging;
 
 /* Function prototypes. */
 static void FreeModules(void);
-static int AddSymbol(struct Module *mp, unsigned long, char *);
-static int AddModule(unsigned long, char *);
+static int AddSymbol(struct Module *mp, unsigned long, const char *);
+static int AddModule(char *);
 static int symsort(const void *, const void *);
 
 
@@ -185,80 +187,106 @@ static int symsort(const void *, const void *);
 extern int InitMsyms()
 
 {
-	auto int	rtn,
-			tmp;
+	auto size_t	rtn;
+	auto int	tmp;
 
-	auto struct kernel_sym	*ksym_table,
-				*p;
+	auto char	**mod_table,
+			**p;
+
+	char			*modbuf = NULL,
+				*newbuf;
+
+	int			 modsize = 32,
+				 result;
 
 
 	/* Initialize the kernel module symbol table. */
 	FreeModules();
 
+	/*
+	 * New style symbol table parser.  This uses the newer query_module
+	 * function rather than the old obsolete hack of stepping thru
+	 * /dev/kmem.
+	 */
 
 	/*
-	 * The system call which returns the kernel symbol table has
-	 * essentialy two modes of operation.  Called with a null pointer
-	 * the system call returns the number of symbols defined in the
-	 * the table.
-	 *
-	 * The second mode of operation is to pass a valid pointer to
-	 * the call which will then load the current symbol table into
-	 * the memory provided.
-	 *
-	 * Returning the symbol table is essentially an all or nothing
-	 * proposition so we need to pre-allocate enough memory for the
-	 * complete table regardless of how many symbols we need.
-	 *
-	 * Bummer.
+	 * First, we query for the list of loaded modules.  We may
+	 * have to grow our buffer in size.
 	 */
-	if ( (rtn = getsyms((struct kernel_sym *) 0)) < 0 )
-	{
-		if ( errno == ENOSYS )
-			Syslog(LOG_INFO, "No module symbols loaded - "
-			       "kernel modules not enabled.\n");
-		else
+	do {
+		modsize+=modsize;
+		newbuf=realloc(modbuf, modsize);
+
+		if (newbuf==NULL) {
+			/* Well, that sucks. */
 			Syslog(LOG_ERR, "Error loading kernel symbols " \
 			       "- %s\n", strerror(errno));
+			if (modbuf!=NULL) free(modbuf);
+			return(0);
+		}
+
+		modbuf=newbuf;
+
+		result=query_module(NULL, QM_MODULES, modbuf, modsize, &rtn);
+
+		if (result<0 && errno!=ENOSPC) {
+			Syslog(LOG_ERR, "Error querying loaded modules " \
+			       "- %s\n", strerror(errno));
+			free(modbuf);
+			return(0);
+		}
+	} while (result<0);
+
+	if ( rtn <= 0 ) {
+		/* No modules??? */
+		Syslog(LOG_INFO, "No module symbols loaded - "
+		       "modules disabled?\n");
+		free(modbuf);
 		return(0);
 	}
 	if ( debugging )
 		fprintf(stderr, "Loading kernel module symbols - "
 			"Size of table: %d\n", rtn);
 
-	ksym_table = (struct kernel_sym *) malloc(rtn * \
-						  sizeof(struct kernel_sym));
-	if ( ksym_table == (struct kernel_sym *) 0 )
+	mod_table = (char **) malloc(rtn * sizeof(char *));
+	if ( mod_table == NULL )
 	{
 		Syslog(LOG_WARNING, " Failed memory allocation for kernel " \
 		       "symbol table.\n");
-		return(0);
-	}
-	if ( (rtn = getsyms(ksym_table)) < 0 )
-	{
-		Syslog(LOG_WARNING, "Error reading kernel symbols - %s\n", \
-		       strerror(errno));
+		free(modbuf);
 		return(0);
 	}
 
+	sym_array_modules = (struct Module *) malloc(rtn * sizeof(struct Module));
+	if ( sym_array_modules == NULL )
+	{
+		Syslog(LOG_WARNING, " Failed memory allocation for kernel " \
+		       "symbol table.\n");
+		free(mod_table);
+		free(modbuf);
+		return(0);
+	}
 
 	/*
 	 * Build a symbol table compatible with the other one used by
 	 * klogd.
 	 */
-	tmp = rtn;
-	p = ksym_table;
-	while ( tmp-- )
+	newbuf=modbuf;
+	for (tmp=rtn-1; tmp>=0; tmp--)
 	{
- 		if ( !AddModule(p->value, p->name) )
+		mod_table[tmp]=newbuf;
+		newbuf+=(strlen(newbuf)+1);
+ 		if ( !AddModule(mod_table[tmp]) )
 		{
 			Syslog(LOG_WARNING, "Error adding kernel module table "
 				"entry.\n");
-			free(ksym_table);
+			free(mod_table);
+			free(modbuf);
 			return(0);
 		}
-		++p;
 	}
+
+	have_modules = 1;
 
 	/* Sort the symbol tables in each module. */
 	for (rtn = tmp= 0; tmp < num_modules; ++tmp)
@@ -277,7 +305,8 @@ extern int InitMsyms()
 		Syslog(LOG_INFO, "Loaded %d %s from %d module%s", rtn, \
 		       (rtn == 1) ? "symbol" : "symbols", \
 		       num_modules, (num_modules == 1) ? "." : "s.");
-	free(ksym_table);
+	free(mod_table);
+	free(modbuf);
 	return(1);
 }
 
@@ -322,23 +351,23 @@ static void FreeModules()
 
 	/* Check to see if the module symbol tables need to be cleared. */
 	have_modules = 0;
-	if ( num_modules == 0 )
-		return;
 
-
-	for (nmods= 0; nmods < num_modules; ++nmods)
-	{
-		mp = &sym_array_modules[nmods];
-		if ( mp->num_syms == 0 )
-			continue;
+	if (sym_array_modules != NULL) {
+		for (nmods= 0; nmods < num_modules; ++nmods)
+		{
+			mp = &sym_array_modules[nmods];
+			if ( mp->num_syms == 0 )
+				continue;
 	       
-		for (nsyms= 0; nsyms < mp->num_syms; ++nsyms)
-			free(mp->sym_array[nsyms].name);
-		free(mp->sym_array);
+			for (nsyms= 0; nsyms < mp->num_syms; ++nsyms)
+				free(mp->sym_array[nsyms].name);
+			free(mp->sym_array);
+		}
+
+		free(sym_array_modules);
+		sym_array_modules = NULL;
 	}
 
-	free(sym_array_modules);
-	sym_array_modules = (struct Module *) 0;
 	num_modules = 0;
 	return;
 }
@@ -350,23 +379,25 @@ static void FreeModules()
  * Purpose:	This function is responsible for adding a module to
  *		the list of currently loaded modules.
  *
- * Arguements:	(unsigned long) address, (char *) symbol
- *
- *		address:->	The address of the module.
+ * Arguements:	(char *) symbol
  *
  *		symbol:->	The name of the module.
  *
  * Return:	int
  **************************************************************************/
 
-static int AddModule(address, symbol)
-
-     unsigned long address;
+static int AddModule(symbol)
 
      char *symbol;
 
 {
-	auto int memfd;
+	size_t rtn;
+	size_t i;
+	const char *cbuf;
+	int symsize=128;
+	int result;
+	struct module_symbol *symbuf=NULL,
+			     *newbuf;
 
 	auto struct Module *mp;
 
@@ -374,78 +405,75 @@ static int AddModule(address, symbol)
 	/* Return if we have loaded the modules. */
 	if ( have_modules )
 		return(1);
+	
+	/* We already have space for the module. */
+	mp = &sym_array_modules[num_modules];
+
+	if (query_module(symbol, QM_INFO, &sym_array_modules[num_modules].module,
+			 sizeof(struct module), &rtn)<0)
+	{
+		Syslog(LOG_WARNING, "Error reading module info for %s.\n",
+		       symbol);
+		return(0);
+	}
+
+	/* Save the module name. */
+	mp->name = strdup(symbol);
+	if ( mp->name == NULL )
+		return(0);
+
+	mp->num_syms = 0;
+	mp->sym_array = NULL;
+	++num_modules;
 
 	/*
-	 * The following section of code is responsible for determining
-	 * whether or not we are done reading the list of modules.
+	 * First, we query for the list of exported symbols.  We may
+	 * have to grow our buffer in size.
 	 */
-	if ( symbol[0] == '#' )
-	{
+	do {
+		symsize+=symsize;
+		newbuf=realloc(symbuf, symsize);
 
-		if ( symbol[1] == '\0' )
-		{
-			/*
-			 * A symbol which consists of a # sign only
-			 * signifies a a resident kernel segment.  When we
-			 * hit one of these we are done reading the
-			 * module list.
-			 */
-			have_modules = 1;
-			return(1);
-		}
-		/* Allocate space for the module. */
-		sym_array_modules = (struct Module *) \
-			realloc(sym_array_modules, \
-				(num_modules+1) * sizeof(struct Module));
-		if ( sym_array_modules == (struct Module *) 0 )
-		{
-			Syslog(LOG_WARNING, "Cannot allocate Module array.\n");
+		if (newbuf==NULL) {
+			/* Well, that sucks. */
+			Syslog(LOG_ERR, "Error loading kernel symbols " \
+			       "- %s\n", strerror(errno));
+			if (symbuf!=NULL) free(symbuf);
 			return(0);
 		}
-		mp = &sym_array_modules[num_modules];
 
-		if ( (memfd = open("/dev/kmem", O_RDONLY)) < 0 )
-		{
-			Syslog(LOG_WARNING, "Error opening /dev/kmem\n");
-			return(0);
-		}
-		if ( lseek64(memfd, address, SEEK_SET) < 0 )
-		{
-			Syslog(LOG_WARNING, "Error seeking in /dev/kmem\n");
-			Syslog(LOG_WARNING, "Symbol %s, value %08x\n", symbol, address);
-			return(0);
-		}
-		if ( read(memfd, \
-			  (char *)&sym_array_modules[num_modules].module,  \
-			  sizeof(struct module)) < 0 )
-		{
-			Syslog(LOG_WARNING, "Error reading module "
-			       "descriptor.\n");
-			return(0);
-		}
-		close(memfd);
+		symbuf=newbuf;
 
-		/* Save the module name. */
-		mp->name = (char *) malloc(strlen(&symbol[1]) + 1);
-		if ( mp->name == (char *) 0 )
-			return(0);
-		strcpy(mp->name, &symbol[1]);
+		result=query_module(symbol, QM_SYMBOLS, symbuf, symsize, &rtn);
 
-		mp->num_syms = 0;
-		mp->sym_array = (struct sym_table *) 0;
-		++num_modules;
-		return(1);
-	}
-	else
-	{
-	    if (num_modules > 0)
-		mp = &sym_array_modules[num_modules - 1];
-	    else
-		mp = &sym_array_modules[0];
-		AddSymbol(mp, address, symbol);
+		if (result<0 && errno!=ENOSPC) {
+			Syslog(LOG_ERR, "Error querying symbol list for %s " \
+			       "- %s\n", symbol, strerror(errno));
+			free(symbuf);
+			return(0);
+		}
+	} while (result<0);
+
+	if ( rtn < 0 ) {
+		/* No symbols??? */
+		Syslog(LOG_INFO, "No module symbols loaded - unknown error.\n");
+		free(symbuf);
+		return(0);
 	}
 
+	cbuf=(char *)symbuf;
 
+	for (i=0; i<rtn; i++) {
+		if (num_modules > 0)
+			mp = &sym_array_modules[num_modules - 1];
+		else
+			mp = &sym_array_modules[0];
+
+		AddSymbol(mp, symbuf[i].value,
+			  cbuf+(unsigned long)(symbuf[i].name));
+	}
+
+	free(symbuf);
 	return(1);
 }
 
@@ -477,7 +505,7 @@ static int AddSymbol(mp, address, symbol)
 
 	unsigned long address;
 	
-	char *symbol;
+	const char *symbol;
 	
 {
 	auto int tmp;
