@@ -33,15 +33,18 @@
 
 #define MODULE_NAME_LEN 60
 
-struct kernel_sym
+/* Values for query_module's which. */
+
+#define QM_MODULES      1
+#define QM_DEPS         2
+#define QM_REFS         3
+#define QM_SYMBOLS      4
+#define QM_INFO         5
+
+struct module_symbol
 {
 	unsigned long value;
-	char name[MODULE_NAME_LEN];
-};
-
-
-struct list_head {
-	struct list_head *next, *prev;
+  	unsigned long name;
 };
 
 
@@ -89,3 +92,6 @@ struct module
 	const struct module_persist *persist_end;
 	int (*can_unload)(void);
 };
+
+int query_module(const char *, int, void *, size_t, size_t *);
+

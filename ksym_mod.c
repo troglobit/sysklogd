@@ -98,38 +98,16 @@
 #include "module.h"
 #if !defined(__GLIBC__)
 #include <linux/time.h>
-#include <linux/linkage.h>
-#else /* __GLIBC__ */
-#include <linux/linkage.h>
-extern __off64_t lseek64 __P ((int __fd, __off64_t __offset, int __whence));
-extern int get_kernel_syms __P ((struct kernel_sym *__table));
 #endif /* __GLIBC__ */
 #include <stdarg.h>
 #include <paths.h>
 #include <linux/version.h>
 
+#undef LINUX_VERSION_CODE
+#define LINUX_VERSION_CODE  0x20110
+
 #include "klogd.h"
 #include "ksyms.h"
-
-
-#if !defined(__GLIBC__)
-/*
- * The following bit uses some kernel/library magic to produce what
- * looks like a function call to user level code.  This function is
- * actually a system call in disguise.  The purpose of the getsyms
- * call is to return a current copy of the in-kernel symbol table.
- */
-#define __LIBRARY__
-#include <linux/unistd.h>
-#define __NR_getsyms __NR_get_kernel_syms
-_syscall1(int, getsyms, struct kernel_sym *, syms);
-#undef __LIBRARY__
-extern int getsyms(struct kernel_sym *);
-#else /* __GLIBC__ */
-#define getsyms get_kernel_syms
-#endif /* __GLIBC__ */
-
-extern int query_module(const char *, int, void *, size_t, size_t *);
 
 /* Variables static to this module. */
 struct sym_table
@@ -145,9 +123,7 @@ struct Module
 
 	char *name;
 	struct module module;
-#if LINUX_VERSION_CODE >= 0x20112
 	struct module_info module_info;
-#endif
 };
 
 static int num_modules = 0;
@@ -191,8 +167,7 @@ extern int InitMsyms()
 	auto size_t	rtn;
 	auto int	tmp;
 
-	auto char	**mod_table,
-			**p;
+	auto char	**mod_table;
 
 	char		*modbuf = NULL,
 			*newbuf;
@@ -608,15 +583,9 @@ extern char * LookupModuleSymbol(value, sym)
 		 * If it is in this range we can at least return the
 		 * name of the module.
 		 */
-#if LINUX_VERSION_CODE < 0x20112
-		if ( (void *) value >= mp->module.addr &&
-		     (void *) value <= (mp->module.addr + \
-					mp->module.size * 4096) )
-#else
 		if ( value >= mp->module_info.addr &&
 		     value <= (mp->module_info.addr + \
 					mp->module.size * 4096) )
-#endif
 		{
 			/*
 			 * A special case needs to be checked for.  The above
@@ -635,13 +604,8 @@ extern char * LookupModuleSymbol(value, sym)
 			if ( mp->num_syms > 0 )
 			{
 				last = &mp->sym_array[mp->num_syms - 1];
-#if LINUX_VERSION_CODE < 0x20112
-				sym->size = (int) mp->module.addr + \
-					(mp->module.size * 4096) - value;
-#else
 				sym->size = (int) mp->module_info.addr + \
 					(mp->module.size * 4096) - value;
-#endif
 				sym->offset = value - last->value;
 				return(last->name);
 			}
@@ -652,11 +616,7 @@ extern char * LookupModuleSymbol(value, sym)
 			 * faulting address in the module.
 			 */
 			sym->size = mp->module.size * 4096;
-#if LINUX_VERSION_CODE < 0x20112
-			sym->offset = (void *) value - mp->module.addr;
-#else
 			sym->offset = value - mp->module_info.addr;
-#endif
 			return(mp->name);
 		}
 	}
