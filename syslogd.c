@@ -950,6 +950,7 @@ int main(argc, argv)
 				 */
 				exit(1);
 			}
+			signal (SIGTERM, SIG_DFL);
 			num_fds = getdtablesize();
 			for (i= 0; i < num_fds; i++)
 				(void) close(i);
