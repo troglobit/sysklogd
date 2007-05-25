@@ -169,11 +169,9 @@ extern int InitMsyms()
 
 	auto char	**mod_table;
 
-	char		*modbuf = NULL,
-			*newbuf;
+	char		*modbuf, *newbuf;
 
-	int		 modsize = 32,
-			 result;
+	int		result;
 
 
 	/* Initialize the kernel module symbol table. */
@@ -183,31 +181,42 @@ extern int InitMsyms()
 	 * First, we query for the list of loaded modules.  We may
 	 * have to grow our buffer in size.
 	 */
-	do {
-		modsize += modsize;
-		newbuf = realloc(modbuf, modsize);
+	modbuf = (char *)malloc(QM_MODULES_SIZE);
+
+	if ( modbuf == NULL )
+	{
+		Syslog(LOG_ERR, "Error loading kernel symbols " \
+		       "- %s\n", strerror(errno));
+		if ( modbuf != NULL )
+			free(modbuf);
+		return(0);
+	}
+
+	result = query_module(NULL, QM_MODULES, modbuf, QM_MODULES_SIZE, &rtn);
+
+	if ( result < 0 && errno == ENOSPC )
+	{
+		newbuf = (char *)realloc(modbuf, rtn);
 
 		if ( newbuf == NULL )
 		{
 			Syslog(LOG_ERR, "Error loading kernel symbols " \
 			       "- %s\n", strerror(errno));
-			if ( modbuf != NULL )
-				free(modbuf);
-			return(0);
-		}
-
-		modbuf = newbuf;
-
-		result = query_module(NULL, QM_MODULES, modbuf, modsize, &rtn);
-
-		if ( result < 0 && errno != ENOSPC )
-		{
-			Syslog(LOG_ERR, "Error querying loaded modules " \
-			       "- %s\n", strerror(errno));
 			free(modbuf);
 			return(0);
 		}
-	} while ( result < 0 );
+		modbuf = newbuf;
+
+		result = query_module(NULL, QM_MODULES, modbuf, rtn, &rtn);
+	}
+
+	if ( result < 0 )
+	{
+		Syslog(LOG_ERR, "Error querying loaded modules " \
+		       "- %s\n", strerror(errno));
+		free(modbuf);
+		return(0);
+	}
 
 	if ( rtn <= 0 )
 	{
@@ -216,6 +225,7 @@ extern int InitMsyms()
 		free(modbuf);
 		return(0);
 	}
+
 	if ( debugging )
 		fprintf(stderr, "Loading kernel module symbols - "
 			"Size of table: %d\n", rtn);
@@ -230,6 +240,7 @@ extern int InitMsyms()
 	}
 
 	sym_array_modules = (struct Module *) malloc(rtn * sizeof(struct Module));
+
 	if ( sym_array_modules == NULL )
 	{
 		Syslog(LOG_WARNING, " Failed memory allocation for kernel " \
@@ -243,11 +254,13 @@ extern int InitMsyms()
 	 * Build a symbol table compatible with the other one used by
 	 * klogd.
 	 */
+	tmp = rtn;
 	newbuf = modbuf;
-	for (tmp=0; tmp < rtn; tmp++)
+	while ( tmp-- )
 	{
 		mod_table[tmp] = newbuf;
 		newbuf += strlen(newbuf)+1;
+
  		if ( !AddModule(mod_table[tmp]) )
 		{
 			Syslog(LOG_WARNING, "Error adding kernel module table "
@@ -323,24 +336,25 @@ static void FreeModules()
 
 	/* Check to see if the module symbol tables need to be cleared. */
 	have_modules = 0;
+	if ( num_modules == 0 )
+		return;
 
-	if ( sym_array_modules != NULL )
+	if ( sym_array_modules == NULL )
+		return;
+
+	for (nmods = 0; nmods < num_modules; ++nmods)
 	{
-		for (nmods = 0; nmods < num_modules; ++nmods)
-		{
-			mp = &sym_array_modules[nmods];
-			if ( mp->num_syms == 0 )
-				continue;
+		mp = &sym_array_modules[nmods];
+		if ( mp->num_syms == 0 )
+			continue;
 	       
-			for (nsyms= 0; nsyms < mp->num_syms; ++nsyms)
-				free(mp->sym_array[nsyms].name);
-			free(mp->sym_array);
-		}
-
-		free(sym_array_modules);
-		sym_array_modules = NULL;
+		for (nsyms= 0; nsyms < mp->num_syms; ++nsyms)
+			free(mp->sym_array[nsyms].name);
+		free(mp->sym_array);
 	}
 
+	free(sym_array_modules);
+	sym_array_modules = (struct Module *) 0;
 	num_modules = 0;
 	return;
 }
@@ -367,9 +381,8 @@ static int AddModule(symbol)
 	size_t rtn;
 	size_t i;
 	const char *cbuf;
-	int symsize = 128;
 	int result;
-	struct module_symbol *symbuf=NULL,
+	struct module_symbol *symbuf,
 			     *newbuf;
 
 	auto struct Module *mp;
@@ -403,31 +416,42 @@ static int AddModule(symbol)
 	 * First, we query for the list of exported symbols.  We may
 	 * have to grow our buffer in size.
 	 */
-	do {
-		symsize += symsize;
-		newbuf = realloc(symbuf, symsize);
+	symbuf = (struct module_symbol *)malloc(QM_SYMBOLS_SIZE);
+
+	if ( symbuf == NULL )
+	{
+		Syslog(LOG_ERR, "Error loading kernel symbols " \
+		       "- %s\n", strerror(errno));
+		if ( symbuf != NULL )
+			free(symbuf);
+		return(0);
+	}
+
+	result = query_module(symbol, QM_SYMBOLS, symbuf, QM_SYMBOLS_SIZE, &rtn);
+
+	if ( result < 0 && errno == ENOSPC )
+	{
+		newbuf = (struct module_symbol *)realloc(symbuf, rtn);
 
 		if ( newbuf == NULL )
 		{
 			Syslog(LOG_ERR, "Error loading kernel symbols " \
 			       "- %s\n", strerror(errno));
-			if ( symbuf != NULL )
-				free(symbuf);
-			return(0);
-		}
-
-		symbuf = newbuf;
-
-		result = query_module(symbol, QM_SYMBOLS, symbuf, symsize, &rtn);
-
-		if ( result < 0 && errno != ENOSPC )
-		{
-			Syslog(LOG_ERR, "Error querying symbol list for %s " \
-			       "- %s\n", symbol, strerror(errno));
 			free(symbuf);
 			return(0);
 		}
-	} while ( result < 0 );
+		symbuf = newbuf;
+
+		result = query_module(symbol, QM_SYMBOLS, symbuf, rtn, &rtn);
+	}
+
+	if ( result < 0 )
+	{
+		Syslog(LOG_ERR, "Error querying symbol list for %s " \
+		       "- %s\n", symbol, strerror(errno));
+		free(symbuf);
+		return(0);
+	}
 
 	if ( rtn < 0 )
 	{
@@ -484,7 +508,6 @@ static int AddSymbol(mp, address, symbol)
 	
 {
 	auto int tmp;
-
 
 	/* Allocate space for the symbol table entry. */
 	mp->sym_array = (struct sym_table *) realloc(mp->sym_array, \

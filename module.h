@@ -41,12 +41,14 @@
 #define QM_SYMBOLS      4
 #define QM_INFO         5
 
+#define QM_MODULES_SIZE 256
+#define QM_SYMBOLS_SIZE 512
+
 struct module_symbol
 {
 	unsigned long value;
   	unsigned long name;
 };
-
 
 struct module_info
 {
