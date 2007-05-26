@@ -1621,10 +1621,7 @@ void logmsg(pri, msg, from, flags)
 	timestamp = ctime(&now) + 4;
 
 	/* extract facility and priority level */
-	if (flags & MARK)
-		fac = LOG_NFACILITIES;
-	else
-		fac = LOG_FAC(pri);
+	fac = LOG_FAC(pri);
 	prilev = LOG_PRI(pri);
 
 	/* log the message to the particular outputs */
@@ -2145,7 +2142,7 @@ void domark()
 	now = time(0);
 	MarkSeq += TIMERINTVL;
 	if (MarkSeq >= MarkInterval) {
-		logmsg(LOG_INFO, "-- MARK --", LocalHostName, ADDDATE|MARK);
+		logmsg(LOG_MARK|LOG_INFO, "-- MARK --", LocalHostName, ADDDATE|MARK);
 		MarkSeq = 0;
 	}
 
