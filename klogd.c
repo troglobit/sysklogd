@@ -243,9 +243,14 @@
  *	people have submitted patches: Troels Walsted Hansen
  *	<troels@thule.no>, Wolfgang Oertl <Wolfgang.Oertl@uibk.ac.at>
  *	and Thomas Roessler.
+ *
  * Thu Apr 29 15:24:07 2004: Solar Designer <solar@openwall.com>
  *	Prevent potential buffer overflow in reading messages from the
  *	kernel log rinbuffer.
+ *
+ * Sat May 26 16:33:18 2007: Martin Schulze <joey@infodrom.org>
+ *	Improved daemonise routine to stabilise startup
+ *
  */
 
 
@@ -356,6 +361,19 @@ static void CloseLogSrc()
 	return;
 }
 
+
+/*
+ * Signal handler to terminate the parent process.
+ */
+#ifndef TESTING
+void doexit(sig)
+
+	int sig;
+
+{
+	exit (0);
+}
+#endif
 
 void restart(sig)
 	
@@ -994,6 +1012,7 @@ int main(argc, argv)
 			*output = (char *) 0;
 
 #ifndef TESTING
+	pid_t ppid = getpid();
 	chdir ("/");
 #endif
 	/* Parse the command-line. */
@@ -1073,10 +1092,13 @@ int main(argc, argv)
 	{
 		if (!check_pid(PidFile))
 		{
+			signal (SIGTERM, doexit);
 			if ( fork() == 0 )
 			{
 				auto int fl;
 				int num_fds = getdtablesize();
+
+				signal (SIGTERM, SIG_DFL);
 		
 				/* This is the child closing its file descriptors. */
 				for (fl= 0; fl <= num_fds; ++fl)
@@ -1090,7 +1112,16 @@ int main(argc, argv)
 				setsid();
 			}
 			else
-				exit(0);
+			{
+				/*
+				 * Parent process
+				 */
+				sleep(300);
+				/*
+				 * Not reached unless something major went wrong.
+				 */
+				exit(1);
+			}
 		}
 		else
 		{
@@ -1165,6 +1196,11 @@ int main(argc, argv)
 		InitKsyms(symfile);
 		InitMsyms();
 	}
+
+#ifndef TESTING
+	if (getpid() != ppid)
+		kill (ppid, SIGTERM);
+#endif
 
         /* The main loop. */
 	while (1)
