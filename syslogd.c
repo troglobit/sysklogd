@@ -761,6 +761,7 @@ struct code	FacNames[] = {
 int	Debug;			/* debug flag */
 char	LocalHostName[MAXHOSTNAMELEN+1];	/* our hostname */
 char	*LocalDomain;		/* our local domain name */
+char	*emptystring = "";
 int	InetInuse = 0;		/* non-zero if INET sockets are being used */
 int	finet = -1;		/* Internet datagram socket */
 int	LogPort;		/* port number for INET connections */
@@ -988,14 +989,13 @@ int main(argc, argv)
 	consfile.f_type = F_CONSOLE;
 	(void) strcpy(consfile.f_un.f_fname, ctty);
 	(void) gethostname(LocalHostName, sizeof(LocalHostName));
+	LocalDomain = emptystring;
 	if ( (p = strchr(LocalHostName, '.')) ) {
 		*p++ = '\0';
 		LocalDomain = p;
 	}
-	else
+	else if ( AcceptRemote )
 	{
-		LocalDomain = "";
-
 		/*
 		 * It's not clearly defined whether gethostname()
 		 * should return the simple hostname or the fqdn. A
