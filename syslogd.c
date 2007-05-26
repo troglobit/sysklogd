@@ -483,6 +483,9 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  * Sat May 26 10:05:05 CEST 2007: Martin Schulze <joey@infodrom.org>
  *	Only try to gather the local domain name when messages are to
  *	be received from the network, it's not needed otherwise.
+ *
+ * Sat May 26 12:22:44 CEST 2007: Martin Schulze <joey@infodrom.org>
+ *	Properly accompany the MARK message with the facility.
  */
 
 
@@ -1158,9 +1161,9 @@ int main(argc, argv)
 				dprintf("UNIX socket error: %d = %s.\n", \
 					errno, strerror(errno));
 				logerror("recvfrom UNIX");
-	      	}
-				}
 			}
+		    }
+		}
 #endif
 
 #ifdef SYSLOG_INET
