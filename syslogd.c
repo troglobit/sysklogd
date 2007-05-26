@@ -828,6 +828,7 @@ int main(argc, argv)
 {
 	register int i;
 	register char *p;
+	ssize_t msglen;
 #if !defined(__GLIBC__)
 	int len, num_fds;
 #else /* __GLIBC__ */
@@ -1151,13 +1152,12 @@ int main(argc, argv)
 #ifdef SYSLOG_UNIXAF
 		for (i = 0; i < nfunix; i++) {
 		    if ((fd = funix[i]) != -1 && FD_ISSET(fd, &readfds)) {
-			memset(line, '\0', sizeof(line));
-			i = recv(fd, line, MAXLINE - 2, 0);
+			memset(line, 0, sizeof(line));
+			msglen = recv(fd, line, MAXLINE - 2, 0);
 			dprintf("Message from UNIX socket: #%d\n", fd);
-			if (i > 0) {
-				line[i] = line[i+1] = '\0';
-				printchopped(LocalHostName, line, i + 2,  fd);
-			} else if (i < 0 && errno != EINTR) {
+			if (msglen > 0)
+				printchopped(LocalHostName, line, msglen + 2,  fd);
+			else if (msglen < 0 && errno != EINTR) {
 				dprintf("UNIX socket error: %d = %s.\n", \
 					errno, strerror(errno));
 				logerror("recvfrom UNIX");
@@ -1169,13 +1169,12 @@ int main(argc, argv)
 #ifdef SYSLOG_INET
 		if (InetInuse && AcceptRemote && FD_ISSET(inetm, &readfds)) {
 			len = sizeof(frominet);
-			memset(line, '\0', sizeof(line));
-			i = recvfrom(finet, line, MAXLINE - 2, 0, \
+			memset(line, 0, sizeof(line));
+			msglen = recvfrom(finet, line, MAXLINE - 2, 0, \
 				     (struct sockaddr *) &frominet, &len);
 			dprintf("Message from inetd socket: #%d, host: %s\n",
 				inetm, inet_ntoa(frominet.sin_addr));
-			if (i > 0) {
-				line[i] = line[i+1] = '\0';
+			if (msglen > 0) {
 				from = (char *)cvthname(&frominet);
 				/*
 				 * Here we could check if the host is permitted
@@ -1187,8 +1186,8 @@ int main(argc, argv)
 				 *  -Joey
 				 */
 				printchopped(from, line, \
- 					     i + 2,  finet);
-			} else if (i < 0 && errno != EINTR && errno != EAGAIN) {
+ 					     msglen + 2,  finet);
+			} else if (msglen < 0 && errno != EINTR && errno != EAGAIN) {
 				dprintf("INET socket error: %d = %s.\n", \
 					errno, strerror(errno));
 				logerror("recvfrom inet");
