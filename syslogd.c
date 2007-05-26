@@ -479,6 +479,10 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	Ignore errors caused by filled up disks so that the log
  *	continues to be written as soon as space becomes available
  *	again.
+ *
+ * Sat May 26 10:05:05 CEST 2007: Martin Schulze <joey@infodrom.org>
+ *	Only try to gather the local domain name when messages are to
+ *	be received from the network, it's not needed otherwise.
  */
 
 

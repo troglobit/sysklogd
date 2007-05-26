@@ -84,6 +84,11 @@
  *	Removed references to <linux/module.h> since it doesn't work
  *	anymore with its recent content from Linux 2.4/2.6, created
  *	module.h locally instead.
+ *
+ * Fri May 25 20:07:30 CEST 2007: Martin Schulze <joey@infodrom.org>
+ *	Use new query_module function rather than the old obsolete
+ *	hack of stepping through /dev/kmem.
+ *
  */
 
 
