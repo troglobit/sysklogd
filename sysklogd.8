@@ -1,9 +1,8 @@
 .\" Copyright 1994 Dr. Greg Wettstein, Enjellic Systems Development.
-.\" Copyright 2004 Joey Schulze <joey@infodrom.org>
+.\" Copyright 2004,6,7 Martin Schulze <joey@infodrom.org>
 .\" May be distributed under the GNU General Public License
-.\" Sun Aug 30 11:35:55 MET: Martin Schulze: Updates
 .\"
-.TH SYSKLOGD 8 "9 July 2004" "Version 1.3" "Linux System Administration"
+.TH SYSKLOGD 8 "27 May 2007" "Version 1.5" "Linux System Administration"
 .SH NAME
 sysklogd \- Linux system logging utilities.
 .SH SYNOPSIS
@@ -551,54 +550,10 @@ passwords.
 .BR syslog (2),
 .BR syslog (3),
 .BR services (5),
-.BR savelog (8)
-.SH COLLABORATORS
-.B Syslogd
-is taken from BSD sources, Greg Wettstein (greg@wind.enjellic.com)
-performed the port to Linux, Martin Schulze (joey@linux.de)
-fixed some bugs and added several new features.
-.B Klogd 
-was originally written by Steve Lord (lord@cray.com), Greg Wettstein
-made major improvements.
-
-.PD 0
-.TP
-Dr. Greg Wettstein
-.TP
-Enjellic Systems Development
-.TP
-Oncology Research Division Computing Facility
-.TP
-Roger Maris Cancer Center
-.TP
-Fargo, ND
-.TP
-greg@wind.enjellic.com
-
-.TP
-Stephen Tweedie
-.TP
-Department of Computer Science
-.TP
-Edinburgh University, Scotland
-.TP
-sct@dcs.ed.ac.uk
-
-.TP
-Juha Virtanen
-.TP
-jiivee@hut.fi
-
-.TP
-Shane Alderton
-.TP
-shane@ion.apana.org.au
-
-.TP
-Martin Schulze
-.TP
-Infodrom Oldenburg
-.TP
-joey@linux.de
-.PD
-.zZ
+.BR savelog (8).
+.SH AUTHORS
+The system log daemon
+.B syslogd
+is originally  taken from BSD sources, Greg Wettstein <greg@wind.enjellic.com>
+performed the port to Linux, Martin Schulze <joey@infodrom.org>
+fixed some bugs, added several new features and took over maintenance.
