@@ -338,9 +338,6 @@ extern int main(int argc, char *argv[]);
 static void CloseLogSrc()
 
 {
-	/* Turn on logging of messages to console. */
-  	ksyslog(7, NULL, 0);
-  
         /* Shutdown the log sources. */
 	switch ( logsrc )
 	{
@@ -542,7 +539,6 @@ static enum LOGSRC GetKernelLogSrc(void)
 		 */
 		Syslog(LOG_WARNING, "Cannot set console log level - disabling "
 		       "console output.");
-		ksyslog(6, NULL, 0);
 	}
 
 	/*
