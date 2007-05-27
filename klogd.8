@@ -8,7 +8,6 @@
 .TH KLOGD 8 "11 March 2005" "Version 1.4" "Linux System Administration"
 .SH NAME
 klogd \- Kernel Log Daemon
-.LP
 .SH SYNOPSIS
 .B klogd
 .RB [ " \-c "
@@ -29,12 +28,10 @@ klogd \- Kernel Log Daemon
 .RB [ " \-v " ]
 .RB [ " \-x " ]
 .RB [ " \-2 " ]
-.LP
 .SH DESCRIPTION
 .B klogd
 is a system daemon which intercepts and logs Linux kernel
 messages.
-.LP
 .SH OPTIONS
 .TP
 .BI "\-c " n
@@ -88,7 +85,6 @@ When symbols are expanded, print the line twice.  Once with addresses
 converted to symbols, once with the raw text.  This allows external
 programs such as ksymoops do their own processing on the original
 data.
-.LP
 .SH OVERVIEW
 The functionality of klogd has been typically incorporated into other
 versions of syslogd but this seems to be a poor place for it.  In the
@@ -144,7 +140,6 @@ command would be given.
 .nf
 	klogd -o -f ./krnl.msg
 .fi
-.PP
 .SH KERNEL ADDRESS RESOLUTION
 If the kernel detects an internal error condition a general protection
 fault will be triggered.  As part of the GPF handling procedure the
@@ -293,7 +288,6 @@ utilities to automatically signal
 whenever a module is inserted or removed from the kernel.  Using this
 patch will insure that the symbol information maintained in klogd is
 always consistent with the current kernel state.
-.PP
 .SH CONSOLE LOG LEVEL
 The
 .B klogd
@@ -355,7 +349,6 @@ kernel.printk = 4 4 1 7
 .fi
 .PP
 corresponds to the sampe setting above.
-
 .SH SIGNAL HANDLING
 The 
 .B klogd
@@ -413,7 +406,6 @@ modules are loaded/unloaded.  Sending this signal to the daemon after a
 kernel module state change will insure that proper resolution of symbols will
 occur if a protection fault occurs in the address space occupied by a kernel
 module.
-.LP
 .SH FILES
 .PD 0
 .TP
@@ -430,7 +422,6 @@ Default locations for kernel system maps.
 .PD
 .SH BUGS
 Probably numerous.  Well formed context diffs appreciated.
-.LP
 .SH AUTHOR
 The
 .B klogd

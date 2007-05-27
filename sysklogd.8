@@ -31,7 +31,6 @@ sysklogd \- Linux system logging utilities.
 .I domainlist
 ]
 .RB [ " \-v " ]
-.LP
 .SH DESCRIPTION
 .B Sysklogd
 provides two system utilities which provide support for
@@ -71,8 +70,6 @@ or an alternative file, given with the
 option, is read at startup.  Any lines that begin with the hash mark
 (``#'') and empty lines are ignored.  If an error occurs during parsing
 the whole line is ignored.
-
-.LP
 .SH OPTIONS
 .TP
 .BI "\-a " "socket"
@@ -156,7 +153,6 @@ no domain would be cut, you will have to specify two domains like:
 .TP
 .B "\-v"
 Print version and exit.
-.LP
 .SH SIGNALS
 .B Syslogd
 reacts to a set of signals.  You may easily send a signal to
@@ -197,7 +193,6 @@ debug option.
 .TP
 .B SIGCHLD
 Wait for childs if some were born, because of wall'ing messages.
-.LP
 .SH CONFIGURATION FILE SYNTAX DIFFERENCES
 .B Syslogd
 uses a slightly different syntax for its configuration file than
@@ -286,7 +281,6 @@ should not affect standard
 .BR syslog.conf (5)
 files.  You must specifically
 modify the configuration files to obtain the enhanced behavior.
-.LP
 .SH SUPPORT FOR REMOTE LOGGING
 These modifications provide network support to the syslogd facility.
 Network support means that messages can be forwarded from one node
@@ -401,7 +395,6 @@ The UDP socket used to forward messages to remote hosts or to receive
 messages from them is only opened when it is needed.  In releases
 prior to 1.3-23 it was opened every time but not opened for reading or
 forwarding respectively.
-
 .SH OUTPUT TO NAMED PIPES (FIFOs)
 This version of syslogd has support for logging output to named pipes
 (fifos).  A fifo or named pipe can be used as a destination for log
@@ -446,7 +439,6 @@ sequence.  If it is started from init the option \fI\-n\fR must be set,
 otherwise you'll get tons of syslog daemons started.  This is because 
 .BR init (8)
 depends on the process ID.
-.LP
 .SH SECURITY THREATS
 There is the potential for the syslogd daemon to be
 used as a conduit for a denial of service attack.  Thanks go to John
@@ -482,7 +474,6 @@ threaded on each end.  Primary use in the oil industry in Western
 North Dakota and other locations to pump 'suck' oil from oil wells.
 Secondary uses are for the construction of cattle feed lots and for
 dealing with the occasional recalcitrant or belligerent individual.
-.LP
 .SH DEBUGGING
 When debugging is turned on using
 .B "\-d"
@@ -553,7 +544,6 @@ program that is shipped in the
 3.x distribution.  Remember that it might be a security hole if
 everybody is able to read auth.* messages as these might contain
 passwords.
-.LP
 .SH SEE ALSO
 .BR syslog.conf (5),
 .BR klogd (8),
@@ -562,7 +552,6 @@ passwords.
 .BR syslog (3),
 .BR services (5),
 .BR savelog (8)
-.LP
 .SH COLLABORATORS
 .B Syslogd
 is taken from BSD sources, Greg Wettstein (greg@wind.enjellic.com)
