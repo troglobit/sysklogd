@@ -39,12 +39,6 @@ messages.
 .TP
 .BI "\-c " n
 Sets the default log level of console messages to \fIn\fR.
-This should nowardays be configured with the
-.BR sysctl (8)
-program, e.g. via
-.BI "sysctl kernel.printk=" n
-or via
-.IR /etc/sysctl.conf .
 .TP
 .B "\-d"
 Enable debugging mode.  This will generate \fBLOTS\fR of output to
@@ -137,55 +131,6 @@ from the kernel the klogd daemon reads this priority level and assigns
 the appropriate priority level to the syslog message.  If file output
 (\fB-f\fR) is used the prioritization sequence is left pre\-pended to the
 kernel message.
-
-The
-.B klogd
-daemon also allows the ability to alter the presentation of
-kernel messages to the system console.  Consequent with the
-prioritization of kernel messages was the inclusion of default
-messaging levels for the kernel.  In a stock kernel the the default
-console log level is set to 7.  Any messages with a priority level
-numerically lower than 7 (higher priority) appear on the console.
-
-Messages of priority level 7 are considered to be 'debug' messages and
-will thus not appear on the console.  Many administrators,
-particularly in a multi\-user environment, prefer that all kernel
-messages be handled by klogd and either directed to a file or to
-the syslogd daemon.  This prevents 'nuisance' messages such as line
-printer out of paper or disk change detected from cluttering the
-console.
-
-When
-.B \-c
-is given on the commandline the
-.B klogd
-daemon will execute a system call to inhibit all kernel messages from
-being displayed on the console.  Former versions always issued this
-system call and defaulted to all kernel messages except for panics.
-This is handled differently nowardays so
-.B klogd
-doesn't need to set this value anymore.  The
-argument given to the \fB\-c\fR switch specifies the priority level of
-messages which will be directed to the console.  Note that messages of
-a priority value LOWER than the indicated number will be directed to
-the console.
-.IP
-For example, to have the kernel display all messages with a
-priority level of 3
-.BR "" ( KERN_ERR )
-or more severe the following
-command would be executed:
-.IP
-.nf
-	klogd \-c 4
-.fi
-.PP
-The definitions of the numeric values for kernel messages are given in
-the file 
-.IR kernel.h " which can be found in the " /usr/include/linux
-directory if the kernel sources are installed.  These values parallel
-the syslog priority values which are defined in the file 
-.IR syslog.h " found in the " /usr/include/sys " sub\-directory."
 
 The klogd daemon can also be used in a 'one\-shot' mode for reading the
 kernel message buffers.  One shot mode is selected by specifying the
@@ -349,6 +294,68 @@ whenever a module is inserted or removed from the kernel.  Using this
 patch will insure that the symbol information maintained in klogd is
 always consistent with the current kernel state.
 .PP
+.SH CONSOLE LOG LEVEL
+The
+.B klogd
+daemon allows the ability to alter the presentation of
+kernel messages to the system console.  Consequent with the
+prioritization of kernel messages was the inclusion of default
+messaging levels for the kernel.  In a stock kernel the the default
+console log level is set to 7.  Any messages with a priority level
+numerically lower than 7 (higher priority) appear on the console.
+
+Messages of priority level 7 are considered to be 'debug' messages and
+will thus not appear on the console.  Many administrators,
+particularly in a multi\-user environment, prefer that all kernel
+messages be handled by klogd and either directed to a file or to
+the syslogd daemon.  This prevents 'nuisance' messages such as line
+printer out of paper or disk change detected from cluttering the
+console.
+
+When
+.B \-c
+is given on the commandline the
+.B klogd
+daemon will execute a system call to inhibit all kernel messages from
+being displayed on the console.  Former versions always issued this
+system call and defaulted to all kernel messages except for panics.
+This is handled differently nowardays so
+.B klogd
+doesn't need to set this value anymore.  The
+argument given to the \fB\-c\fR switch specifies the priority level of
+messages which will be directed to the console.  Note that messages of
+a priority value LOWER than the indicated number will be directed to
+the console.
+.IP
+For example, to have the kernel display all messages with a
+priority level of 3
+.BR "" ( KERN_ERR )
+or more severe the following
+command would be executed:
+.IP
+.nf
+	klogd \-c 4
+.fi
+.PP
+The definitions of the numeric values for kernel messages are given in
+the file 
+.IR kernel.h " which can be found in the " /usr/include/linux
+directory if the kernel sources are installed.  These values parallel
+the syslog priority values which are defined in the file 
+.IR syslog.h " found in the " /usr/include/sys " sub\-directory."
+
+The console log level is nowardays usually configured with the
+.BR sysctl (8)
+program, directly or via its configuration file
+.IR /etc/sysctl.conf .
+In this file the following line 
+.IP
+.nf
+kernel.printk = 4 4 1 7
+.fi
+.PP
+corresponds to the sampe setting above.
+
 .SH SIGNAL HANDLING
 The 
 .B klogd
