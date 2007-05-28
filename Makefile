@@ -90,7 +90,7 @@ syslog.o: syslog.c
 klogd.o: klogd.c klogd.h version.h
 	${CC} ${CFLAGS} ${KLOGD_FLAGS} $(DEB) -c klogd.c
 
-ksym.o: ksym.c klogd.h
+ksym.o: ksym.c klogd.h ksyms.h module.h
 	${CC} ${CFLAGS} ${KLOGD_FLAGS} -c ksym.c
 
 ksym_mod.o: ksym_mod.c klogd.h ksyms.h module.h
