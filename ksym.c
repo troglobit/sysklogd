@@ -2,6 +2,7 @@
     ksym.c - functions for kernel address->symbol translation
     Copyright (c) 1995, 1996  Dr. G.W. Wettstein <greg@wind.rmcc.com>
     Copyright (c) 1996 Enjellic Systems Development
+    Copyright (c) 1997-2007 Martin Schulze <joey@infodrom.org>
 
     This file is part of the sysklogd package, a kernel and system log daemon.
 
@@ -126,16 +127,10 @@
 #include <sys/utsname.h>
 #include "klogd.h"
 #include "ksyms.h"
+#include "module.h"
 
 #define VERBOSE_DEBUGGING 0
 
-
-/* Variables static to this module. */
-struct sym_table
-{
-	unsigned long value;
-	char *name;
-};
 
 static int num_syms = 0;
 static int i_am_paranoid = 0;
