@@ -489,6 +489,10 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *
  * Mon May 28 19:00:37 CEST 2007: Andreas Barth <aba@not.so.argh.org>
  *	Prevent pipes from becoming the controlling tty.
+ *
+ * Mon May 28 19:44:39 CEST 2007: Martin Schulze <joey@infodrom.org>
+ *	Notify the waiting parent process if the client dies to it
+ *	doesn't wait the entire five minutes.
  */
 
 
@@ -986,12 +990,16 @@ int main(argc, argv)
 			if (!write_pid(PidFile))
 			{
 				dprintf("Can't write pid.\n");
+				if (getpid() != ppid)
+					kill (ppid, SIGTERM);
 				exit(1);
 			}
 		}
 		else
 		{
 			dprintf("Pidfile (and pid) already exist.\n");
+			if (getpid() != ppid)
+				kill (ppid, SIGTERM);
 			exit(1);
 		}
 	} /* if ( !Debug ) */
@@ -1052,6 +1060,8 @@ int main(argc, argv)
 	    (char **) 0 )
 	{
 		logerror("Cannot allocate memory for message parts table.");
+		if (getpid() != ppid)
+			kill (ppid, SIGTERM);
 		die(0);
 	}
 	for(i= 0; i < num_fds; ++i)
