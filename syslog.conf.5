@@ -1,5 +1,5 @@
 .\" syslog.conf - syslogd(8) configuration file
-.\" Copyright (c) 1995,2006  Joey Schulze <joey@infodrom.org>
+.\" Copyright (c) 1995-2007  Martin Schulze <joey@infodrom.org>
 .\" 
 .\" This file is part of the sysklogd package, a kernel and system log daemon.
 .\" 
@@ -45,7 +45,6 @@ This release of
 is able to understand an extended syntax.  One rule can be divided
 into several lines if the leading line is terminated with an backslash
 (``\\'').
-
 .SH SELECTORS
 The selector field itself again consists of two parts, a
 .I facility
@@ -94,7 +93,7 @@ is one of the following keywords, in ascending order:
 .BR warning "), " err ", " error " (same as " err "), " crit ", "
 .BR alert ", " emerg ", " panic " (same as " emerg ).
 The keywords
-.BR error ", " warn " and " panic
+.BR warn ", " error " and " panic
 are deprecated and should not be used anymore.  The
 .I priority
 defines the severity of the message
@@ -123,7 +122,7 @@ Multiple selectors may be specified for a single
 using the semicolon (``;'') separator.  Please note that each selector in
 the 
 .I selector
-field is capable to overwrite the preceding ones.  Using this
+field is capable of overwriting the preceding ones.  Using this
 behavior you can exclude some priorities from the pattern.
 
 This 
@@ -145,7 +144,6 @@ you want
 to ignore only this single priority.  If you use both extensions
 than the exclamation mark must occur before the equation sign, just
 use it intuitively.
-
 .SH ACTIONS
 The action field of a rule describes the abstract term
 ``logfile''.  A ``logfile'' need not to be a real file, btw.  The
@@ -198,10 +196,9 @@ administration needs.
 .SS List of Users
 Usually critical messages are also directed to ``root'' on that
 machine.  You can specify a list of users that shall get the message by
-simply writing the login.  You may specify more than one user by
-separating them with commas (``,'').  If they're logged in they
-get the message.  Don't think a mail would be sent, that might be too
-late.
+simply writing the username.  You may specify more than one user by
+separating the usernames with commas (``,'').  If they're logged in they
+will receive the log messages.
 
 .SS Everyone logged on
 Emergency messages often go to all users currently online to notify
@@ -209,10 +206,9 @@ them that something strange is happening with the system.  To specify
 this
 .IR wall (1)-feature
 use an asterisk (``*'').
-
 .SH EXAMPLES
 Here are some example, partially taken from a real existing site and
-configuration.  Hopefully they rub out all questions to the
+configuration.  Hopefully they rub out all questions on the
 configuration, if not, drop me (Joey) a line.
 .IP
 .nf
@@ -265,7 +261,7 @@ and higher is excluded.
 
 .IP
 .nf
-# The tcp wrapper loggs with mail.info, we display
+# The tcp wrapper logs with mail.info, we display
 # all the connections on tty12
 #
 mail.=info                   /dev/tty12
@@ -277,7 +273,7 @@ to
 .IR /dev/tty12 , 
 the 12th console.  For example the tcpwrapper
 .BR tcpd (8)
-uses this as it's default.
+uses this as its default.
 
 .IP
 .nf
@@ -374,7 +370,6 @@ and ``joey'' if they're logged in.
 This rule would redirect all messages to a remote host called
 finlandia.  This is useful especially in a cluster of machines where
 all syslog messages will be stored on only one machine.
-
 .SH CONFIGURATION FILE SYNTAX DIFFERENCES
 .B Syslogd
 uses a slightly different syntax for its configuration file than
@@ -392,23 +387,20 @@ the selector and the action field.
 .I /etc/syslog.conf
 Configuration file for
 .B syslogd
-
 .SH BUGS
 The effects of multiple selectors are sometimes not intuitive.  For
 example ``mail.crit,*.err'' will select ``mail'' facility messages at
 the level of ``err'' or higher, not at the level of ``crit'' or
 higher.
-
 .SH SEE ALSO
 .BR sysklogd (8),
 .BR klogd (8), 
 .BR logger (1),
 .BR syslog (2),
-.BR syslog (3)
-
+.BR syslog (3).
 .SH AUTHORS
 The
 .B syslogd
-is taken from BSD sources, Greg Wettstein (greg@wind.enjellic.com)
-performed the port to Linux, Martin Schulze (joey@linux.de)
-made some bugfixes and added some new features.
+is taken from BSD sources, Greg Wettstein <greg@wind.enjellic.com>
+performed the port to Linux, Martin Schulze <joey@infodrom.org>
+fixed some bugs, added several new features and took over maintenance.
