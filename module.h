@@ -1,7 +1,7 @@
 /*
     module.h - Miscellaneous module definitions
     Copyright (c) 1996 Richard Henderson <rth@tamu.edu>
-    Copyright (c) 2004,7 Martin Schulze <joey@infodrom.org>
+    Copyright (c) 2004-7 Martin Schulze <joey@infodrom.org>
 
     This file is part of the sysklogd package.
 
@@ -29,71 +29,23 @@
  *
  * Thu May 25 09:14:33 CEST 2006: Martin Schulze <joey@infodrom.org>
  *	Removed asm/atomic.h since it is not needed anymore.
+ *
+ * Mon May 28 16:46:59 CEST 2007: Martin Schulze <joey@infodrom.org>
+ *	Removed several structs not used anymore.  Moved structs from
+ *	ksym_mod.c over here.
  */
 
-#define MODULE_NAME_LEN 60
-
-/* Values for query_module's which. */
-
-#define QM_MODULES      1
-#define QM_DEPS         2
-#define QM_REFS         3
-#define QM_SYMBOLS      4
-#define QM_INFO         5
-
-#define QM_MODULES_SIZE 256
-#define QM_SYMBOLS_SIZE 512
-
-struct module_symbol
+struct sym_table
 {
 	unsigned long value;
-  	unsigned long name;
+	char *name;
 };
 
-struct module_info
+struct Module
 {
-	unsigned long addr;
-	unsigned long size;
-	unsigned long flags;
-	long usecount;
+	struct sym_table *sym_array;
+	int num_syms;
+
+	char *name;
 };
-
-
-struct module
-{
-	unsigned long size_of_struct;	/* == sizeof(module) */
-	struct module *next;
-	const char *name;
-	unsigned long size;
-
-	union
-	{
-		int usecount;
-		long pad;
-	} uc;				/* Needs to keep its size - so says rth */
-
-	unsigned long flags;		/* AUTOCLEAN et al */
-
-	unsigned nsyms;
-	unsigned ndeps;
-
-	struct module_symbol *syms;
-	struct module_ref *deps;
-	struct module_ref *refs;
-	int (*init)(void);
-	void (*cleanup)(void);
-	const struct exception_table_entry *ex_table_start;
-	const struct exception_table_entry *ex_table_end;
-#ifdef __alpha__
-	unsigned long gp;
-#endif
-	/* Members past this point are extensions to the basic
-	   module support and are optional.  Use mod_opt_member()
-	   to examine them.  */
-	const struct module_persist *persist_start;
-	const struct module_persist *persist_end;
-	int (*can_unload)(void);
-};
-
-int query_module(const char *, int, void *, size_t, size_t *);
 
