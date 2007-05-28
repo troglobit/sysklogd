@@ -486,6 +486,9 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *
  * Sat May 26 12:22:44 CEST 2007: Martin Schulze <joey@infodrom.org>
  *	Properly accompany the MARK message with the facility.
+ *
+ * Mon May 28 19:00:37 CEST 2007: Andreas Barth <aba@not.so.argh.org>
+ *	Prevent pipes from becoming the controlling tty.
  */
 
 
@@ -2722,13 +2725,12 @@ void cfline(line, f)
 		if (syncfile)
 			f->f_flags |= SYNC_FILE;
 		if ( *p == '|' ) {
-			f->f_file = open(++p, O_RDWR|O_NONBLOCK);
 			f->f_type = F_PIPE;
-	        } else {
-			f->f_file = open(p, O_WRONLY|O_APPEND|O_CREAT|O_NOCTTY,
-					 0644);
+			p++;
+		} else
 			f->f_type = F_FILE;
-		}
+		f->f_file = open(p, O_WRONLY|O_APPEND|O_CREAT|O_NOBLOCK|O_NOCTTY,
+				 0644);
 		        
 	  	if ( f->f_file < 0 ){
 			f->f_file = -1;
