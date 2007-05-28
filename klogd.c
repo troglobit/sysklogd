@@ -249,8 +249,10 @@
  *	kernel log rinbuffer.
  *
  * Sat May 26 16:33:18 2007: Martin Schulze <joey@infodrom.org>
- *	Improved daemonise routine to stabilise startup
+ *	Improved daemonise routine to stabilise startup.
  *
+ * Mon May 28 18:07:59 CEST 2007: Matthew Fischer <futhark@vzavenue.net>
+ *	Remove special treatment of the percent sign.
  */
 
 
@@ -755,7 +757,7 @@ static void LogLine(char *ptr, int len)
         switch( parse_state )
         {
         case PARSING_TEXT:
-               delta = copyin( line, space, ptr, len, "\n[%" );
+               delta = copyin( line, space, ptr, len, "\n[" );
                line  += delta;
                ptr   += delta;
                space -= delta;
@@ -811,30 +813,6 @@ static void LogLine(char *ptr, int len)
                      parse_state = PARSING_SYMSTART;      /* at < */
                   break;
                }
-               if( *ptr == '%' )   /* dangerous printf marker */
-	       {
-		   delta = 0;
-		   while (len && *ptr == '%')
-		   {
-		       *line++ = *ptr++;	/* copy it in */
-		       space -= 1;
-		       len   -= 1;
-		       delta++;
-		   }
-		   if (delta % 2)	/* odd amount of %'s */
-		   {
-		       if (space)
-		       {
-			   *line++ = '%';	/* so simply add one */
-			   space -= 1;
-		       }
-		       else 
-		       {
-			   *line++ = '\0';	/* remove the last one / terminate the string */
-		       }
-
-		   }
-	       }
                break;
         
         case PARSING_SYMSTART:
