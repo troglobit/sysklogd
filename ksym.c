@@ -114,6 +114,9 @@
  *	Added boundary check for fscanf() in InitKsyms() and
  *	CheckMapVersion() to prevent an unintended crash when reading
  *	an incorrect System.map.
+ *
+ * Mon May 28 08:27:51 CEST 2007: Martin Schulze <joey@infodrom.org>
+ *	Added back /usr/src/linux/System.map as fall-back location.
  */
 
 
@@ -143,6 +146,7 @@ static char *system_maps[] =
 {
 	"/boot/System.map",
 	"/System.map",
+	"/usr/src/linux/System.map",
 #if defined(TEST)
 	"./System.map",
 #endif
