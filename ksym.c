@@ -170,7 +170,7 @@ static int CheckMapVersion(char *);
  * Purpose:	This function is responsible for initializing and loading
  *		the data tables used by the kernel address translations.
  *
- * Arguements:	(char *) mapfile
+ * Arguments:	(char *) mapfile
  *
  *			mapfile:->	A pointer to a complete path
  *					specification of the file containing
@@ -311,7 +311,7 @@ extern int InitKsyms(mapfile)
  *		in /boot will be skipped and the map in /usr/src/linux would
  *		be used if its version number matches the executing kernel.
  *
- * Arguements:	None specified.
+ * Arguments:	None specified.
  *
  * Return:	char *
  *
@@ -397,7 +397,7 @@ static char * FindSymbolFile()
  *		needs more than 255 patch levels to get a kernel out the
  *		door... :-)
  *
- * Arguements:	(char *) version
+ * Arguments:	(char *) version
  *
  *			version:->	A pointer to the string which
  *					is to be decoded as a kernel
@@ -503,7 +503,7 @@ static int CheckVersion(version)
  *		currently running kernel.  It uses CheckVersion as
  *		backend.
  *
- * Arguements:	(char *) fname
+ * Arguments:	(char *) fname
  *
  *			fname:->	A pointer to the string which
  *					references the system map file to
@@ -590,7 +590,7 @@ static int CheckMapVersion(fname)
  * Purpose:	This function is responsible for adding a symbol name
  *		and its address to the symbol table.
  *
- * Arguements:	(unsigned long) address, (char *) symbol
+ * Arguments:	(unsigned long) address, (char *) symbol
  *
  * Return:	int
  *
@@ -630,7 +630,7 @@ static int AddSymbol(address, symbol)
  * Purpose:	Find the symbol which is related to the given kernel
  *		address.
  *
- * Arguements:	(long int) value, (struct symbol *) sym
+ * Arguments:	(long int) value, (struct symbol *) sym
  *
  *		value:->	The address to be located.
  * 
@@ -664,7 +664,7 @@ char * LookupSymbol(value, sym)
 	if ( value < sym_array[0].value )
 		return((char *) 0);
 	
-	for(lp= 0; lp <= num_syms; ++lp)
+	for(lp = 0; lp <= num_syms; ++lp)
 	{
 		if ( sym_array[lp].value > value )
 		{		
@@ -691,7 +691,7 @@ char * LookupSymbol(value, sym)
  *		also initializes the symbol count and in general prepares
  *		for a re-read of a static symbol table.
  *
- * Arguements:  void
+ * Arguments:  void
  *
  * Return:	void
  **************************************************************************/
@@ -702,7 +702,7 @@ static void FreeSymbols()
 	auto int lp;
 
 	/* Free each piece of memory allocated for symbol names. */
-	for(lp= 0; lp < num_syms; ++lp)
+	for(lp = 0; lp < num_syms; ++lp)
 		free(sym_array[lp].name);
 
 	/* Whack the entire array and initialize everything. */
@@ -721,7 +721,7 @@ static void FreeSymbols()
  *		line after all potential numeric kernel addresses have
  *		been resolved symolically.
  *
- * Arguements:	(char *) line, (char *) el
+ * Arguments:	(char *) line, (char *) el
  *
  *		line:->	A pointer to the buffer containing the kernel
  *			message to be expanded and logged.
@@ -839,7 +839,7 @@ extern char * ExpandKadds(line, el)
  *		mode of loadable module symbol lookups.  Probably overkill
  *		but it does slay another global variable.
  *
- * Arguements:	(int) level
+ * Arguments:	(int) level
  *
  *		level:->	The amount of paranoia which is to be
  *				present when resolving kernel exceptions.
