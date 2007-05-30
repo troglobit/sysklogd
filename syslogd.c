@@ -835,7 +835,9 @@ int main(argc, argv)
 {
 	register int i;
 	register char *p;
+#ifndef TESTING
 	ssize_t msglen;
+#endif
 #if !defined(__GLIBC__)
 	int len, num_fds;
 #else /* __GLIBC__ */
@@ -1060,8 +1062,10 @@ int main(argc, argv)
 	    (char **) 0 )
 	{
 		logerror("Cannot allocate memory for message parts table.");
+#ifndef TESTING
 		if (getpid() != ppid)
 			kill (ppid, SIGTERM);
+#endif
 		die(0);
 	}
 	for(i= 0; i < num_fds; ++i)
