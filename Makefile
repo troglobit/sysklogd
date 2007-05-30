@@ -1,12 +1,12 @@
 # Makefile for syslogd and klogd daemons.
 
 CC= gcc
-#CFLAGS= -g -DSYSV -Wall
+#SKFLAGS= -g -DSYSV -Wall
 #LDFLAGS= -g
-CFLAGS= $(RPM_OPT_FLAGS) -O3 -DSYSV -fomit-frame-pointer -Wall -fno-strength-reduce
+SKFLAGS= $(RPM_OPT_FLAGS) -O3 -DSYSV -fomit-frame-pointer -Wall -fno-strength-reduce
 # -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 # -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
-# $(shell getconf LFS_CFLAGS)
+# $(shell getconf LFS_SKFLAGS)
 LDFLAGS= -s
 
 # Look where your install program is.
@@ -56,9 +56,6 @@ SYSLOG_FLAGS= -DALLOW_KERNEL_LOGGING
 KLOGD_FLAGS = ${FSSTND} ${KLOGD_START_DELAY}
 DEB =
 
-.c.o:
-	${CC} ${CFLAGS} -c $*.c
-
 all: syslogd klogd
 
 test: syslog_tst ksym oops_test tsyslogd
@@ -76,40 +73,40 @@ syslog_tst: syslog_tst.o
 	${CC} ${LDFLAGS} -o syslog_tst syslog_tst.o
 
 tsyslogd: syslogd.c version.h
-	$(CC) $(CFLAGS) -g -DTESTING $(SYSLOGD_FLAGS) -o tsyslogd syslogd.c
+	$(CC) $(SKFLAGS) -g -DTESTING $(SYSLOGD_FLAGS) -o tsyslogd syslogd.c
 
 tklogd: klogd.c syslog.c ksym.c ksym_mod.c version.h
-	$(CC) $(CFLAGS) -g -DTESTING $(KLOGD_FLAGS) -o tklogd klogd.c syslog.c ksym.c ksym_mod.c
+	$(CC) $(SKFLAGS) -g -DTESTING $(KLOGD_FLAGS) -o tklogd klogd.c syslog.c ksym.c ksym_mod.c
 
 syslogd.o: syslogd.c version.h
-	${CC} ${CFLAGS} ${SYSLOGD_FLAGS} $(DEB) -c syslogd.c
+	${CC} ${SKFLAGS} ${SYSLOGD_FLAGS} $(DEB) -c syslogd.c
 
 syslog.o: syslog.c
-	${CC} ${CFLAGS} ${SYSLOG_FLAGS} -c syslog.c
+	${CC} ${SKFLAGS} ${SYSLOG_FLAGS} -c syslog.c
 
 klogd.o: klogd.c klogd.h version.h
-	${CC} ${CFLAGS} ${KLOGD_FLAGS} $(DEB) -c klogd.c
+	${CC} ${SKFLAGS} ${KLOGD_FLAGS} $(DEB) -c klogd.c
 
 ksym.o: ksym.c klogd.h ksyms.h module.h
-	${CC} ${CFLAGS} ${KLOGD_FLAGS} -c ksym.c
+	${CC} ${SKFLAGS} ${KLOGD_FLAGS} -c ksym.c
 
 ksym_mod.o: ksym_mod.c klogd.h ksyms.h module.h
-	${CC} ${CFLAGS} ${KLOGD_FLAGS} -c ksym_mod.c
+	${CC} ${SKFLAGS} ${KLOGD_FLAGS} -c ksym_mod.c
 
 syslog_tst.o: syslog_tst.c
-	${CC} ${CFLAGS} -c syslog_tst.c
+	${CC} ${SKFLAGS} -c syslog_tst.c
 
 oops_test: oops.o
-	${CC} ${CFLAGS} -o oops_test oops_test.c
+	${CC} ${SKFLAGS} -o oops_test oops_test.c
 
 oops.o: oops.c
-	${CC} ${CFLAGS} -D__KERNEL__ -DMODULE -c oops.c
+	${CC} ${SKFLAGS} -D__KERNEL__ -DMODULE -c oops.c
 
 ksym: ksym_test.o ksym_mod.o
 	${CC} ${LDFLAGS} -o ksym ksym_test.o ksym_mod.o
 
 ksym_test.o: ksym.c
-	${CC} ${CFLAGS} -DTEST -o ksym_test.o -c ksym.c
+	${CC} ${SKFLAGS} -DTEST -o ksym_test.o -c ksym.c
 
 clean:
 	rm -f *.o *.log *~ *.orig
