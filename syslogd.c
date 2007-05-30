@@ -2739,7 +2739,7 @@ void cfline(line, f)
 			p++;
 		} else
 			f->f_type = F_FILE;
-		f->f_file = open(p, O_WRONLY|O_APPEND|O_CREAT|O_NOBLOCK|O_NOCTTY,
+		f->f_file = open(p, O_WRONLY|O_APPEND|O_CREAT|O_NONBLOCK|O_NOCTTY,
 				 0644);
 		        
 	  	if ( f->f_file < 0 ){
