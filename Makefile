@@ -1,4 +1,21 @@
-# Makefile for syslogd and klogd daemons.
+#   Copyright (c) 1995  Dr. G.W. Wettstein <greg@wind.rmcc.com>
+#   Copyright (c) 2007  Martin Schulze <joey@infodrom.org>
+#
+#   This file is part of the sysklogd package, a kernel and system log daemon.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 CC= gcc
 #SKFLAGS= -g -DSYSV -Wall
@@ -58,7 +75,7 @@ DEB =
 
 all: syslogd klogd
 
-test: syslog_tst ksym oops_test tsyslogd
+test: syslog_tst ksym oops.ko tsyslogd
 
 install: install_man install_exec
 
@@ -96,12 +113,6 @@ ksym_mod.o: ksym_mod.c klogd.h ksyms.h module.h
 syslog_tst.o: syslog_tst.c
 	${CC} ${SKFLAGS} -c syslog_tst.c
 
-oops_test: oops.o
-	${CC} ${SKFLAGS} -o oops_test oops_test.c
-
-oops.o: oops.c
-	${CC} ${SKFLAGS} -D__KERNEL__ -DMODULE -c oops.c
-
 ksym: ksym_test.o ksym_mod.o
 	${CC} ${LDFLAGS} -o ksym ksym_test.o ksym_mod.o
 
@@ -110,6 +121,7 @@ ksym_test.o: ksym.c
 
 clean:
 	rm -f *.o *.log *~ *.orig
+	rm -f *.ko oops.mod.* Module.symvers
 
 clobber: clean
 	rm -f syslogd klogd ksym syslog_tst oops_test TAGS tsyslogd tklogd
@@ -123,3 +135,8 @@ install_man:
 	${INSTALL} -o ${MAN_USER} -g ${MAN_GROUP} -m ${MAN_PERMS} syslogd.8 ${MANDIR}/man8/syslogd.8
 	${INSTALL} -o ${MAN_USER} -g ${MAN_GROUP} -m ${MAN_PERMS} syslog.conf.5 ${MANDIR}/man5/syslog.conf.5
 	${INSTALL} -o ${MAN_USER} -g ${MAN_GROUP} -m ${MAN_PERMS} klogd.8 ${MANDIR}/man8/klogd.8
+
+obj-m += oops.o
+
+oops.ko: oops.c
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
