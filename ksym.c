@@ -118,6 +118,11 @@
  *
  * Mon May 28 08:27:51 CEST 2007: Martin Schulze <joey@infodrom.org>
  *	Added back /usr/src/linux/System.map as fall-back location.
+ *
+ * Thu May 31 16:56:26 CEST 2007: Martin Schulze <joey@infodrom.org>
+ *	Improved symbol lookup, since symbols are spread over the entire
+ *	address space.  Return the symbol that fits best instead of
+ *	the first hit.
  */
 
 
@@ -654,13 +659,16 @@ char * LookupSymbol(value, sym)
 	auto int lp;
 	
 	auto char *last;
+	auto char *name;
+
+	struct symbol ksym, msym;
 
 	if (!sym_array)
 		return((char *) 0);
 
 	last = sym_array[0].name;
-	sym->offset = 0;
-	sym->size = 0;
+	ksym.offset = 0;
+	ksym.size = 0;
 	if ( value < sym_array[0].value )
 		return((char *) 0);
 	
@@ -668,16 +676,34 @@ char * LookupSymbol(value, sym)
 	{
 		if ( sym_array[lp].value > value )
 		{		
-			sym->offset = value - sym_array[lp-1].value;
-			sym->size = sym_array[lp].value - \
+			ksym.offset = value - sym_array[lp-1].value;
+			ksym.size = sym_array[lp].value - \
 				sym_array[lp-1].value;
-			return(last);
+			break;
 		}
 		last = sym_array[lp].name;
 	}
 
-	if ( (last = LookupModuleSymbol(value, sym)) != (char *) 0 )
+	name = LookupModuleSymbol(value, &msym);
+
+	if ( ksym.offset == 0 && msym.offset == 0 )
+	{
+		return((char *) 0);
+	}
+
+	if ( ksym.size < msym.size )
+	{
+		sym->offset = ksym.offset;
+		sym->size = ksym.size;
 		return(last);
+	}
+	else
+	{
+		sym->offset = msym.offset;
+		sym->size = msym.size;
+		return(name);
+	}
+
 
 	return((char *) 0);
 }
@@ -750,6 +776,8 @@ extern char * ExpandKadds(line, el)
 
 	auto struct symbol sym;
 
+	sym.offset = 0;
+	sym.size = 0;
 
 	/*
 	 * This is as handy a place to put this as anyplace.

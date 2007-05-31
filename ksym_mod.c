@@ -96,6 +96,11 @@
  * Thu May 31 12:12:23 CEST 2007: Martin Schulze <joey@infodrom.org>
  *	Only read kernel symbols from /proc/kallsyms if no System.map
  *	has been read as it may contain more symbols.
+ *
+ * Thu May 31 16:56:26 CEST 2007: Martin Schulze <joey@infodrom.org>
+ *	Improved symbol lookup, since symbols are spread over the entire
+ *	address space.  Return the symbol that fits best instead of
+ *	the first hit.
  */
 
 
@@ -508,28 +513,34 @@ extern char * LookupModuleSymbol(value, sym)
 		 * Run through the list of symbols in this module and
 		 * see if the address can be resolved.
 		 */
-		for(nsym= 1, last = &mp->sym_array[0];
+		for(nsym = 1, last = &mp->sym_array[0];
 		    nsym < mp->num_syms;
 		    ++nsym)
 		{
 			if ( mp->sym_array[nsym].value > value )
-			{		
+			{
+			    if ( sym->size == 0 ||
+				 (mp->sym_array[nsym].value-last->value) < sym->size )
+			    {
 				sym->offset = value - last->value;
 				sym->size = mp->sym_array[nsym].value - \
 					last->value;
+				ret[sizeof(ret)-1] = '\0';
 				if ( mp->name == NULL )
-					return(last->name);
+					snprintf(ret, sizeof(ret)-1,
+						 "%s", last->name);
 				else
-				{
-					ret[sizeof(ret)-1] = '\0';
 					snprintf(ret, sizeof(ret)-1,
 						 "%s:%s", mp->name, last->name);
-					return(ret);
-				}
+			    }
+			    break;
 			}
 			last = &mp->sym_array[nsym];
 		}
 	}
+
+	if ( sym->size > 0 )
+		return(ret);
 
 	/* It has been a hopeless exercise. */
 	return((char *) 0);
