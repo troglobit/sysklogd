@@ -132,7 +132,7 @@
 #define VERBOSE_DEBUGGING 0
 
 
-static int num_syms = 0;
+int num_syms = 0;
 static int i_am_paranoid = 0;
 static char vstring[12];
 static struct sym_table *sym_array = (struct sym_table *) 0;

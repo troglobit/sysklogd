@@ -92,6 +92,10 @@
  * Mon May 28 16:46:59 CEST 2007: Martin Schulze <joey@infodrom.org>
  *	Since Linux 2.6 query_module is depricated and no implemented
  *	anymore.  Thus, overhauled symbol import via /proc/kallsyms
+ *
+ * Thu May 31 12:12:23 CEST 2007: Martin Schulze <joey@infodrom.org>
+ *	Only read kernel symbols from /proc/kallsyms if no System.map
+ *	has been read as it may contain more symbols.
  */
 
 
@@ -137,6 +141,8 @@ static int AddSymbol(const char *);
 struct Module *AddModule(const char *);
 static int symsort(const void *, const void *);
 
+/* Imported from ksym.c */
+extern int num_syms;
 
 /**************************************************************************
  * Function:	InitMsyms
@@ -188,6 +194,9 @@ extern int InitMsyms()
 
 	while ( fgets(buf, sizeof(buf), ksyms) != NULL )
 	{
+		if (num_syms > 0 && index(buf, '[') == NULL)
+			continue;
+
 		p = index(buf, ' ');
 
 		if ( p == NULL )
