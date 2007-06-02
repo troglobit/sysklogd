@@ -691,7 +691,8 @@ char * LookupSymbol(value, sym)
 		return((char *) 0);
 	}
 
-	if ( ksym.size < msym.size )
+	if ( ksym.offset == 0 || msym.offset < 0 ||
+	     (ksym.offset > 0 && ksym.offset < msym.offset) )
 	{
 		sym->offset = ksym.offset;
 		sym->size = ksym.size;
