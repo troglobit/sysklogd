@@ -207,10 +207,6 @@ extern int InitMsyms()
 		if ( p == NULL )
 			continue;
 
-		/* Only read symbols of type t, T, W, A, ?; see nm(1) */
-		if ( strchr("tTWA?", *(p+1)) == NULL )
-			continue;
-
 		if ( buf[strlen(buf)-1] == '\n' )
 			buf[strlen(buf)-1] = '\0';
 		/* overlong lines will be ignored above */
