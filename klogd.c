@@ -899,7 +899,7 @@ static void LogLine(char *ptr, int len)
                   break;
                }
 
-               delta = sprintf( sym_start, "%s+%d/%d]",
+               delta = sprintf( sym_start, "%s+0x%x/0x%02x]",
                                 symbol, sym.offset, sym.size );
 
                space = sym_space + delta;

@@ -845,7 +845,7 @@ extern char * ExpandKadds(line, el)
 		{
 			--value;
 			++kp;
-			elp += sprintf(elp, "+%x/%d", sym.offset, sym.size);
+			elp += sprintf(elp, "+0x%x/0x%02x", sym.offset, sym.size);
 		}
 		strncat(elp, kp, value);
 		elp += value;
