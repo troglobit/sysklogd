@@ -516,7 +516,9 @@ extern char * LookupModuleSymbol(value, sym)
 			if ( mp->sym_array[nsym].value > value )
 			{
 			    if ( sym->size == 0 ||
-				 (mp->sym_array[nsym].value-last->value) < sym->size )
+				 (value - last->value) < sym->offset ||
+				 ( (sym->offset == (value - last->value)) &&
+				   (mp->sym_array[nsym].value-last->value) < sym->size ) )
 			    {
 				sym->offset = value - last->value;
 				sym->size = mp->sym_array[nsym].value - \
