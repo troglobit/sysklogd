@@ -1,4 +1,4 @@
-Version 1.4.2
+Version 1.5
 
  . Dmitry V. Levin <ldv@altlinux.org>
    - Close file descriptor in FindSymbolFile() in ksym.c in order not to
@@ -22,6 +22,23 @@ Version 1.4.2
    - Improved sysklogd.8
    - Always log with syslogd's timezone and locale
    - Remove trailing newline when forwarding messages
+   - Continue working properly if /etc/service is missing and ignore
+     network activity
+   - Continue writing to log files as soon as space becomes available
+     again after a filled up disk
+   - Removed test to detect control characters > 0x20 as this prevented
+     characters encoded in UTF-8 to be properly passed through
+   - Only resolve the local domain when accepting messages from remote
+   - Properly accompany the MARK message with the facility
+   - Improved daemonise routine in klogd to stabilise startup
+   - klogd will not change the console log level anymore unless -c is given
+   - Added back /usr/src/linux/System.map as fall-back location
+   - Rewrote the module symbol parser to read from /proc/kallsyms
+   - Notify the waiting parent process if the client dies to it doesn't
+     wait the entire five minutes.
+   - Complete rewrite of the oops kernel module for Linux 2.6
+   - Only read kernel symbols from /proc/kallsyms if no System.map has been read
+   - Improved symbol lookup
  . Jon Burgess <Jon_Burgess@eur.3com.com>
    - Moved the installation of the signal handler up a little bit so it
      guaranteed to be available when the child is forked, hence, fixing a
@@ -35,6 +52,20 @@ Version 1.4.2
    - Don't block on the network socket in case of package los
  . Dirk Mueller <mueller@kde.org>
    - Don't crash when filesize limit is reached (e.g. without LFS)
+ . Miquel van Smoorenburg <miquels@cistron.nl>
+   - Fix spurious hanging syslogd in connection with futex and NPTL
+     introduced in recent glibc versions and Linux 2.6
+     (Details: http://bugs.debian.org/301511)
+ . Eric Tucker <et@tallmaple.com>
+   - Improved syslog.conf(5) manpage
+ . Mike Frysinger <vapier@gentoo.org>
+   - use socklen_t where appropriate
+ . Kelledin <kelledin@skarpsey.dyndns.org>
+   - use newer query_module function rather than stepping through /dev/kmem.
+ . Matthew Fischer <futhark@vzavenue.net>
+   - Remove special treatment of the percent sign in klogd
+ . Andreas Barth <aba@not.so.argh.org>
+   - Prevent pipes from becoming the controlling tty
 
 
 Version 1.4.1
