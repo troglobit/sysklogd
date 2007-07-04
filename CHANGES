@@ -64,8 +64,6 @@ Version 1.5
    - use newer query_module function rather than stepping through /dev/kmem.
  . Matthew Fischer <futhark@vzavenue.net>
    - Remove special treatment of the percent sign in klogd
- . Andreas Barth <aba@not.so.argh.org>
-   - Prevent pipes from becoming the controlling tty
 
 
 Version 1.4.1
