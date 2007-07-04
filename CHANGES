@@ -47,7 +47,7 @@ Version 1.5
  . Greg Trounson <gregt@maths.otago.ac.nz>
    - Improved README.linux
  . Ulf Härnhammar <Ulf.Harnhammar.9485@student.uu.se>
-   - Bondary check for fscanf() in InitKsyms() and CheckMapVersion()
+   - Boundary check for fscanf() in InitKsyms() and CheckMapVersion()
  . Colin Phipps <cph@cph.demon.co.uk>
    - Don't block on the network socket in case of package los
  . Dirk Mueller <mueller@kde.org>
