@@ -39,6 +39,7 @@ Version 1.5
    - Complete rewrite of the oops kernel module for Linux 2.6
    - Only read kernel symbols from /proc/kallsyms if no System.map has been read
    - Improved symbol lookup
+   - Prevent named pipes from becoming the controlling tty
  . Jon Burgess <Jon_Burgess@eur.3com.com>
    - Moved the installation of the signal handler up a little bit so it
      guaranteed to be available when the child is forked, hence, fixing a

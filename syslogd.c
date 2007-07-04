@@ -490,6 +490,10 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  * Mon May 28 19:44:39 CEST 2007: Martin Schulze <joey@infodrom.org>
  *	Notify the waiting parent process if the client dies to it
  *	doesn't wait the entire five minutes.
+ *
+ * Wed Jul  4 21:02:22 CEST 2007: Martin Schulze <joey@infodrom.org>
+ *	Open a pipe with O_NOCTTY to avoid them becoming the controlling
+ *	tty and normal files with O_NONBLOCK to avoid blocking.
  */
 
 
@@ -2736,10 +2740,10 @@ void cfline(line, f)
 		if (syncfile)
 			f->f_flags |= SYNC_FILE;
 		if ( *p == '|' ) {
-			f->f_file = open(++p, O_RDWR|O_NONBLOCK);
+			f->f_file = open(++p, O_RDWR|O_NONBLOCK|O_NOCTTY);
 			f->f_type = F_PIPE;
 		} else {
-			f->f_file = open(p, O_WRONLY|O_APPEND|O_CREAT|O_NOCTTY,
+			f->f_file = open(p, O_WRONLY|O_APPEND|O_CREAT|O_NONBLOCK|O_NOCTTY,
 					 0644);
 			f->f_type = F_FILE;
 		}
