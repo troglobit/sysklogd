@@ -34,7 +34,7 @@ Version 1.5
    - klogd will not change the console log level anymore unless -c is given
    - Added back /usr/src/linux/System.map as fall-back location
    - Rewrote the module symbol parser to read from /proc/kallsyms
-   - Notify the waiting parent process if the client dies to it doesn't
+   - Notify the waiting parent process if the client dies so it doesn't
      wait the entire five minutes.
    - Complete rewrite of the oops kernel module for Linux 2.6
    - Only read kernel symbols from /proc/kallsyms if no System.map has been read
@@ -50,7 +50,7 @@ Version 1.5
  . Ulf Härnhammar <Ulf.Harnhammar.9485@student.uu.se>
    - Boundary check for fscanf() in InitKsyms() and CheckMapVersion()
  . Colin Phipps <cph@cph.demon.co.uk>
-   - Don't block on the network socket in case of package los
+   - Don't block on the network socket in case of packet loss
  . Dirk Mueller <mueller@kde.org>
    - Don't crash when filesize limit is reached (e.g. without LFS)
  . Miquel van Smoorenburg <miquels@cistron.nl>
