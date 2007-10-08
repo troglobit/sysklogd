@@ -2163,27 +2163,27 @@ void domark()
 #endif
 
 	if (MarkInterval > 0) {
-	now = time(0);
-	MarkSeq += TIMERINTVL;
-	if (MarkSeq >= MarkInterval) {
-		logmsg(LOG_MARK|LOG_INFO, "-- MARK --", LocalHostName, ADDDATE|MARK);
-		MarkSeq = 0;
-	}
+		now = time(0);
+		MarkSeq += TIMERINTVL;
+		if (MarkSeq >= MarkInterval) {
+			logmsg(LOG_MARK|LOG_INFO, "-- MARK --", LocalHostName, ADDDATE|MARK);
+			MarkSeq = 0;
+		}
 
 #ifdef SYSV
-	for (lognum = 0; lognum <= nlogs; lognum++) {
-		f = &Files[lognum];
+		for (lognum = 0; lognum <= nlogs; lognum++) {
+			f = &Files[lognum];
 #else
-	for (f = Files; f; f = f->f_next) {
+		for (f = Files; f; f = f->f_next) {
 #endif
-		if (f->f_prevcount && now >= REPEATTIME(f)) {
-			dprintf("flush %s: repeated %d times, %d sec.\n",
-			    TypeNames[f->f_type], f->f_prevcount,
-			    repeatinterval[f->f_repeatcount]);
-			fprintlog(f, LocalHostName, 0, (char *)NULL);
-			BACKOFF(f);
+			if (f->f_prevcount && now >= REPEATTIME(f)) {
+				dprintf("flush %s: repeated %d times, %d sec.\n",
+				    TypeNames[f->f_type], f->f_prevcount,
+				    repeatinterval[f->f_repeatcount]);
+				fprintlog(f, LocalHostName, 0, (char *)NULL);
+				BACKOFF(f);
+			}
 		}
-	}
 	}
 	(void) signal(SIGALRM, domark);
 	(void) alarm(TIMERINTVL);
