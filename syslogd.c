@@ -783,6 +783,8 @@ int	LogPort;		/* port number for INET connections */
 int	Initialized = 0;	/* set when we have initialized ourselves */
 int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
 int	MarkSeq = 0;		/* mark sequence number */
+int	LastAlarm = 0;		/* last value passed to alarm() (seconds)  */
+int	DupesPending = 0;	/* Number of unflushed duplicate messages */
 int	NoFork = 0; 		/* don't fork - don't run in daemon mode */
 int	AcceptRemote = 0;	/* receive messages that come via UDP */
 char	**StripDomains = NULL;	/* these domains may be stripped before writing logs */
@@ -1054,7 +1056,9 @@ int main(argc, argv)
 	(void) signal(SIGALRM, domark);
 	(void) signal(SIGUSR1, Debug ? debug_switch : SIG_IGN);
 	(void) signal(SIGXFSZ, SIG_IGN);
-	(void) alarm(TIMERINTVL);
+
+	LastAlarm = MarkInterval;
+	alarm(LastAlarm);
 
 	/* Create a partial message table for all file descriptors. */
 	num_fds = getdtablesize();
@@ -1698,6 +1702,17 @@ void logmsg(pri, msg, from, flags)
 			dprintf("msg repeated %d times, %ld sec of %d.\n",
 			    f->f_prevcount, now - f->f_time,
 			    repeatinterval[f->f_repeatcount]);
+
+			if (f->f_prevcount == 1 && DupesPending++ == 0) {
+				dprintf("setting alarm to flush duplicate messages\n");
+
+				LastAlarm -= alarm(0);
+				MarkSeq += LastAlarm;
+				if (LastAlarm > TIMERINTVL)
+					LastAlarm = TIMERINTVL;
+				alarm(LastAlarm);
+ 			}
+
 			/*
 			 * If domark would have logged this by now,
 			 * flush it now (so we don't hold isolated messages),
@@ -1710,8 +1725,17 @@ void logmsg(pri, msg, from, flags)
 			}
 		} else {
 			/* new line, save it */
-			if (f->f_prevcount)
+			if (f->f_prevcount) {
 				fprintlog(f, (char *)from, 0, (char *)NULL);
+
+				if (--DupesPending == 0) {
+					dprintf("unsetting duplicate message flush alarm\n");
+
+					MarkSeq += LastAlarm - alarm(0);
+					LastAlarm = MarkInterval - MarkSeq;
+					alarm(LastAlarm);
+				}
+			}
 			f->f_prevpri = pri;
 			f->f_repeatcount = 0;
 			(void) strncpy(f->f_lasttime, timestamp, 15);
@@ -2164,10 +2188,10 @@ void domark()
 
 	if (MarkInterval > 0) {
 		now = time(0);
-		MarkSeq += TIMERINTVL;
+		MarkSeq += LastAlarm;
 		if (MarkSeq >= MarkInterval) {
 			logmsg(LOG_MARK|LOG_INFO, "-- MARK --", LocalHostName, ADDDATE|MARK);
-			MarkSeq = 0;
+			MarkSeq -= MarkInterval;
 		}
 
 #ifdef SYSV
@@ -2182,11 +2206,17 @@ void domark()
 				    repeatinterval[f->f_repeatcount]);
 				fprintlog(f, LocalHostName, 0, (char *)NULL);
 				BACKOFF(f);
+				DupesPending--;
 			}
 		}
 	}
 	(void) signal(SIGALRM, domark);
-	(void) alarm(TIMERINTVL);
+
+	LastAlarm = MarkInterval - MarkSeq;
+	if (DupesPending && LastAlarm > TIMERINTVL)
+		LastAlarm = TIMERINTVL;
+
+	(void) alarm(LastAlarm);
 }
 
 void debug_switch()
