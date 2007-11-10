@@ -494,6 +494,9 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  * Wed Jul  4 21:02:22 CEST 2007: Martin Schulze <joey@infodrom.org>
  *	Open a pipe with O_NOCTTY to avoid them becoming the controlling
  *	tty and normal files with O_NONBLOCK to avoid blocking.
+ *
+ * Fri Oct 26 17:21:15 CEST 2007: Thomas Jarosch <thomas.jarosch@intra2net.com>
+ *	Move hostname setting code from main() into init().
  */
 
 
@@ -837,7 +840,6 @@ int main(argc, argv)
 	char **argv;
 {
 	register int i;
-	register char *p;
 #ifndef TESTING
 	ssize_t msglen;
 #endif
@@ -873,7 +875,6 @@ int main(argc, argv)
 	pid_t ppid = getpid();
 #endif
 	int ch;
-	struct hostent *hent;
 
 	char line[MAXLINE +1];
 	extern int optind;
@@ -1012,42 +1013,10 @@ int main(argc, argv)
 
 	consfile.f_type = F_CONSOLE;
 	(void) strcpy(consfile.f_un.f_fname, ctty);
-	(void) gethostname(LocalHostName, sizeof(LocalHostName));
-	LocalDomain = emptystring;
-	if ( (p = strchr(LocalHostName, '.')) ) {
-		*p++ = '\0';
-		LocalDomain = p;
-	}
-	else if ( AcceptRemote )
-	{
-		/*
-		 * It's not clearly defined whether gethostname()
-		 * should return the simple hostname or the fqdn. A
-		 * good piece of software should be aware of both and
-		 * we want to distribute good software.  Joey
-		 *
-		 * Good software also always checks its return values...
-		 * If syslogd starts up before DNS is up & /etc/hosts
-		 * doesn't have LocalHostName listed, gethostbyname will
-		 * return NULL. 
-		 */
-		hent = gethostbyname(LocalHostName);
-		if ( hent )
-			snprintf(LocalHostName, sizeof(LocalHostName), "%s", hent->h_name);
-			
-		if ( (p = strchr(LocalHostName, '.')) )
-		{
-			*p++ = '\0';
-			LocalDomain = p;
-		}
-	}
 
-	/*
-	 * Convert to lower case to recognize the correct domain laterly
-	 */
-	for (p = (char *)LocalDomain; *p ; p++)
-		if (isupper(*p))
-			*p = tolower(*p);
+	/* Initialization is done by init() */
+	(void) strcpy(LocalHostName, emptystring);
+	LocalDomain = emptystring;
 
 	(void) signal(SIGTERM, die);
 	(void) signal(SIGINT, Debug ? die : SIG_IGN);
@@ -2327,6 +2296,7 @@ void init()
 	char cline[BUFSIZ];
 #endif
 	struct servent *sp;
+	struct hostent *hent;
 
 	sp = getservbyname("syslog", "udp");
 	if (sp == NULL) {
@@ -2382,6 +2352,44 @@ void init()
 #else
 	f = NULL;
 #endif
+
+        /* Get hostname */
+	(void) gethostname(LocalHostName, sizeof(LocalHostName));
+	LocalDomain = emptystring;
+	if ( (p = strchr(LocalHostName, '.')) ) {
+		*p++ = '\0';
+		LocalDomain = p;
+	}
+	else if ( AcceptRemote )
+	{
+		/*
+		 * It's not clearly defined whether gethostname()
+		 * should return the simple hostname or the fqdn. A
+		 * good piece of software should be aware of both and
+		 * we want to distribute good software.  Joey
+		 *
+		 * Good software also always checks its return values...
+		 * If syslogd starts up before DNS is up & /etc/hosts
+		 * doesn't have LocalHostName listed, gethostbyname will
+		 * return NULL. 
+		 */
+		hent = gethostbyname(LocalHostName);
+		if ( hent )
+			snprintf(LocalHostName, sizeof(LocalHostName), "%s", hent->h_name);
+			
+		if ( (p = strchr(LocalHostName, '.')) )
+		{
+			*p++ = '\0';
+			LocalDomain = p;
+		}
+	}
+
+	/*
+	 * Convert to lower case to recognize the correct domain laterly
+	 */
+	for (p = (char *)LocalDomain; *p ; p++)
+		if (isupper(*p))
+			*p = tolower(*p);
 
 	/* open the configuration file */
 	if ((cf = fopen(ConfFile, "r")) == NULL) {
