@@ -782,7 +782,7 @@ char	*LocalDomain;		/* our local domain name */
 char	*emptystring = "";
 int	InetInuse = 0;		/* non-zero if INET sockets are being used */
 int	finet = -1;		/* Internet datagram socket */
-int	LogPort;		/* port number for INET connections */
+int	LogPort = 0;		/* port number for INET connections */
 int	Initialized = 0;	/* set when we have initialized ourselves */
 int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
 int	MarkSeq = 0;		/* mark sequence number */
@@ -1249,6 +1249,23 @@ static int create_unix_socket(const char *path)
 #endif
 
 #ifdef SYSLOG_INET
+int getlogport()
+{
+	struct servent *sp;
+	sp = getservbyname("syslog", "udp");
+	if (sp == NULL) {
+		if (errno == ENOENT) {
+			errno = 0;
+			logerror("The file /etc/services does not seem exist.");
+		}
+		errno = 0;
+		logerror("network logging disabled (syslog/udp service unknown).");
+		logerror("see syslogd(8) for details of whether and how to enable it.");
+		return -1;
+	} else
+		return sp->s_port;
+}
+
 static int create_inet_socket()
 {
 	int fd, on = 1;
@@ -1260,6 +1277,12 @@ static int create_inet_socket()
 		logerror("syslog: Unknown protocol, suspending inet service.");
 		return fd;
 	}
+
+	if (!LogPort)
+		LogPort = getlogport();
+
+	if (LogPort == -1)
+		return -1;
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
@@ -2295,21 +2318,7 @@ void init()
 #else
 	char cline[BUFSIZ];
 #endif
-	struct servent *sp;
 	struct hostent *hent;
-
-	sp = getservbyname("syslog", "udp");
-	if (sp == NULL) {
-		if (errno == ENOENT) {
-			errno = 0;
-			logerror("The file /etc/services does not seem exist.");
-		}
-		errno = 0;
-		logerror("network logging disabled (syslog/udp service unknown).");
-		logerror("see syslogd(8) for details of whether and how to enable it.");
-		LogPort = 0;
-	} else
-	LogPort = sp->s_port;
 
 	/*
 	 *  Close all open log files and free log descriptor array.
@@ -2740,7 +2749,10 @@ void cfline(line, f)
 	{
 	case '@':
 #ifdef SYSLOG_INET
-		if (!LogPort) {
+		if (!LogPort)
+			LogPort = getlogport();
+
+		if (LogPort == -1) {
 			f->f_type = F_UNUSED;
 			logerror("Forward rule without networking enabled");
 			break;
