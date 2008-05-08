@@ -497,6 +497,10 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *
  * Fri Oct 26 17:21:15 CEST 2007: Thomas Jarosch <thomas.jarosch@intra2net.com>
  *	Move hostname setting code from main() into init().
+ *
+ * Wed May  7 21:00:39 CEST 2007: Martin Schulze <joey@infodrom.org>
+ *	Make sure that the service name is only queried, when it is needed,
+ *	i.e. when we are sending to or receiving from the network.
  */
 
 
