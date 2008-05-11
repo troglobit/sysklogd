@@ -1,8 +1,8 @@
 .\" Copyright 1994 Dr. Greg Wettstein, Enjellic Systems Development.
-.\" Copyright 2004,6,7 Martin Schulze <joey@infodrom.org>
+.\" Copyright 2004,6-8 Martin Schulze <joey@infodrom.org>
 .\" May be distributed under the GNU General Public License
 .\"
-.TH SYSKLOGD 8 "27 May 2007" "Version 1.5" "Linux System Administration"
+.TH SYSKLOGD 8 "11 May 2008" "Version 1.5" "Linux System Administration"
 .SH NAME
 sysklogd \- Linux system logging utilities.
 .SH SYNOPSIS
@@ -118,6 +118,10 @@ with this option.  Setting the
 .I interval
 to zero turns it off entirely.  Depending on other log messages
 generated these lines may not be written consecutively.
+The \fI-- MARK --\fR message is only written if the log file hasn't
+been touched in
+.IR interval /2
+minutes.
 .TP
 .B "\-n"
 Avoid auto-backgrounding.  This is needed especially if the
