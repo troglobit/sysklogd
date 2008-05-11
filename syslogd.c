@@ -2191,6 +2191,7 @@ void domark()
 			logmsg(LOG_MARK|LOG_INFO, "-- MARK --", LocalHostName, ADDDATE|MARK);
 			MarkSeq -= MarkInterval;
 		}
+	}
 
 #ifdef SYSV
 		for (lognum = 0; lognum <= nlogs; lognum++) {
@@ -2207,7 +2208,6 @@ void domark()
 				DupesPending--;
 			}
 		}
-	}
 	(void) signal(SIGALRM, domark);
 
 	LastAlarm = MarkInterval - MarkSeq;
