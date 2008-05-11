@@ -1700,10 +1700,12 @@ void logmsg(pri, msg, from, flags)
 			    repeatinterval[f->f_repeatcount]);
 
 			if (f->f_prevcount == 1 && DupesPending++ == 0) {
+				int seconds;
 				dprintf("setting alarm to flush duplicate messages\n");
 
-				LastAlarm -= alarm(0);
-				MarkSeq += LastAlarm;
+				seconds = alarm(0);
+				MarkSeq += LastAlarm - seconds;
+				LastAlarm = seconds;
 				if (LastAlarm > TIMERINTVL)
 					LastAlarm = TIMERINTVL;
 				alarm(LastAlarm);
