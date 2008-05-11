@@ -2194,20 +2194,20 @@ void domark()
 	}
 
 #ifdef SYSV
-		for (lognum = 0; lognum <= nlogs; lognum++) {
-			f = &Files[lognum];
+	for (lognum = 0; lognum <= nlogs; lognum++) {
+		f = &Files[lognum];
 #else
-		for (f = Files; f; f = f->f_next) {
+	for (f = Files; f; f = f->f_next) {
 #endif
-			if (f->f_prevcount && now >= REPEATTIME(f)) {
-				dprintf("flush %s: repeated %d times, %d sec.\n",
-				    TypeNames[f->f_type], f->f_prevcount,
-				    repeatinterval[f->f_repeatcount]);
-				fprintlog(f, LocalHostName, 0, (char *)NULL);
-				BACKOFF(f);
-				DupesPending--;
-			}
+		if (f->f_prevcount && now >= REPEATTIME(f)) {
+			dprintf("flush %s: repeated %d times, %d sec.\n",
+				TypeNames[f->f_type], f->f_prevcount,
+				repeatinterval[f->f_repeatcount]);
+			fprintlog(f, LocalHostName, 0, (char *)NULL);
+			BACKOFF(f);
+			DupesPending--;
 		}
+	}
 	(void) signal(SIGALRM, domark);
 
 	LastAlarm = MarkInterval - MarkSeq;
