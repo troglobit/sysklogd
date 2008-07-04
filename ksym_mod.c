@@ -189,7 +189,6 @@ extern int InitMsyms()
 		else
 			Syslog(LOG_ERR, "Error loading kernel symbols " \
 			       "- %s\n", strerror(errno));
-		fclose(ksyms);
 		return(0);
 	}
 
