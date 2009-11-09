@@ -615,7 +615,6 @@ char	ctty[] = _PATH_CONSOLE;
 
 char	**parts;
 
-int inetm = 0;
 static int debugging_on = 0;
 static int nlogs = -1;
 static int restart = 0;
@@ -673,12 +672,13 @@ struct filed {
 	short	f_type;			/* entry type, see below */
 	short	f_file;			/* file descriptor */
 	time_t	f_time;			/* time this was last written */
+	char	*f_host;		/* host from which to recd. */
 	u_char	f_pmask[LOG_NFACILITIES+1];	/* priority mask */
 	union {
 		char	f_uname[MAXUNAMES][UNAMESZ+1];
 		struct {
 			char	f_hname[MAXHOSTNAMELEN+1];
-			struct sockaddr_in	f_addr;
+			struct addrinfo	*f_addr;
 		} f_forw;		/* forwarding address */
 		char	f_fname[MAXFNAME];
 	} f_un;
@@ -705,7 +705,7 @@ int	repeatinterval[] = { 30, 60 };	/* # of secs before flush */
 			}
 #ifdef SYSLOG_INET
 #define INET_SUSPEND_TIME 180		/* equal to 3 minutes */
-#define INET_RETRY_MAX 10		/* maximum of retries for gethostbyname() */
+#define INET_RETRY_MAX 10		/* maximum of retries for getaddrinfo() */
 #endif
 
 #define LIST_DELIMITER	':'		/* delimiter between two hosts */
@@ -785,10 +785,15 @@ char	LocalHostName[MAXHOSTNAMELEN+1];	/* our hostname */
 char	*LocalDomain;		/* our local domain name */
 char	*emptystring = "";
 int	InetInuse = 0;		/* non-zero if INET sockets are being used */
-int	finet = -1;		/* Internet datagram socket */
-int	LogPort = 0;		/* port number for INET connections */
+int	*finet = NULL;		/* Internet datagram sockets */
 int	Initialized = 0;	/* set when we have initialized ourselves */
 int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
+#ifdef INET6
+int	family = PF_UNSPEC;	/* protocol family (IPv4, IPv6 or both) */
+#else
+int	family = PF_INET;	/* protocol family (IPv4 only) */
+#endif
+int	send_to_all = 0;	/* send message to all IPv4/IPv6 addresses */
 int	MarkSeq = 0;		/* mark sequence number */
 int	LastAlarm = 0;		/* last value passed to alarm() (seconds)  */
 int	DupesPending = 0;	/* Number of unflushed duplicate messages */
@@ -814,10 +819,11 @@ void fprintlog(register struct filed *f, char *from, int flags, char *msg);
 void endtty();
 void wallmsg(register struct filed *f, struct iovec *iov);
 void reapchild();
-const char *cvthname(struct sockaddr_in *f);
+const char *cvtaddr(struct sockaddr_storage *f, int len);
+const char *cvthname(struct sockaddr_storage *f, int len);
 void domark();
 void debug_switch();
-void logerror(char *type);
+void logerror(const char *type);
 void die(int sig);
 #ifndef TESTING
 void doexit(int sig);
@@ -836,7 +842,7 @@ void sighup_handler();
 static int create_unix_socket(const char *path);
 #endif
 #ifdef SYSLOG_INET
-static int create_inet_socket();
+static int *create_inet_sockets();
 #endif
 
 int main(argc, argv)
@@ -873,8 +879,7 @@ int main(argc, argv)
 #ifndef TESTING
 	int	fd;
 #ifdef  SYSLOG_INET
-	struct sockaddr_in frominet;
-	char *from;
+	struct sockaddr_storage frominet;
 #endif
 	pid_t ppid = getpid();
 #endif
@@ -893,8 +898,19 @@ int main(argc, argv)
 		funix[i]  = -1;
 	}
 
-	while ((ch = getopt(argc, argv, "a:dhf:l:m:np:rs:v")) != EOF)
+	while ((ch = getopt(argc, argv, "46Aa:dhf:l:m:np:rs:v")) != EOF)
 		switch((char)ch) {
+		case '4':
+			family = PF_INET;
+			break;
+#ifdef INET6
+		case '6':
+			family = PF_INET6;
+			break;
+#endif
+		case 'A':
+			send_to_all++;
+			break;
 		case 'a':
 			if (nfunix < MAXFUNIX)
 				funixn[nfunix++] = optarg;
@@ -1092,8 +1108,11 @@ int main(argc, argv)
 		 * descriptors.
 		 */
 		if ( InetInuse && AcceptRemote ) {
-			FD_SET(inetm, &readfds);
-			if (inetm>maxfds) maxfds=inetm;
+			for (i = 0; i < *finet; i++) {
+				if (finet[i+1] != -1)
+					FD_SET(finet[i+1], &readfds);
+				if (finet[i+1]>maxfds) maxfds=finet[i+1];
+			}
 			dprintf("Listening on syslog UDP port.\n");
 		}
 #endif
@@ -1162,33 +1181,34 @@ int main(argc, argv)
 #endif
 
 #ifdef SYSLOG_INET
-		if (InetInuse && AcceptRemote && FD_ISSET(inetm, &readfds)) {
-			len = sizeof(frominet);
-			memset(line, 0, sizeof(line));
-			msglen = recvfrom(finet, line, MAXLINE - 2, 0, \
-				     (struct sockaddr *) &frominet, &len);
-			dprintf("Message from inetd socket: #%d, host: %s\n",
-				inetm, inet_ntoa(frominet.sin_addr));
-			if (msglen > 0) {
-				from = (char *)cvthname(&frominet);
-				/*
-				 * Here we could check if the host is permitted
-				 * to send us syslog messages. We just have to
-				 * catch the result of cvthname, look for a dot
-				 * and if that doesn't exist, replace the first
-				 * '\0' with '.' and we have the fqdn in lowercase
-				 * letters so we could match them against whatever.
-				 *  -Joey
-				 */
-				printchopped(from, line, \
- 					     msglen + 2,  finet);
-			} else if (msglen < 0 && errno != EINTR && errno != EAGAIN) {
-				dprintf("INET socket error: %d = %s.\n", \
-					errno, strerror(errno));
-				logerror("recvfrom inet");
-				/* should be harmless now that we set
-				 * BSDCOMPAT on the socket */
-				sleep(1);
+		if (InetInuse && AcceptRemote && finet) {
+			for (i = 0; i < *finet; i++) {
+				if (finet[i+1] != -1 && FD_ISSET(finet[i+1], &readfds)) {
+					len = sizeof(frominet);
+					memset(line, 0, sizeof(line));
+					msglen = recvfrom(finet[i+1], line, MAXLINE - 2, 0, \
+						     (struct sockaddr *) &frominet, &len);
+					if (Debug) {
+						const char *addr = cvtaddr(&frominet, len);
+						dprintf("Message from inetd socket: #%d, host: %s\n",
+							i+1, addr);
+					}
+					if (msglen > 0) {
+						/* Note that if cvthname() returns NULL then
+						   we shouldn't attempt to log the line -- jch */
+						const char *from = cvthname(&frominet, len);
+						if (from)
+							printchopped(from, line,
+								     msglen + 2,  finet[i+1]);
+					} else if (msglen < 0 && errno != EINTR && errno != EAGAIN) {
+						dprintf("INET socket error: %d = %s.\n", \
+							errno, strerror(errno));
+						logerror("recvfrom inet");
+						/* should be harmless now that we set
+						 * BSDCOMPAT on the socket */
+						sleep(1);
+					}
+				}
 			}
 		}
 #endif
@@ -1215,7 +1235,7 @@ int main(argc, argv)
 
 int usage()
 {
-	fprintf(stderr, "usage: syslogd [-drvh] [-l hostlist] [-m markinterval] [-n] [-p path]\n" \
+	fprintf(stderr, "usage: syslogd [-46Adrvh] [-l hostlist] [-m markinterval] [-n] [-p path]\n" \
 		" [-s domainlist] [-f conffile]\n");
 	exit(1);
 }
@@ -1253,74 +1273,88 @@ static int create_unix_socket(const char *path)
 #endif
 
 #ifdef SYSLOG_INET
-int getlogport()
+static int *create_inet_sockets()
 {
-	struct servent *sp;
-	sp = getservbyname("syslog", "udp");
-	if (sp == NULL) {
-		if (errno == ENOENT) {
-			errno = 0;
-			logerror("The file /etc/services does not seem exist.");
-		}
-		errno = 0;
+	struct addrinfo hints, *res, *r;
+	int error, maxs, *s, *socks;
+	int on = 1, sockflags;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_flags = AI_PASSIVE;
+	hints.ai_family = family;
+	hints.ai_socktype = SOCK_DGRAM;
+	error = getaddrinfo(NULL, "syslog", &hints, &res);
+	if (error) {
 		logerror("network logging disabled (syslog/udp service unknown).");
 		logerror("see syslogd(8) for details of whether and how to enable it.");
-		return -1;
-	} else
-		return sp->s_port;
-}
-
-static int create_inet_socket()
-{
-	int fd, on = 1;
-	struct sockaddr_in sin;
-	int sockflags;
-
-	fd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (fd < 0) {
-		logerror("syslog: Unknown protocol, suspending inet service.");
-		return fd;
+		logerror(gai_strerror(error));
+		return NULL;
 	}
 
-	if (!LogPort)
-		LogPort = getlogport();
-
-	if (LogPort == -1)
-		return -1;
-
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_port = LogPort;
-	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, \
-		       (char *) &on, sizeof(on)) < 0 ) {
-		logerror("setsockopt(REUSEADDR), suspending inet");
-		close(fd);
-		return -1;
+	/* Count max number of sockets we may open */
+	for (maxs = 0, r = res; r; r = r->ai_next, maxs++);
+	socks = malloc((maxs+1) * sizeof(int));
+	if (!socks) {
+		logerror("couldn't allocate memory for sockets");
+		die(0);
 	}
-	/* We must not block on the network socket, in case a packet
-	 * gets lost between select and recv, otherise the process
-	 * will stall until the timeout, and other processes trying to
-	 * log will also stall.
-	 */
-	if ((sockflags = fcntl(fd, F_GETFL)) != -1) {
-		sockflags |= O_NONBLOCK;
-		/*
-		 * SETFL could fail too, so get it caught by the subsequent
-		 * error check.
+
+	*socks = 0;	/* num of sockets counter at start of array */
+	s = socks + 1;
+	for (r = res; r; r = r->ai_next) {
+		*s = socket(r->ai_family, r->ai_socktype, r->ai_protocol);
+		if (*s < 0) {
+			logerror("socket");
+			continue;
+		}
+		if (r->ai_family == AF_INET6) {
+			if (setsockopt(*s, IPPROTO_IPV6, IPV6_V6ONLY,
+				       (char *) &on, sizeof(on)) < 0) {
+				logerror("setsockopt (IPV6_ONLY), suspending IPv6");
+				close(*s);
+				continue;
+			}
+		}
+		if (setsockopt(*s, SOL_SOCKET, SO_REUSEADDR,
+			       (char *) &on, sizeof(on)) < 0 ) {
+			logerror("setsockopt(REUSEADDR), suspending inet");
+			close(*s);
+			continue;
+		}
+		/* We must not block on the network socket, in case a packet
+		 * gets lost between select and recv, otherise the process
+		 * will stall until the timeout, and other processes trying to
+		 * log will also stall.
 		 */
-		sockflags = fcntl(fd, F_SETFL, sockflags);
+		if ((sockflags = fcntl(*s, F_GETFL)) != -1) {
+			sockflags |= O_NONBLOCK;
+			/*
+			 * SETFL could fail too, so get it caught by the subsequent
+			 * error check.
+			 */
+			sockflags = fcntl(*s, F_SETFL, sockflags);
+		}
+		if (sockflags == -1) {
+			logerror("fcntl(O_NONBLOCK), suspending inet");
+			close(*s);
+			continue;
+		}
+		if (bind(*s, r->ai_addr, r->ai_addrlen) < 0) {
+			logerror("bind, suspending inet");
+			close(*s);
+			continue;
+		}
+		(*socks)++;
+		s++;
 	}
-	if (sockflags == -1) {
-		logerror("fcntl(O_NONBLOCK), suspending inet");
-		close(fd);
-		return -1;
+	if (res)
+		freeaddrinfo(res);
+	if (*socks == 0) {
+		logerror("no valid sockets, suspending inet");
+		free(socks);
+		return NULL;
 	}
-	if (bind(fd, (struct sockaddr *) &sin, sizeof(sin)) < 0) {
-		logerror("bind, suspending inet");
-		close(fd);
-		return -1;
-	}
-	return fd;
+	return socks;
 }
 #endif
 
@@ -1775,7 +1809,8 @@ void fprintlog(f, from, flags, msg)
 	register int l;
 	char line[MAXLINE + 1];
 	time_t fwd_suspend;
-	struct hostent *hp;
+	struct addrinfo hints, *ai;
+	int err;
 #endif
 
 	dprintf("Called fprintlog, ");
@@ -1844,8 +1879,11 @@ void fprintlog(f, from, flags, msg)
 		fwd_suspend = time((time_t *) 0) - f->f_time;
 		if ( fwd_suspend >= INET_SUSPEND_TIME ) {
 			dprintf("Forwarding suspension to unknown over, retrying\n");
-			if ( (hp = gethostbyname(f->f_un.f_forw.f_hname)) == NULL ) {
-				dprintf("Failure: %s\n", sys_h_errlist[h_errno]);
+			memset(&hints, 0, sizeof(hints));
+			hints.ai_family = family;
+			hints.ai_socktype = SOCK_DGRAM;
+			if ((err = getaddrinfo(f->f_un.f_forw.f_hname, "syslog", &hints, &ai))) {
+				dprintf("Failure: %s\n", gai_strerror(err));
 				dprintf("Retries: %d\n", f->f_prevcount);
 				if ( --f->f_prevcount < 0 ) {
 					dprintf("Giving up.\n");
@@ -1856,7 +1894,7 @@ void fprintlog(f, from, flags, msg)
 			}
 			else {
 			        dprintf("%s found, resuming.\n", f->f_un.f_forw.f_hname);
-				memcpy((char *) &f->f_un.f_forw.f_addr.sin_addr, hp->h_addr, hp->h_length);
+				f->f_un.f_forw.f_addr = ai;
 				f->f_prevcount = 0;
 				f->f_type = F_FORW;
 				goto f_forw;
@@ -1877,21 +1915,34 @@ void fprintlog(f, from, flags, msg)
 		dprintf(" %s\n", f->f_un.f_forw.f_hname);
 		if ( strcmp(from, LocalHostName) && NoHops )
 			dprintf("Not sending message to remote.\n");
-		else {
+		else if (finet) {
+			int i;
 			f->f_time = now;
 			(void) snprintf(line, sizeof(line), "<%d>%s", f->f_prevpri, \
 				(char *) iov[4].iov_base);
 			l = strlen(line);
 			if (l > MAXLINE)
 				l = MAXLINE;
-			if (sendto(finet, line, l, 0, \
-				   (struct sockaddr *) &f->f_un.f_forw.f_addr,
-				   sizeof(f->f_un.f_forw.f_addr)) != l) {
-				int e = errno;
+			err = -1;
+			for (ai = f->f_un.f_forw.f_addr; ai; ai = ai->ai_next) {
+				for (i = 0; i < *finet; i++) {
+					int lsent;
+					lsent = sendto(finet[i+1], line, l, 0,
+						       ai->ai_addr, ai->ai_addrlen);
+					if (lsent == l) {
+						err = -1;
+						break;
+					}
+					err = errno;
+				}
+				if (err == -1 && !send_to_all)
+					break;
+			}
+			if (err != -1) {
 				dprintf("INET sendto error: %d = %s.\n", 
-					e, strerror(e));
+					err, strerror(err));
 				f->f_type = F_FORW_SUSP;
-				errno = e;
+				errno = err;
 				logerror("sendto");
 			}
 		}
@@ -2114,31 +2165,46 @@ void reapchild()
 	errno = saved_errno;
 }
 
+const char *cvtaddr (struct sockaddr_storage *f, int len)
+{
+	static char ip[NI_MAXHOST];
+
+	if (getnameinfo((struct sockaddr *) f, len,
+			ip, NI_MAXHOST, NULL, 0, NI_NUMERICHOST))
+		return "???";
+	return ip;
+}
+
 /*
  * Return a printable representation of a host address.
+ *
+ * Here we could check if the host is permitted to send us syslog
+ * messages.  We just have to check the hostname we're about to return
+ * and compared it (case-insensitively) to a blacklist or whitelist.
+ * Callers of cvthname() need to know that if NULL is returned then
+ * the host is to be ignored.
  */
-const char *cvthname(f)
-	struct sockaddr_in *f;
+const char *cvthname(struct sockaddr_storage *f, int len)
 {
-	struct hostent *hp;
+	static char hname[NI_MAXHOST];
+	int error;
 	register char *p;
 	int count;
 
-	if (f->sin_family != AF_INET) {
-		dprintf("Malformed from address.\n");
-		return ("???");
-	}
-	hp = gethostbyaddr((char *) &f->sin_addr, sizeof(struct in_addr), \
-			   f->sin_family);
-	if (hp == 0) {
-		dprintf("Host name for your address (%s) unknown.\n",
-			inet_ntoa(f->sin_addr));
-		return (inet_ntoa(f->sin_addr));
+	if ((error = getnameinfo((struct sockaddr *) f, len,
+				 hname, NI_MAXHOST, NULL, 0, NI_NAMEREQD))) {
+		dprintf("Host name for your address (%s) unknown: %s\n", gai_strerror(error));
+		if ((error = getnameinfo((struct sockaddr *) f, len,
+					 hname, NI_MAXHOST, NULL, 0, NI_NUMERICHOST))) {
+			dprintf("Malformed from address: %s\n", gai_strerror(error));
+			return "???";
+		}
+		return hname;
 	}
 	/*
 	 * Convert to lower case, just like LocalDomain above
 	 */
-	for (p = (char *)hp->h_name; *p ; p++)
+	for (p = hname; *p ; p++)
 		if (isupper(*p))
 			*p = tolower(*p);
 
@@ -2146,17 +2212,17 @@ const char *cvthname(f)
 	 * Notice that the string still contains the fqdn, but your
 	 * hostname and domain are separated by a '\0'.
 	 */
-	if ((p = strchr(hp->h_name, '.'))) {
+	if ((p = strchr(hname, '.'))) {
 		if (strcmp(p + 1, LocalDomain) == 0) {
 			*p = '\0';
-			return (hp->h_name);
+			return (hname);
 		} else {
 			if (StripDomains) {
 				count=0;
 				while (StripDomains[count]) {
 					if (strcmp(p + 1, StripDomains[count]) == 0) {
 						*p = '\0';
-						return (hp->h_name);
+						return (hname);
 					}
 					count++;
 				}
@@ -2164,9 +2230,9 @@ const char *cvthname(f)
 			if (LocalHosts) {
 				count=0;
 				while (LocalHosts[count]) {
-					if (!strcmp(hp->h_name, LocalHosts[count])) {
+					if (!strcmp(hname, LocalHosts[count])) {
 						*p = '\0';
-						return (hp->h_name);
+						return (hname);
 					}
 					count++;
 				}
@@ -2174,7 +2240,7 @@ const char *cvthname(f)
 		}
 	}
 
-	return (hp->h_name);
+	return (hname);
 }
 
 void domark()
@@ -2229,8 +2295,7 @@ void debug_switch()
 /*
  * Print syslogd errors some place.
  */
-void logerror(type)
-	char *type;
+void logerror(const char *type)
 {
 	char buf[100];
 
@@ -2278,8 +2343,12 @@ void die(sig)
         for (i = 0; i < nfunix; i++)
 		if (funix[i] != -1)
 			close(funix[i]);
-	/* Close the inet socket. */
-	if (InetInuse) close(inetm);
+	/* Close the inet sockets. */
+	if (InetInuse && finet) {
+		for (i = 0; i < *finet; i++)
+			close(finet[i+1]);
+		free(finet);
+	}
 
 	/* Clean-up files. */
         for (i = 0; i < nfunix; i++)
@@ -2343,11 +2412,15 @@ void init()
 				fprintlog(f, LocalHostName, 0, (char *)NULL);
 
 			switch (f->f_type) {
-				case F_FILE:
-				case F_PIPE:
-				case F_TTY:
-				case F_CONSOLE:
-					(void) close(f->f_file);
+			case F_FILE:
+			case F_PIPE:
+			case F_TTY:
+			case F_CONSOLE:
+				(void) close(f->f_file);
+				break;
+			case F_FORW:
+			case F_FORW_SUSP:
+				freeaddrinfo(f->f_un.f_forw.f_addr);
 				break;
 			}
 		}
@@ -2496,21 +2569,24 @@ void init()
 
 #ifdef SYSLOG_INET
 	if (Forwarding || AcceptRemote) {
-		if (finet < 0) {
-			finet = create_inet_socket();
-			if (finet >= 0) {
+		if (!finet) {
+			finet = create_inet_sockets();
+			if (finet) {
 				InetInuse = 1;
 				dprintf("Opened syslog UDP port.\n");
 			}
 		}
 	}
 	else {
-		if (finet >= 0)
-			close(finet);
-		finet = -1;
+		if (finet) {
+			for (i = 0; i < *finet; i++)
+				if (finet[i+1] != -1)
+					close(finet[i+1]);
+			free(finet);
+			finet = NULL;
+		}
 		InetInuse = 0;
 	}
-	inetm = finet;
 #endif
 
 	Initialized = 1;
@@ -2579,7 +2655,7 @@ void init()
 	dprintf("syslogd: restarted.\n");
 }
 #if FALSE
-	}}} /* balance parentheses for emacs */
+}}} /* balance parentheses for emacs */
 #endif
 
 /*
@@ -2599,7 +2675,7 @@ void cfline(line, f)
 	int ignorepri = 0;
 	int syncfile;
 #ifdef SYSLOG_INET
-	struct hostent *hp;
+	struct addrinfo hints, *ai;
 #endif
 	char buf[MAXLINE];
 	char xbuf[200];
@@ -2755,37 +2831,26 @@ void cfline(line, f)
 	{
 	case '@':
 #ifdef SYSLOG_INET
-		if (!LogPort)
-			LogPort = getlogport();
-
-		if (LogPort == -1) {
-			f->f_type = F_UNUSED;
-			logerror("Forward rule without networking enabled");
-			break;
-		}
-
 		(void) strcpy(f->f_un.f_forw.f_hname, ++p);
 		dprintf("forwarding host: %s\n", p);	/*ASP*/
-		if ( (hp = gethostbyname(p)) == NULL ) {
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = family;
+		hints.ai_socktype = SOCK_DGRAM;
+		if (getaddrinfo(p, "syslog", &hints, &ai)) {
+			/*
+			 * The host might be unknown due to an
+			 * inaccessible nameserver (perhaps on the
+			 * same host). We try to get the ip number
+			 * later, like FORW_SUSP.
+			 */
 			f->f_type = F_FORW_UNKN;
 			f->f_prevcount = INET_RETRY_MAX;
 			f->f_time = time ( (time_t *)0 );
+			f->f_un.f_forw.f_addr = NULL;
 		} else {
 			f->f_type = F_FORW;
+			f->f_un.f_forw.f_addr = ai;
 		}
-
-		memset((char *) &f->f_un.f_forw.f_addr, 0,
-			 sizeof(f->f_un.f_forw.f_addr));
-		f->f_un.f_forw.f_addr.sin_family = AF_INET;
-		f->f_un.f_forw.f_addr.sin_port = LogPort;
-		if ( f->f_type == F_FORW )
-			memcpy((char *) &f->f_un.f_forw.f_addr.sin_addr, hp->h_addr, hp->h_length);
-		/*
-		 * Otherwise the host might be unknown due to an
-		 * inaccessible nameserver (perhaps on the same
-		 * host). We try to get the ip number later, like
-		 * FORW_SUSP.
-		 */
 #endif
 		break;
 

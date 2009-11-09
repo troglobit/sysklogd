@@ -7,6 +7,7 @@
 sysklogd \- Linux system logging utilities.
 .SH SYNOPSIS
 .B syslogd
+.RB [ " \-4" " ] [ " \-6 " ] [ " \-A " ]"
 .RB [ " \-a "
 .I socket
 ]
@@ -70,6 +71,24 @@ option, is read at startup.  Any lines that begin with the hash mark
 (``#'') and empty lines are ignored.  If an error occurs during parsing
 the whole line is ignored.
 .SH OPTIONS
+.TP
+.B "\-4"
+Force
+.B syslogd
+to use IPv4 addresses only.
+.TP
+.B "\-6"
+Force
+.B syslogd
+to use IPv6 addresses only.
+.TP
+.B "\-A"
+Ordinarily,
+.B syslogd
+tries to send the message to only one address even if the host has
+more than one A or AAAA record.  If this option is specified,
+.B syslogd
+tries to send the message to all addresses.
 .TP
 .BI "\-a " "socket"
 Using this argument you can specify additional sockets from that
