@@ -1,3 +1,14 @@
+ . Alan Jenkins <alan-jenkins@tuffmail.co.uk>
+   - Improved sleep/alarm/mark implementation
+ . Thomas Jarosch <thomas.jarosch@intra2net.com>
+   - Move hostname setting code from main() into init()
+ . Joey
+   - Only read /etc/services when needed
+   - Documentation update
+ . John Haxby <john.haxby@oracle.com>
+   - IPv6 support forward ported from FreeBSD
+
+
 Version 1.5
 
  . Dmitry V. Levin <ldv@altlinux.org>
@@ -77,6 +88,7 @@ Version 1.4.1
  . Thomas Roessler <roessler@does-not-exist.org>
    - Patch to prevent LogLine() from being invoked with a negative
      counter as an argument.
+
 
 Version 1.4
 
