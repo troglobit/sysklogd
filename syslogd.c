@@ -501,6 +501,10 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  * Wed May  7 21:00:39 CEST 2007: Martin Schulze <joey@infodrom.org>
  *	Make sure that the service name is only queried, when it is needed,
  *	i.e. when we are sending to or receiving from the network.
+ *
+ * Fri Sep 10 08:29:04 CEST 2010: Martin Schulze <joey@infodrom.org>
+ *	Replace strcpy with memmove to fix continuation line problems
+ *	on 64bit architectures, patch by David Couture.
  */
 
 
@@ -2518,7 +2522,7 @@ void init()
 		if (*p == '\0' || *p == '#')
 			continue;
 #if CONT_LINE
-		strcpy(cline, p);
+		memmove(cline, p, strlen(p)+1);
 #endif
 		for (p = strchr(cline, '\0'); isspace(*--p););
 #if CONT_LINE
