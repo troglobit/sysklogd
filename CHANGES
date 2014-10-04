@@ -1,3 +1,9 @@
+Version 1.5.1
+
+ . mancha <mancha1@zoho.com>
+   - Bugfix against invalid PRI values (CVE-2014-3634)
+
+
 Version 1.5
 
  . Dmitry V. Levin <ldv@altlinux.org>
