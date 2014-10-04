@@ -9,6 +9,8 @@
    - IPv6 support forward ported from FreeBSD
  . David Couture <glowplugrelayw0rks@gmail.com>
    - Correct continuation line problems on 64bit architecture
+ . mancha <mancha1@zoho.com>
+   - Bugfix against invalid PRI values (CVE-2014-3634)
 
 
 Version 1.5
