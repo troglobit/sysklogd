@@ -632,6 +632,8 @@ int funix[MAXFUNIX] = { -1, };
 #define TABLE_ALLPRI    0xFF    /* Value to indicate all priorities in f_pmask */
 #define	LOG_MARK	LOG_MAKEPRI(LOG_NFACILITIES, 0)	/* mark "facility" */
 
+#define MAX_PRI		191	/* Maximum Priority per RFC 3164 */
+
 /*
  * Flags to logmsg().
  */
@@ -1491,23 +1493,34 @@ void printline(hname, msg)
 	register char *p, *q;
 	register unsigned char c;
 	char line[MAXLINE + 1];
-	int pri;
+	unsigned int pri;       	// Valid Priority values are 0-191
+	int prilen=0;			// Track Priority value string len
+	int msglen;
 
 	/* test for special codes */
+	msglen=strlen(msg);
 	pri = DEFUPRI;
 	p = msg;
 
 	if (*p == '<') {
 		pri = 0;
-		while (isdigit(*++p))
-		{
-		   pri = 10 * pri + (*p - '0');
+		while (--msglen > 0 && isdigit((unsigned char)*++p) &&
+					pri <= MAX_PRI) {
+			pri = 10 * pri + (*p - '0');
+			prilen++;
 		}
-		if (*p == '>')
+		if (*p == '>' && prilen)
 			++p;
+		else {
+			pri = DEFUPRI;
+			p = msg;
+		}
 	}
-	if (pri &~ (LOG_FACMASK|LOG_PRIMASK))
+
+	if ((pri &~ (LOG_FACMASK|LOG_PRIMASK)) || (pri > MAX_PRI)) {
 		pri = DEFUPRI;
+		p = msg;
+	}
 
 	memset (line, 0, sizeof(line));
 	q = line;
