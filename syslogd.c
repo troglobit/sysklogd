@@ -517,6 +517,7 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
 #define DEFUPRI		(LOG_USER|LOG_NOTICE)
 #define DEFSPRI		(LOG_KERN|LOG_CRIT)
 #define TIMERINTVL	30		/* interval for checking flush, mark */
+#define RCVBUF_MINSIZE	(80 * 1024)	/* minimum size of dgram rcv buffer */
 
 #define CONT_LINE	1		/* Allow continuation lines */
 
@@ -1264,6 +1265,23 @@ int usage()
 	exit(1);
 }
 
+/*
+ * From FreeBSD syslogd SVN r259368
+ * https://svnweb.freebsd.org/base/stable/10/usr.sbin/syslogd/syslogd.c?r1=256281&r2=259368
+ */
+static void increase_rcvbuf(int fd)
+{
+	socklen_t len, slen;
+
+	slen = sizeof(len);
+	if (getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &len, &slen) == 0) {
+		if (len < RCVBUF_MINSIZE) {
+			len = RCVBUF_MINSIZE;
+			setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &len, sizeof(len));
+		}
+	}
+}
+
 #ifdef SYSLOG_UNIXAF
 static int create_unix_socket(const char *path)
 {
@@ -1292,6 +1310,9 @@ static int create_unix_socket(const char *path)
 #endif
 		return -1;
 	}
+
+	increase_rcvbuf(fd);
+
 	return fd;
 }
 #endif
@@ -1345,6 +1366,9 @@ static int *create_inet_sockets()
 			close(*s);
 			continue;
 		}
+
+		increase_rcvbuf(*s);
+
 		/* We must not block on the network socket, in case a packet
 		 * gets lost between select and recv, otherise the process
 		 * will stall until the timeout, and other processes trying to
