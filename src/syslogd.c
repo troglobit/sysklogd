@@ -503,8 +503,8 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	i.e. when we are sending to or receiving from the network.
  *
  * Sun Oct 11 11:28:07 CEST 2009: Joachim Nilsson <troglobit@gmail.com>
- *      Port log rotation from BusyBox syslogd, see SYSLOG_ROTATE_FILES.
- *      This adds support for -b and -c options for size and rotate count.
+ *      Port log rotation from BusyBox syslogd.  This adds -b and -c
+ *      options for size and rotate count.  Disabled by default.
  *
  * Fri Sep 10 08:29:04 CEST 2010: Martin Schulze <joey@infodrom.org>
  *	Replace strcpy with memmove to fix continuation line problems
@@ -816,10 +816,8 @@ char	**StripDomains = NULL;	/* these domains may be stripped before writing logs
 char	**LocalHosts = NULL;	/* these hosts are logged with their hostname */
 int	NoHops = 1;		/* Can we bounce syslog messages through an
 				   intermediate host. */
-#ifdef SYSLOG_ROTATE_FILES
-int     RotateSz  = 200 * 1024; /* Max file size (bytes) before rotating, set with -b <SIZE>  */
-int     RotateCnt = 1;          /* Max number (count) of log files to keep, set with -c <NUM> */
-#endif
+int     RotateSz  = 0;          /* Max file size (bytes) before rotating, disabled by default */
+int     RotateCnt = 5;          /* Max number (count) of log files to keep, set with -c <NUM> */
 extern	int errno;
 
 /* Function prototypes. */
@@ -933,14 +931,12 @@ int main(argc, argv)
 			else
 				fprintf(stderr, "Out of descriptors, ignoring %s\n", optarg);
 			break;
-#ifdef SYSLOG_ROTATE_FILES
 		case 'b':		/* Max file size (bytes) before rotating log file. */
 			RotateSz = atoi(optarg);
 			break;
 		case 'c':		/* Number (count) of log files to keep. */
 			RotateCnt = atoi(optarg);
 			break;
-#endif
 		case 'd':		/* debug */
 			Debug = 1;
 			break;
@@ -1267,9 +1263,7 @@ int main(argc, argv)
 int usage()
 {
 	fprintf(stderr, "usage: syslogd [-46Adrvh] [-l hostlist] [-m markinterval] [-n] [-p path]\n"
-#ifdef SYSLOG_ROTATE_FILES
                 " [-b maxlogfilesize] [-c maxrotatecount]"
-#endif
 		" [-s domainlist] [-f conffile]\n");
 	exit(1);
 }
@@ -1864,15 +1858,17 @@ void logmsg(pri, msg, from, flags)
 } /* balance parentheses for emacs */
 #endif
 
-#ifdef SYSLOG_ROTATE_FILES
 void logrotate(f)
 	register struct filed *f;
 {
         struct stat statf;
 
+	if (!RotateSz)
+		return;
+
         fstat(f->f_file, &statf);
         /* bug (mostly harmless): can wrap around if file > 4gb */
-        if (RotateSz && S_ISREG(statf.st_mode) && statf.st_size > RotateSz) {
+        if (S_ISREG(statf.st_mode) && statf.st_size > RotateSz) {
                 if (RotateCnt) { /* always 0..99 */
                         int i = strlen(f->f_un.f_fname) + 3 + 1;
                         char oldFile[i];
@@ -1895,7 +1891,6 @@ void logrotate(f)
                 ftruncate(f->f_file, 0);
         }
 }
-#endif	/* SYSLOG_ROTATE_FILES */
 
 void fprintlog(f, from, flags, msg)
 	register struct filed *f;
@@ -2080,10 +2075,8 @@ void fprintlog(f, from, flags, msg)
 		if (f->f_file == -1)
 			break;
 
-#ifdef SYSLOG_ROTATE_FILES
 		if (f->f_type == F_FILE)
 			logrotate(f);
-#endif
 
 		if (writev(f->f_file, iov, 6) < 0) {
 			int e = errno;

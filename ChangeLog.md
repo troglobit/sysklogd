@@ -8,6 +8,7 @@ All relevant changes to the project are documented in this file.
 
 ### Changes
 - IPv6 support forward ported from FreeBSD, by John Haxby <john.haxby@oracle.com>
+- Built-in log rotation support from BusyBox syslogd, disabled by default
 - Only read /etc/services when needed, by Martin Schulze <joey@infodrom.org>
 - Improved sleep/alarm/mark implementation,  
   by Alan Jenkins <alan-jenkins@tuffmail.co.uk>
