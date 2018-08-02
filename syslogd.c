@@ -2171,7 +2171,7 @@ void reapchild()
 	(void) signal(SIGCHLD, reapchild);	/* reset signal handler -ASP */
 	wait ((int *)0);
 #else
-	union wait status;
+	int status;
 
 	while (wait3(&status, WNOHANG, (struct rusage *) NULL) > 0)
 		;
