@@ -939,7 +939,7 @@ extern void Syslog(int priority, char *fmt, ...)
 }
 #endif
 
-/*
+/**
  * Local variables:
  *  c-indent-level: 8
  *  c-basic-offset: 8

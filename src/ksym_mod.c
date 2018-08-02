@@ -611,8 +611,9 @@ extern void Syslog(int priority, char *fmt, ...)
 	return;
 }
 
-#endif
-/*
+#endif /* TEST */
+
+/**
  * Local variables:
  *  c-indent-level: 8
  *  c-basic-offset: 8

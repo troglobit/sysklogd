@@ -3113,11 +3113,10 @@ void sighup_handler()
 	return;
 }
 
-/*
+/**
  * Local variables:
  *  c-indent-level: 8
  *  c-basic-offset: 8
  *  tab-width: 8
  * End:
  */
-

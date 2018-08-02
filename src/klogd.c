@@ -1185,7 +1185,8 @@ int main(argc, argv)
 		}
 	}
 }
-/*
+
+/**
  * Local variables:
  *  c-indent-level: 8
  *  c-basic-offset: 8
