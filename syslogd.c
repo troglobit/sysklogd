@@ -502,6 +502,10 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
  *	Make sure that the service name is only queried, when it is needed,
  *	i.e. when we are sending to or receiving from the network.
  *
+ * Sun Oct 11 11:28:07 CEST 2009: Joachim Nilsson <troglobit@gmail.com>
+ *      Port log rotation from BusyBox syslogd, see SYSLOG_ROTATE_FILES.
+ *      This adds support for -b and -c options for size and rotate count.
+ *
  * Fri Sep 10 08:29:04 CEST 2010: Martin Schulze <joey@infodrom.org>
  *	Replace strcpy with memmove to fix continuation line problems
  *	on 64bit architectures, patch by David Couture.
@@ -809,7 +813,10 @@ char	**StripDomains = NULL;	/* these domains may be stripped before writing logs
 char	**LocalHosts = NULL;	/* these hosts are logged with their hostname */
 int	NoHops = 1;		/* Can we bounce syslog messages through an
 				   intermediate host. */
-
+#ifdef SYSLOG_ROTATE_FILES
+int     RotateSz  = 200 * 1024; /* Max file size (bytes) before rotating, set with -b <SIZE>  */
+int     RotateCnt = 1;          /* Max number (count) of log files to keep, set with -c <NUM> */
+#endif
 extern	int errno;
 
 /* Function prototypes. */
@@ -904,7 +911,7 @@ int main(argc, argv)
 		funix[i]  = -1;
 	}
 
-	while ((ch = getopt(argc, argv, "46Aa:dhf:l:m:np:rs:v")) != EOF)
+	while ((ch = getopt(argc, argv, "46Aa:b:c:dhf:l:m:np:rs:v")) != EOF)
 		switch((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -923,6 +930,14 @@ int main(argc, argv)
 			else
 				fprintf(stderr, "Out of descriptors, ignoring %s\n", optarg);
 			break;
+#ifdef SYSLOG_ROTATE_FILES
+		case 'b':		/* Max file size (bytes) before rotating log file. */
+			RotateSz = atoi(optarg);
+			break;
+		case 'c':		/* Number (count) of log files to keep. */
+			RotateCnt = atoi(optarg);
+			break;
+#endif
 		case 'd':		/* debug */
 			Debug = 1;
 			break;
@@ -1241,7 +1256,10 @@ int main(argc, argv)
 
 int usage()
 {
-	fprintf(stderr, "usage: syslogd [-46Adrvh] [-l hostlist] [-m markinterval] [-n] [-p path]\n" \
+	fprintf(stderr, "usage: syslogd [-46Adrvh] [-l hostlist] [-m markinterval] [-n] [-p path]\n"
+#ifdef SYSLOG_ROTATE_FILES
+                " [-b maxlogfilesize] [-c maxrotatecount]"
+#endif
 		" [-s domainlist] [-f conffile]\n");
 	exit(1);
 }
@@ -1813,6 +1831,39 @@ void logmsg(pri, msg, from, flags)
 } /* balance parentheses for emacs */
 #endif
 
+#ifdef SYSLOG_ROTATE_FILES
+void logrotate(f)
+	register struct filed *f;
+{
+        struct stat statf;
+
+        fstat(f->f_file, &statf);
+        /* bug (mostly harmless): can wrap around if file > 4gb */
+        if (RotateSz && S_ISREG(statf.st_mode) && statf.st_size > RotateSz) {
+                if (RotateCnt) { /* always 0..99 */
+                        int i = strlen(f->f_un.f_fname) + 3 + 1;
+                        char oldFile[i];
+                        char newFile[i];
+
+                        i = RotateCnt - 1;
+                        /* rename: f.8 -> f.9; f.7 -> f.8; ... */
+                        while (1) {
+                                sprintf(newFile, "%s.%d", f->f_un.f_fname, i);
+                                if (i == 0) break;
+                                sprintf(oldFile, "%s.%d", f->f_un.f_fname, --i);
+                                /* ignore errors - file might be missing */
+                                rename(oldFile, newFile);
+                        }
+                        /* newFile == "f.0" now */
+                        rename(f->f_un.f_fname, newFile);
+                        close(f->f_file);
+                        f->f_file = open(f->f_un.f_fname, O_WRONLY|O_APPEND|O_CREAT|O_NONBLOCK|O_NOCTTY, 0644);
+                }
+                ftruncate(f->f_file, 0);
+        }
+}
+#endif	/* SYSLOG_ROTATE_FILES */
+
 void fprintlog(f, from, flags, msg)
 	register struct filed *f;
 	char *from;
@@ -1995,6 +2046,11 @@ void fprintlog(f, from, flags, msg)
 		   open the file at startup. */
 		if (f->f_file == -1)
 			break;
+
+#ifdef SYSLOG_ROTATE_FILES
+		if (f->f_type == F_FILE)
+			logrotate(f);
+#endif
 
 		if (writev(f->f_file, iov, 6) < 0) {
 			int e = errno;
