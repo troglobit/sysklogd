@@ -1,0 +1,27 @@
+# Travis CI integration -- https://travis-ci.org/troglobit/sysklogd
+# Defaults to GNU GCC and autotools: ./configure && make && make test
+language: c
+
+# Use docker for quicker builds, it now allows https://docs.travis-ci.com/user/apt/
+sudo: false
+
+# Test build with both GCC and Clang (LLVM)
+compiler:
+  - gcc
+  - clang
+
+addons:
+  apt:
+    packages:
+      - tree
+
+# Custom build script for the time being, no "make test" yet
+script:
+  - ./autogen.sh
+  - ./configure --prefix=/tmp/sysklogd
+  - make clean
+  - make -j5
+  - make install-strip
+  - tree /tmp/sysklogd
+  - ldd /tmp/sysklogd/sbin/{sysklogd, klogd}
+  - size /tmp/sysklogd/sbin/{sysklogd, klogd}
