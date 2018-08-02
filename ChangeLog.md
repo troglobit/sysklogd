@@ -1,33 +1,49 @@
- . Alan Jenkins <alan-jenkins@tuffmail.co.uk>
-   - Improved sleep/alarm/mark implementation
- . Thomas Jarosch <thomas.jarosch@intra2net.com>
-   - Move hostname setting code from main() into init()
- . Joey
-   - Only read /etc/services when needed
-   - Documentation update
- . John Haxby <john.haxby@oracle.com>
-   - IPv6 support forward ported from FreeBSD
- . David Couture <glowplugrelayw0rks@gmail.com>
-   - Correct continuation line problems on 64bit architecture
- . mancha <mancha1@zoho.com>
-   - Bugfix against invalid PRI values (CVE-2014-3634)
+Change Log
+==========
+
+All relevant changes to the project are documented in this file.
+
+[v1.6][UNRELEASED]
+------------------
+
+### Changes
+- IPv6 support forward ported from FreeBSD, by John Haxby <john.haxby@oracle.com>
+- Only read /etc/services when needed, by Martin Schulze <joey@infodrom.org>
+- Improved sleep/alarm/mark implementation,  
+  by Alan Jenkins <alan-jenkins@tuffmail.co.uk>
+- Move hostname setting code from `main()` into `init()`,  
+  by Thomas Jarosch <thomas.jarosch@intra2net.com>
+- Documentation update by Martin Schulze <joey@infodrom.org>
+
+### Fixes
+- Correct continuation line problems on 64bit architecture,  
+  by David Couture <glowplugrelayw0rks@gmail.com>
+- Bugfix against invalid PRI values (CVE-2014-3634), by mancha <mancha1@zoho.com>
 
 
-Version 1.5
+[v1.5.1][] - 2014-10-06
+-----------------------
 
- . Dmitry V. Levin <ldv@altlinux.org>
+### Fixes
+- Bugfix against invalid PRI values (CVE-2014-3634), by mancha <mancha1@zoho.com>
+
+
+[v1.5][] - 2007-07-27
+---------------------
+
+- Dmitry V. Levin <ldv@altlinux.org>
    - Close file descriptor in FindSymbolFile() in ksym.c in order not to
      leak file descriptors.
- . Solar Designer <solar@openwall.com>
+- Solar Designer <solar@openwall.com>
    - improve crunch_list()
    - Prevent potential buffer overflow in reading messages from the
      kernel log ringbuffer.
    - Ensure that "len" is not placed in a register, and that the
      endtty() signal handler is not installed too early which could
      cause a segmentation fault or worse.
- . Steve Grubb <linux_4ever@yahoo.com>
+- Steve Grubb <linux_4ever@yahoo.com>
    - fix memory calculation in crunch_list()
- . Martin Schulze <joey@infodrom.org>
+- Martin Schulze <joey@infodrom.org>
    - klogd will reconnect to the logger (mostly syslogd) after it went
      away
    - On heavily loaded system syslog will not spit out error messages
@@ -55,69 +71,72 @@ Version 1.5
    - Only read kernel symbols from /proc/kallsyms if no System.map has been read
    - Improved symbol lookup
    - Prevent named pipes from becoming the controlling tty
- . Jon Burgess <Jon_Burgess@eur.3com.com>
+- Jon Burgess <Jon_Burgess@eur.3com.com>
    - Moved the installation of the signal handler up a little bit so it
      guaranteed to be available when the child is forked, hence, fixing a
      race condition.  This used to create problems with UML and fast
      machines.
- . Greg Trounson <gregt@maths.otago.ac.nz>
+- Greg Trounson <gregt@maths.otago.ac.nz>
    - Improved README.linux
- . Ulf Härnhammar <Ulf.Harnhammar.9485@student.uu.se>
+- Ulf Härnhammar <Ulf.Harnhammar.9485@student.uu.se>
    - Boundary check for fscanf() in InitKsyms() and CheckMapVersion()
- . Colin Phipps <cph@cph.demon.co.uk>
+- Colin Phipps <cph@cph.demon.co.uk>
    - Don't block on the network socket in case of packet loss
- . Dirk Mueller <mueller@kde.org>
+- Dirk Mueller <mueller@kde.org>
    - Don't crash when filesize limit is reached (e.g. without LFS)
- . Miquel van Smoorenburg <miquels@cistron.nl>
+- Miquel van Smoorenburg <miquels@cistron.nl>
    - Fix spurious hanging syslogd in connection with futex and NPTL
      introduced in recent glibc versions and Linux 2.6
      (Details: http://bugs.debian.org/301511)
- . Eric Tucker <et@tallmaple.com>
+- Eric Tucker <et@tallmaple.com>
    - Improved syslog.conf(5) manpage
- . Mike Frysinger <vapier@gentoo.org>
+- Mike Frysinger <vapier@gentoo.org>
    - use socklen_t where appropriate
- . Kelledin <kelledin@skarpsey.dyndns.org>
+- Kelledin <kelledin@skarpsey.dyndns.org>
    - use newer query_module function rather than stepping through /dev/kmem.
- . Matthew Fischer <futhark@vzavenue.net>
+- Matthew Fischer <futhark@vzavenue.net>
    - Remove special treatment of the percent sign in klogd
 
 
-Version 1.4.1
+[v1.4.1][] - 2001-03-11
+-----------------------
 
- . klogd will set the console log level only if `-c' is given on the
+
+- klogd will set the console log level only if `-c' is given on the
    commandline, not overwriting local settings in `/etc/sysctl.conf'.
- . Bugfix: klogd will use SOCK_DGRM as well, re-enables kernel logging
- . Bugfix: Don't make syslogd fail with broken `-a'
- . Bugfix: klogd will skip zero bytes and not enter a busy loop anymore
- . Thomas Roessler <roessler@does-not-exist.org>
+- Bugfix: klogd will use SOCK_DGRM as well, re-enables kernel logging
+- Bugfix: Don't make syslogd fail with broken `-a'
+- Bugfix: klogd will skip zero bytes and not enter a busy loop anymore
+- Thomas Roessler <roessler@does-not-exist.org>
    - Patch to prevent LogLine() from being invoked with a negative
      counter as an argument.
 
 
-Version 1.4
+[v1.4][] - 2000-09-19
+---------------------
 
- . Skip newline when reading in klog messages
- . Use lseek64() instead of llseek() which is deprecated these days
- . Close symbol file before returning with 0 when an error occurred
+- Skip newline when reading in klog messages
+- Use lseek64() instead of llseek() which is deprecated these days
+- Close symbol file before returning with 0 when an error occurred
    while reading it.  This will enable systems to umount that
    partition with no open file descriptor left over.
- . Solar Designer <solar@false.com>
+- Solar Designer <solar@false.com>
    - printline() fixes
    - priority decoding fix
- . Daniel Jacobowitz <dan@debian.org>
+- Daniel Jacobowitz <dan@debian.org>
    - printchopped() fix
- . Keith Owens <kaos@ocs.com.au>
+- Keith Owens <kaos@ocs.com.au>
    - Fixed bug that caused klogd to die if there is no sym_array available.
    - When symbols are expanded, print the line twice.  Once with
      addresses converted to symbols, once with the raw text.  Allows
      external programs such as ksymoops do their own processing on the
      original data.
- . Olaf Kirch <okir@caldera.de>
+- Olaf Kirch <okir@caldera.de>
    - Remove Unix Domain Sockets and switch to Datagram Unix Sockets
- . Several bugfixes and improvements, please refer to the .c files
+- Several bugfixes and improvements, please refer to the .c files
 
 
-Local variables:
-mode: indented-text
-fill-column: 72
-End:
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v1.5...HEAD
+[v1.5.1]:     https://github.com/troglobit/sysklogd/compare/v1.5...v1.5.1
+[v1.5]:       https://github.com/troglobit/sysklogd/compare/v1.4...v1.5
+[v1.4]:       https://github.com/troglobit/sysklogd/compare/v1.3...v1.4
