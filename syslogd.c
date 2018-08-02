@@ -699,7 +699,7 @@ struct filed {
 	int	f_prevpri;			/* pri of f_prevline */
 	int	f_prevlen;			/* length of f_prevline */
 	int	f_prevcount;			/* repetition cnt of prevline */
-	int	f_repeatcount;			/* number of "repeated" msgs */
+	size_t	f_repeatcount;			/* number of "repeated" msgs */
 	int	f_flags;			/* store some additional flags */
 };
 
@@ -825,7 +825,7 @@ int main(int argc, char **argv);
 char **crunch_list(char *list);
 int usage(void);
 void untty(void);
-void printchopped(const char *hname, char *msg, int len, int fd);
+void printchopped(const char *hname, char *msg, size_t len, int fd);
 void printline(const char *hname, char *msg);
 void printsys(char *msg);
 void logmsg(int pri, char *msg, const char *from, int flags);
@@ -1496,7 +1496,7 @@ void untty()
 void printchopped(hname, msg, len, fd)
 	const char *hname;
 	char *msg;
-	int len;
+	size_t len;
 	int fd;
 {
 	auto int ptlngth;
@@ -2087,6 +2087,13 @@ void fprintlog(f, from, flags, msg)
 			   it for now and continue writing when
 			   possible */
 			if (f->f_type == F_FILE && e == ENOSPC)
+				break;
+
+			/*
+			 * If the console is backed up, just ignore it
+			 * and continue writing again when possible.
+			 */
+			if (f->f_type == F_CONSOLE && e == EAGAIN)
 				break;
 
 			(void) close(f->f_file);
