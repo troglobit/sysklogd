@@ -17,8 +17,8 @@
 #   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 SUBDIRS        = src man
-doc_DATA       = README.md
-EXTRA_DIST     = README.md
+doc_DATA       = README.md ChangeLog.md syslog.conf
+EXTRA_DIST     = README.md ChangeLog.md syslog.conf
 
 #
 # Target to run when building a release
