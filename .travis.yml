@@ -23,5 +23,3 @@ script:
   - make -j5
   - make install-strip
   - tree /tmp/sysklogd
-  - ldd /tmp/sysklogd/sbin/{sysklogd, klogd}
-  - size /tmp/sysklogd/sbin/{sysklogd, klogd}
