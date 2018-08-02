@@ -17,7 +17,6 @@
 #   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 sbin_PROGRAMS    = syslogd klogd
-doc_DATA         = README.1st README.linux
 
 AM_CFLAGS        = -fomit-frame-pointer -fno-strength-reduce -Wno-unused-result
 
