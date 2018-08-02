@@ -2,7 +2,7 @@
 .\" Copyright 2004,6-8 Martin Schulze <joey@infodrom.org>
 .\" May be distributed under the GNU General Public License
 .\"
-.TH SYSKLOGD 8 "11 May 2008" "Version 1.5" "Linux System Administration"
+.TH SYSKLOGD 8 "02 Aug 2018" "Version 1.5" "Linux System Administration"
 .SH NAME
 sysklogd \- Linux system logging utilities.
 .SH SYNOPSIS
@@ -11,6 +11,12 @@ sysklogd \- Linux system logging utilities.
 .RB [ " \-a "
 .I socket
 ]
+.RB [ " \-b "
+.I size
+]
+.RB [ " \-c "
+.I count
+] 
 .RB [ " \-d " ]
 .RB [ " \-f "
 .I config file
@@ -101,6 +107,19 @@ the symbol
 within the syslogd.c source file.  An example for a chroot() daemon is
 described by the people from OpenBSD at
 <http://www.guides.sk/psionic/dns/>.
+.TP
+.BI "\-b " "size"
+This option controls the max size of files in the built-in log-rotation.
+When present on the command line it activates log rotation of all files
+with the given maximum size.
+.TP
+.BI "\-c " "count"
+This option controls the max number of files kept by the built-in
+log-rotation.  To activate the built-in log rotation this option must be
+combined with the
+.BI "\-b"
+option.  The number of files kept include both gzipped files and the
+first rotated (not zipped) file.
 .TP
 .B "\-d"
 Turns on debug mode.  Using this the daemon will not proceed a 
