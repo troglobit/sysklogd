@@ -563,7 +563,7 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
 #ifndef TESTING
 #include "pidfile.h"
 #endif
-#include "version.h"
+#include "config.h"
 
 #if defined(__linux__)
 #include <paths.h>
@@ -979,7 +979,7 @@ int main(argc, argv)
 			StripDomains = crunch_list(optarg);
 			break;
 		case 'v':
-			printf("syslogd %s.%s\n", VERSION, PATCHLEVEL);
+			printf("syslogd v%s\n", VERSION);
 			exit (0);
 		case '?':
 		default:
@@ -2747,23 +2747,13 @@ void init()
 	}
 
 	if ( AcceptRemote )
-#ifdef DEBRELEASE
-		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "." PATCHLEVEL "#" DEBRELEASE \
-		       ": restart (remote reception)." , LocalHostName, \
+		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd v" VERSION
+		       ": restart (remote reception)." , LocalHostName,
 		       	ADDDATE);
-#else
-		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "." PATCHLEVEL \
-		       ": restart (remote reception)." , LocalHostName, \
-		       	ADDDATE);
-#endif
 	else
-#ifdef DEBRELEASE
-		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "." PATCHLEVEL "#" DEBRELEASE \
+		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd v" VERSION
 		       ": restart." , LocalHostName, ADDDATE);
-#else
-		logmsg(LOG_SYSLOG|LOG_INFO, "syslogd " VERSION "." PATCHLEVEL \
-		       ": restart." , LocalHostName, ADDDATE);
-#endif
+
 	(void) signal(SIGHUP, sighup_handler);
 	dprintf("syslogd: restarted.\n");
 }
