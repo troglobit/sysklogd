@@ -1161,6 +1161,13 @@ int main(argc, argv)
 			restart = 0;
 			dprintf("\nReceived SIGHUP, reloading syslogd.\n");
 			init();
+			if (check_pid(PidFile)) {
+				if (touch_pid(PidFile))
+					logerror("Not possible to touch pidfile");
+			} else {
+				if (!write_pid(PidFile))
+					logerror("Failed to write pidfile");
+			}
 			continue;
 		}
 		if (nfds == 0) {

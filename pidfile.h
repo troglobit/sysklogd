@@ -42,6 +42,13 @@ int check_pid (char *pidfile);
  */
 int write_pid (char *pidfile);
 
+/* touch_pid
+ *
+ * Touches the specified pidfile f.ex. when receiving a SIGHUP
+ * The result from utimensat() is returned
+ */
+int touch_pid (char *pidfile);
+
 /* remove_pid
  *
  * Remove the the specified file. The result from unlink(2)
