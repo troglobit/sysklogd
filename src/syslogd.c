@@ -823,7 +823,7 @@ extern	int errno;
 /* Function prototypes. */
 int main(int argc, char **argv);
 char **crunch_list(char *list);
-int usage(void);
+int usage(int code);
 void untty(void);
 void printchopped(const char *hname, char *msg, size_t len, int fd);
 void printline(const char *hname, char *msg);
@@ -912,7 +912,7 @@ int main(argc, argv)
 		funix[i]  = -1;
 	}
 
-	while ((ch = getopt(argc, argv, "46Aa:b:c:dhf:l:m:np:rs:v")) != EOF)
+	while ((ch = getopt(argc, argv, "46Aa:b:c:dhf:l:m:np:rs:v?")) != EOF)
 		switch((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -978,11 +978,14 @@ int main(argc, argv)
 			printf("syslogd v%s\n", VERSION);
 			exit (0);
 		case '?':
+			usage(0);
+			break;
 		default:
-			usage();
+			usage(1);
+			break;
 		}
 	if ((argc -= optind))
-		usage();
+		usage(1);
 
 #ifndef TESTING
 	if ( !(Debug || NoFork) )
@@ -1260,12 +1263,34 @@ int main(argc, argv)
 	}
 }
 
-int usage()
+int usage(int code)
 {
-	fprintf(stderr, "usage: syslogd [-46Adrvh] [-l hostlist] [-m markinterval] [-n] [-p path]\n"
-                " [-b maxlogfilesize] [-c maxrotatecount]"
-		" [-s domainlist] [-f conffile]\n");
-	exit(1);
+	fprintf(stdout,
+		"Usage:\n"
+		"  syslogd [-46Adnrvh?] [-a SOCK] [-b SIZE] [-c COUNT] [-f FILE] [-l HOST]\n"
+		"                       [-m SEC]  [-p PATH] [-s LIST]\n"
+		"\n"
+		"Options:\n"
+		"  -?        Show this help text\n"
+		"  -4        Force IPv4 only\n"
+		"  -6        Force IPv6 only\n"
+		"  -a SOCK   Additional socket (max 19) to listen to, used with chroots\n"
+		"  -A        Send to all addresses in DNS A, or AAAA record\n"
+		"  -b SIZE   Log file rotation, rotate at SIZE bytes, default: disabled\n"
+		"  -c COUNT  Number of rotated log files kept\n"
+		"  -d        Enable debug mode\n"
+		"  -f FILE   Alternate .conf file, default: /etc/syslog.conf\n"
+		"  -h        Forward messages from other hosts also to remote syslog host(s)\n"
+		"  -l HOST   Host name to log without its FQDN, use ':' for multiple hosts\n"
+		"  -m INTV   Interval between MARK messages in log, 0 to disable, default: 20\n"
+		"  -n        Run in foreground, required when run from a modern init/supervisor\n"
+		"  -p PATH   Alternate path to UNIX domain socket, default: /dev/log\n"
+		"  -r        Act as remote syslog sink for other hosts\n"
+		"  -s NAME   Strip domain name before logging, use ':' for multiple domains\n"
+		"  -v        Show program version and exit\n"
+		"\n"
+		"Bug report address: %s\n", PACKAGE_BUGREPORT);
+	exit(code);
 }
 
 /*

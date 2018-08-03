@@ -962,6 +962,33 @@ static void LogProcLine(void)
 }
 
 
+int usage(int code)
+{
+	fprintf(stdout,
+		"Usage:\n"
+		"  klogd [-2diInopsvx?] [-c NUM] [-f FILE] [-k FILE]\n"
+		"\n"
+		"Options:\n"
+		"  -?        Show this help text\n"
+		"  -2        Print line twice if symbols are successfully expanded\n"
+		"  -c NUM    Set default log level of console messages to NUM (1-8)\n"
+		"  -d        Enable debug mode\n"
+		"  -f FILE   Log messages to FILE rather than the syslog facility\n"
+		"  -i        Signal klogd to reload kernel module symbols\n"
+		"  -I        Signal klogd to reload kernel module *and* static kernel symbols\n"
+		"  -k FILE   Kernel symbols file, e.g. System.map, default: none\n"
+		"  -n        Run in foreground, required when run from a modern init/supervisor\n"
+		"  -o        Run once, read kernel log messages and syslog them, then exit\n"
+		"  -p        Paranoia mode, forces klogd to reload all kernel symbols on Ooops\n"
+		"  -s        Force use of system call interface to kernel message buffers\n"
+		"  -v        Show program version and exit\n"
+		"  -x        Omit EIP translation, i.e. do not read System.map file\n"
+		"\n"
+		"Bug report address: %s\n", PACKAGE_BUGREPORT);
+	exit(code);
+}
+
+
 int main(argc, argv)
 
 	int argc;
@@ -980,7 +1007,7 @@ int main(argc, argv)
 	chdir ("/");
 #endif
 	/* Parse the command-line. */
-	while ((ch = getopt(argc, argv, "c:df:iIk:nopsvx2")) != EOF)
+	while ((ch = getopt(argc, argv, "c:df:iIk:nopsvx2?")) != EOF)
 		switch((char)ch)
 		{
 		    case '2':		/* Print lines with symbols twice. */
@@ -1022,6 +1049,12 @@ int main(argc, argv)
 			exit (1);
 		    case 'x':
 			symbol_lookup = 0;
+			break;
+		    case '?':
+			usage(0);
+			break;
+		    default:
+			usage(1);
 			break;
 		}
 
