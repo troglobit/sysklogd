@@ -26,4 +26,4 @@ syslogd_CPPFLAGS = -DSYSV -DFSSTND -DSYSLOG_INET -DINET6 -DNO_SCCS	\
 
 klogd_SOURCES    = klogd.c klogd.h syslog.c pidfile.c pidfile.h 	\
 		   ksym.c ksyms.h ksym_mod.c module.h
-klogd_CPPFLAGS   = -DSYSV -DFSSTND
+klogd_CPPFLAGS   = -DSYSV -DFSSTND -DALLOW_KERNEL_LOGGING
