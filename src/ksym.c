@@ -210,34 +210,24 @@ extern int InitKsyms(mapfile)
 	/*
 	 * Search for and open the file containing the kernel symbols.
 	 */
-	if ( mapfile != (char *) 0 )
-	{
-		if ( (sym_file = fopen(mapfile, "r")) == (FILE *) 0 )
-		{
-			Syslog(LOG_WARNING, "Cannot open map file: %s.", \
-			       mapfile);
-			return(0);
-		}
-	}
-	else
+	if ( mapfile == (char *) 0 )
 	{
 		if ( (mapfile = FindSymbolFile()) == (char *) 0 ) 
 		{
-			Syslog(LOG_WARNING, "Cannot find map file.");
+			Syslog(LOG_WARNING, "Cannot find a map file.");
 			if ( debugging )
-				fputs("Cannot find map file.\n", stderr);
-			return(0);
-		}
-		
-		if ( (sym_file = fopen(mapfile, "r")) == (FILE *) 0 )
-		{
-			Syslog(LOG_WARNING, "Cannot open map file.");
-			if ( debugging )
-				fputs("Cannot open map file.\n", stderr);
+				fputs("Cannot find a map file.\n", stderr);
 			return(0);
 		}
 	}
 	
+	if ( (sym_file = fopen(mapfile, "r")) == (FILE *) 0 )
+	{
+		Syslog(LOG_WARNING, "Cannot open map file: %s.", mapfile);
+		if ( debugging )
+			fprintf(stderr, "Cannot open map file: %s.\n", mapfile);
+		return(0);
+	}
 
 	/*
 	 * Read the kernel symbol table file and add entries for each
