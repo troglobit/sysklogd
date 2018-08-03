@@ -21,8 +21,7 @@ sbin_PROGRAMS    = syslogd klogd
 AM_CFLAGS        = -fomit-frame-pointer -fno-strength-reduce -Wno-unused-result
 
 syslogd_SOURCES  = syslogd.c pidfile.c pidfile.h
-syslogd_CPPFLAGS = -DSYSV -DFSSTND -DSYSLOG_INET -DINET6 -DNO_SCCS	\
-		   -DSYSLOG_UNIXAF -DSYSLOGD_PIDNAME=\"syslogd.pid\"
+syslogd_CPPFLAGS = -DSYSV -DFSSTND -DSYSLOG_INET -DINET6 -DNO_SCCS -DSYSLOG_UNIXAF
 
 klogd_SOURCES    = klogd.c klogd.h syslog.c pidfile.c pidfile.h 	\
 		   ksym.c ksyms.h ksym_mod.c module.h

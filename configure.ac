@@ -32,10 +32,20 @@ AC_ARG_WITH(klogd-delay,
         AS_HELP_STRING([--with-klogd-delay=SEC], [when started at the same time as syslogd, default: 0]),
 	[klogd_delay=$withval], [klogd_delay='no'])
 
+AC_ARG_WITH(syslogd-pidfile,
+        AS_HELP_STRING([--with-syslogd-pidfile=FILE], [custom PID file, default: syslogd.pid]),
+	[syslogd_pidfile=$withval], [syslogd_pidfile='no'])
+
 AS_IF([test "x$klogd_delay" != "xno"],[
 	AS_IF([test "x$klogd_delay" = "xyes"],[
 		AC_MSG_ERROR([Must supply argument])])
 	]
 	AC_DEFINE_UNQUOTED(KLOGD_DELAY, $klogd_delay, [Delay klogd startup N seconds, default: 0]))
+
+AS_IF([test "x$syslogd_pidfile" != "xno"],[
+	AS_IF([test "x$syslogd_pidfile" = "xyes"],[
+		AC_MSG_ERROR([Must supply argument])])
+	]
+	AC_DEFINE_UNQUOTED(SYSLOGD_PIDNAME, "$syslogd_pidfile", [Custom syslogd PID file]))
 
 AC_OUTPUT
