@@ -21,8 +21,6 @@
 #include <syslog.h>
 #include <unistd.h>
 
-extern int main(int, char **);
-
 int main(int argc, char *argv[])
 {
 	char *nl,
@@ -33,10 +31,8 @@ int main(int argc, char *argv[])
 	if (argc > 1) {
 		if ((*argv[1] == '-') && (*(argv[1] + 1) == '\0')) {
 			while (!feof(stdin))
-				if (fgets(bufr, sizeof(bufr), stdin) !=
-				    (char *)0) {
-					if ((nl = strrchr(bufr, '\n')) !=
-					    (char *)0)
+				if (fgets(bufr, sizeof(bufr), stdin)) {
+					if ((nl = strrchr(bufr, '\n')))
 						*nl = '\0';
 					syslog(LOG_INFO, "%s", bufr);
 					logged += strlen(bufr);

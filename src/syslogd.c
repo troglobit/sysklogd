@@ -1076,7 +1076,7 @@ int main(int argc, char *argv[])
 	num_fds = getdtablesize();
 	logit("Allocated parts table for %d file descriptors.\n", num_fds);
 	if ((parts = (char **)malloc(num_fds * sizeof(char *))) ==
-	    (char **)0) {
+	    NULL) {
 		logerror("Cannot allocate memory for message parts table.");
 #ifndef TESTING
 		if (getpid() != ppid)
@@ -1085,7 +1085,7 @@ int main(int argc, char *argv[])
 		die(0);
 	}
 	for (i = 0; i < num_fds; ++i)
-		parts[i] = (char *)0;
+		parts[i] = NULL;
 
 	logit("Starting.\n");
 	init();
@@ -1246,7 +1246,7 @@ int main(int argc, char *argv[])
                         logit("Message from stdin.\n");
                         memset(line, '\0', sizeof(line));
                         line[0] = '.';
-                        parts[fileno(stdin)] = (char *)0;
+                        parts[fileno(stdin)] = NULL;
                         i = read(fileno(stdin), line, MAXLINE);
                         if (i > 0) {
                                 printchopped(LocalHostName, line, i + 1, fileno(stdin));
@@ -1507,7 +1507,7 @@ void untty(void)
 	if (!Debug) {
 		i = open(_PATH_TTY, O_RDWR);
 		if (i >= 0) {
-			(void)ioctl(i, (int)TIOCNOTTY, (char *)0);
+			(void)ioctl(i, (int)TIOCNOTTY, NULL);
 			(void)close(i);
 		}
 	}
@@ -1527,11 +1527,11 @@ void printchopped(const char *hname, char *msg, size_t len, int fd)
 
 	logit("Message length: %d, File descriptor: %d.\n", len, fd);
 	tmpline[0] = '\0';
-	if (parts[fd] != (char *)0) {
+	if (parts[fd] != NULL) {
 		logit("Including part from messages.\n");
 		strcpy(tmpline, parts[fd]);
 		free(parts[fd]);
-		parts[fd] = (char *)0;
+		parts[fd] = NULL;
 		if ((strlen(msg) + strlen(tmpline)) > MAXLINE) {
 			logerror("Cannot glue message parts together");
 			printline(hname, tmpline);
@@ -1555,7 +1555,7 @@ void printchopped(const char *hname, char *msg, size_t len, int fd)
 		if (*p == '\0')
 			p++;
 		ptlngth = strlen(p);
-		if ((parts[fd] = malloc(ptlngth + 1)) == (char *)0)
+		if ((parts[fd] = malloc(ptlngth + 1)) == NULL)
 			logerror("Cannot allocate memory for message part.");
 		else {
 			strcpy(parts[fd], p);
@@ -1937,7 +1937,7 @@ void fprintlog(struct filed *f, char *from, int flags, char *msg)
 
 #ifdef SYSLOG_INET
 	case F_FORW_SUSP:
-		fwd_suspend = time((time_t *)0) - f->f_time;
+		fwd_suspend = time(NULL) - f->f_time;
 		if (fwd_suspend >= INET_SUSPEND_TIME) {
 			logit("\nForwarding suspension over, "
 			      "retrying FORW ");
@@ -1962,7 +1962,7 @@ void fprintlog(struct filed *f, char *from, int flags, char *msg)
 	 */
 	case F_FORW_UNKN:
 		logit(" %s\n", f->f_un.f_forw.f_hname);
-		fwd_suspend = time((time_t *)0) - f->f_time;
+		fwd_suspend = time(NULL) - f->f_time;
 		if (fwd_suspend >= INET_SUSPEND_TIME) {
 			logit("Forwarding suspension to unknown over, retrying\n");
 			memset(&hints, 0, sizeof(hints));
@@ -2242,7 +2242,7 @@ void reapchild(int signo)
 	int saved_errno = errno;
 #if defined(SYSV) && !defined(linux)
 	(void)signal(SIGCHLD, reapchild); /* reset signal handler -ASP */
-	wait((int *)0);
+	wait(NULL);
 #else
 	int status;
 
@@ -2462,7 +2462,7 @@ void init(void)
 {
 #ifndef TESTING
 #ifndef SYSV
-	struct filed **nextp = (struct filed **)0;
+	struct filed **nextp = NULL;
 #endif
 #endif
 	struct hostent *hent;
@@ -2513,7 +2513,7 @@ void init(void)
 		 */
 		nlogs = -1;
 		free((void *)Files);
-		Files = (struct filed *)0;
+		Files = NULL;
 	}
 
 #ifdef SYSV
@@ -2897,7 +2897,7 @@ void cfline(char *line, struct filed *f)
 			 */
 			f->f_type = F_FORW_UNKN;
 			f->f_prevcount = INET_RETRY_MAX;
-			f->f_time = time((time_t *)0);
+			f->f_time = time(NULL);
 			f->f_un.f_forw.f_addr = NULL;
 		} else {
 			f->f_type = F_FORW;

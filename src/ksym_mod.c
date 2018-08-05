@@ -129,7 +129,7 @@
 #define KSYMS "/proc/kallsyms"
 
 static int     num_modules = 0;
-struct Module *sym_array_modules = (struct Module *)0;
+struct Module *sym_array_modules = NULL;
 
 static int have_modules = 0;
 
@@ -284,7 +284,7 @@ static void FreeModules(void)
 	}
 
 	free(sym_array_modules);
-	sym_array_modules = (struct Module *)0;
+	sym_array_modules = NULL;
 	num_modules = 0;
 	return;
 }
@@ -384,7 +384,7 @@ static int AddSymbol(const char *line)
 		return 0;
 	*p = '\0';
 
-	address = strtoul(line, (char **)0, 16);
+	address = strtoul(line, NULL, 16);
 
 	p += 3;
 
@@ -405,11 +405,11 @@ static int AddSymbol(const char *line)
 	mp->sym_array = (struct sym_table *)realloc(mp->sym_array,
 	                                            (mp->num_syms + 1) * sizeof(struct sym_table));
 
-	if (mp->sym_array == (struct sym_table *)0)
+	if (mp->sym_array == NULL)
 		return 0;
 
 	mp->sym_array[mp->num_syms].name = strdup(p);
-	if (mp->sym_array[mp->num_syms].name == (char *)0)
+	if (mp->sym_array[mp->num_syms].name == NULL)
 		return 0;
 
 	/* Stuff interesting information into the module. */

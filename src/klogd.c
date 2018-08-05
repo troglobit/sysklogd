@@ -348,7 +348,7 @@ static void CloseLogSrc(void)
 		break;
 	}
 
-	if (output_file != (FILE *)0)
+	if (output_file != NULL)
 		fflush(output_file);
 }
 
@@ -400,7 +400,7 @@ static void Terminate(void)
 	CloseLogSrc();
 	Syslog(LOG_INFO, "Kernel log daemon terminating.");
 	sleep(1);
-	if (output_file != (FILE *)0)
+	if (output_file != NULL)
 		fclose(output_file);
 	closelog();
 #ifndef TESTING
@@ -534,7 +534,7 @@ extern void Syslog(int priority, char *fmt, ...)
 	}
 
 	/* Handle output to a file. */
-	if (output_file != (FILE *)0) {
+	if (output_file != NULL) {
 		va_start(ap, fmt);
 		vfprintf(output_file, fmt, ap);
 		va_end(ap);
@@ -790,11 +790,11 @@ static void LogLine(char *ptr, int len)
 				int sym_space;
 
 				*(line - 1) = 0; /* null terminate the address string */
-				value = strtoul(sym_start + 1, (char **)0, 16);
+				value = strtoul(sym_start + 1, NULL, 16);
 				*(line - 1) = '>'; /* put back delim */
 
 				symbol = LookupSymbol(value, &sym);
-				if (!symbol_lookup || symbol == (char *)0) {
+				if (!symbol_lookup || symbol == NULL) {
 					parse_state = PARSING_TEXT;
 					break;
 				}
@@ -978,9 +978,9 @@ int main(int argc, char *argv[])
 	}
 
 	/* Set console logging level. */
-	if (log_level != (char *)0) {
+	if (log_level != NULL) {
 		if ((strlen(log_level) > 1) ||
-		    (strchr("12345678", *log_level) == (char *)0)) {
+		    (strchr("12345678", *log_level) == NULL)) {
 			fprintf(stderr, "klogd: Invalid console logging "
 			                "level <%s> specified.\n",
 			        log_level);
@@ -1061,7 +1061,7 @@ int main(int argc, char *argv[])
 	if (use_output) {
 		if (strcmp(output, "-") == 0)
 			output_file = stdout;
-		else if ((output_file = fopen(output, "w")) == (FILE *)0) {
+		else if ((output_file = fopen(output, "w")) == NULL) {
 			fprintf(stderr, "klogd: Cannot open output file "
 			                "%s - %s\n",
 			        output, strerror(errno));

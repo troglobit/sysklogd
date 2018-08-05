@@ -138,7 +138,7 @@
 int                      num_syms = 0;
 static int               i_am_paranoid = 0;
 static char              vstring[12];
-static struct sym_table *sym_array = (struct sym_table *)0;
+static struct sym_table *sym_array = NULL;
 
 static char *system_maps[] =
     {
@@ -148,7 +148,7 @@ static char *system_maps[] =
 #if defined(TEST)
 	    "./System.map",
 #endif
-	    (char *)0
+	    NULL
     };
 
 #if defined(TEST)
@@ -309,21 +309,21 @@ static char *FindSymbolFile(void)
 	if (debugging)
 		fputs("Searching for symbol map.\n", stderr);
 
-	for (mf = system_maps; *mf != (char *)0 && file == (char *)0; ++mf) {
+	for (mf = system_maps; *mf != NULL && file == NULL; ++mf) {
 
 		sprintf(symfile, "%s-%s", *mf, utsname.release);
 		if (debugging)
 			fprintf(stderr, "Trying %s.\n", symfile);
-		if ((sym_file = fopen(symfile, "r")) != (FILE *)0) {
+		if ((sym_file = fopen(symfile, "r")) != NULL) {
 			if (CheckMapVersion(symfile) == 1)
 				file = symfile;
 			fclose(sym_file);
 		}
-		if (sym_file == (FILE *)0 || file == (char *)0) {
+		if (sym_file == NULL || file == NULL) {
 			sprintf(symfile, "%s", *mf);
 			if (debugging)
 				fprintf(stderr, "Trying %s.\n", symfile);
-			if ((sym_file = fopen(symfile, "r")) != (FILE *)0) {
+			if ((sym_file = fopen(symfile, "r")) != NULL) {
 				if (CheckMapVersion(symfile) == 1)
 					file = symfile;
 				fclose(sym_file);
@@ -480,7 +480,7 @@ static int CheckMapVersion(char *fname)
 	char type;
 	int version;
 
-	if ((sym_file = fopen(fname, "r")) != (FILE *)0) {
+	if ((sym_file = fopen(fname, "r")) != NULL) {
 		/*
 		 * At this point a map file was successfully opened.  We
 		 * now need to search this file and look for version
@@ -648,7 +648,7 @@ static void FreeSymbols(void)
 
 	/* Whack the entire array and initialize everything. */
 	free(sym_array);
-	sym_array = (struct sym_table *)0;
+	sym_array = NULL;
 	num_syms = 0;
 }
 
@@ -702,7 +702,7 @@ char *ExpandKadds(char *line, char *el)
 	 * open for patches.
 	 */
 	if (i_am_paranoid &&
-	    (strstr(line, "Oops:") != (char *)0) && !InitMsyms())
+	    (strstr(line, "Oops:") != NULL) && !InitMsyms())
 		Syslog(LOG_WARNING, "Cannot load kernel module symbols.\n");
 
 	/*
@@ -710,7 +710,7 @@ char *ExpandKadds(char *line, char *el)
 	 * messages in this line.
 	 */
 	if ((num_syms == 0) ||
-	    (kp = strstr(line, "[<")) == (char *)0) {
+	    (kp = strstr(line, "[<")) == NULL) {
 		strcpy(el, line);
 		return el;
 	}
@@ -721,15 +721,15 @@ char *ExpandKadds(char *line, char *el)
 			*elp++ = *sl++;
 
 		/* Now poised at a kernel delimiter. */
-		if ((kp = strstr(sl, ">]")) == (char *)0) {
+		if ((kp = strstr(sl, ">]")) == NULL) {
 			strcpy(el, sl);
 			return el;
 		}
 		dlm = *kp;
 		strncpy(num, sl + 1, kp - sl - 1);
 		num[kp - sl - 1] = '\0';
-		value = strtoul(num, (char **)0, 16);
-		if ((symbol = LookupSymbol(value, &sym)) == (char *)0)
+		value = strtoul(num, NULL, 16);
+		if ((symbol = LookupSymbol(value, &sym)) == NULL)
 			symbol = sl;
 
 		strcat(elp, symbol);
@@ -749,9 +749,9 @@ char *ExpandKadds(char *line, char *el)
 		strncat(elp, kp, value);
 		elp += value;
 		sl = kp + value;
-		if ((kp = strstr(sl, "[<")) == (char *)0)
+		if ((kp = strstr(sl, "[<")) == NULL)
 			strcat(elp, sl);
-	} while (kp != (char *)0);
+	} while (kp != NULL);
 
 	if (debugging)
 		fprintf(stderr, "Expanded line: %s\n", el);
@@ -793,7 +793,7 @@ int main(int argc, char *argv[])
 
 	debugging = 1;
 
-	if (!InitKsyms((char *)0)) {
+	if (!InitKsyms(NULL)) {
 		fputs("ksym: Error loading system map.\n", stderr);
 		return 1;
 	}
