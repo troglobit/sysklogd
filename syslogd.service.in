@@ -3,9 +3,8 @@ Description=System Logging Service
 Requires=syslog.socket
 
 [Service]
-Type=forking
-ExecStart=@SBINDIR@/syslogd
-PIDFile=/var/run/syslogd.pid
+Type=simple
+ExecStart=@SBINDIR@/syslogd -n
 StandardOutput=null
 Restart=on-failure
 

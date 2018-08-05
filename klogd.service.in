@@ -3,9 +3,8 @@ Description=Kernel Logging Service
 After=syslogd.service
 
 [Service]
-Type=forking
-ExecStart=@SBINDIR@/klogd
-PIDFile=/var/run/klogd.pid
+Type=simple
+ExecStart=@SBINDIR@/klogd -n
 StandardOutput=null
 Restart=on-failure
 
