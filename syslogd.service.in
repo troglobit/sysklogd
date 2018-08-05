@@ -1,5 +1,7 @@
 [Unit]
 Description=System Logging Service
+Documentation=man:syslogd
+Documentation=man:syslog.conf
 Requires=syslog.socket
 
 [Service]
