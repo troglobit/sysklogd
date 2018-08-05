@@ -201,7 +201,7 @@ int InitKsyms(char *mapfile)
 			Syslog(LOG_WARNING, "Cannot find a map file.");
 			if (debugging)
 				fputs("Cannot find a map file.\n", stderr);
-			return (0);
+			return 0;
 		}
 	}
 
@@ -209,7 +209,7 @@ int InitKsyms(char *mapfile)
 		Syslog(LOG_WARNING, "Cannot open map file: %s.", mapfile);
 		if (debugging)
 			fprintf(stderr, "Cannot open map file: %s.\n", mapfile);
-		return (0);
+		return 0;
 	}
 
 	/*
@@ -224,7 +224,7 @@ int InitKsyms(char *mapfile)
 		if (fscanf(sym_file, "%lx %c %511s\n", &address, &type, sym) != 3) {
 			Syslog(LOG_ERR, "Error in symbol table input (#1).");
 			fclose(sym_file);
-			return (0);
+			return 0;
 		}
 		if (VERBOSE_DEBUGGING && debugging)
 			fprintf(stderr, "Address: %lx, Type: %c, Symbol: %s\n",
@@ -233,7 +233,7 @@ int InitKsyms(char *mapfile)
 		if (AddSymbol(address, sym) == 0) {
 			Syslog(LOG_ERR, "Error adding symbol - %s.", sym);
 			fclose(sym_file);
-			return (0);
+			return 0;
 		}
 
 		if (version == 0)
@@ -258,7 +258,7 @@ int InitKsyms(char *mapfile)
 	}
 
 	fclose(sym_file);
-	return (1);
+	return 1;
 }
 
 /**************************************************************************
@@ -303,7 +303,7 @@ static char *FindSymbolFile(void)
 
 	if (uname(&utsname) < 0) {
 		Syslog(LOG_ERR, "Cannot get kernel version information.");
-		return (0);
+		return 0;
 	}
 
 	if (debugging)
@@ -337,7 +337,7 @@ static char *FindSymbolFile(void)
 	 */
 	if (debugging)
 		fprintf(stderr, "End of search list encountered.\n");
-	return (file);
+	return file;
 }
 
 /**************************************************************************
@@ -394,7 +394,7 @@ static int CheckVersion(char *version)
 	     strncmp(++version, prefix, strlen(prefix)) == 0) /* a.out */)
 		;
 	else
-		return (0);
+		return 0;
 
 	/*
 	 * Since the symbol looks like a kernel version we can start
@@ -424,7 +424,7 @@ static int CheckVersion(char *version)
 	 */
 	if (uname(&utsname) < 0) {
 		Syslog(LOG_ERR, "Cannot get kernel version information.");
-		return (0);
+		return 0;
 	}
 	if (debugging)
 		fprintf(stderr, "Comparing kernel %s with symbol table %s.\n",
@@ -433,7 +433,7 @@ static int CheckVersion(char *version)
 	if (sscanf(utsname.release, "%d.%d.%d", &major, &minor, &patch) < 3) {
 		Syslog(LOG_ERR, "Kernel send bogus release string `%s'.",
 		       utsname.release);
-		return (0);
+		return 0;
 	}
 
 	/* Compute the version code from data sent by the kernel */
@@ -441,11 +441,11 @@ static int CheckVersion(char *version)
 
 	/* Failure. */
 	if (vnum != kvnum)
-		return (-1);
+		return -1;
 
 		/* Success. */
 #endif
-	return (1);
+	return 1;
 }
 
 /**************************************************************************
@@ -494,7 +494,7 @@ static int CheckMapVersion(char *fname)
 			           &type, sym) != 3) {
 				Syslog(LOG_ERR, "Error in symbol table input (#2).");
 				fclose(sym_file);
-				return (0);
+				return 0;
 			}
 			if (VERBOSE_DEBUGGING && debugging)
 				fprintf(stderr, "Address: %lx, Type: %c, "
@@ -523,10 +523,10 @@ static int CheckMapVersion(char *fname)
 			break;
 		}
 
-		return (version);
+		return version;
 	}
 
-	return (0);
+	return 0;
 }
 
 /**************************************************************************
@@ -547,17 +547,17 @@ static int AddSymbol(unsigned long address, char *symbol)
 	/* Allocate the the symbol table entry. */
 	sym_array = realloc(sym_array, (num_syms + 1) * sizeof(struct sym_table));
 	if (sym_array == NULL)
-		return (0);
+		return 0;
 
 	/* Then the space for the symbol. */
 	sym_array[num_syms].name = malloc(strlen(symbol) * sizeof(char) + 1);
 	if (sym_array[num_syms].name == NULL)
-		return (0);
+		return 0;
 
 	sym_array[num_syms].value = address;
 	strcpy(sym_array[num_syms].name, symbol);
 	++num_syms;
-	return (1);
+	return 1;
 }
 
 /**************************************************************************
@@ -587,13 +587,13 @@ char *LookupSymbol(unsigned long value, struct symbol *sym)
 	int lp;
 
 	if (!sym_array)
-		return ((char *)0);
+		return NULL;
 
 	last = sym_array[0].name;
 	ksym.offset = 0;
 	ksym.size = 0;
 	if (value < sym_array[0].value)
-		return ((char *)0);
+		return NULL;
 
 	for (lp = 0; lp <= num_syms; ++lp) {
 		if (sym_array[lp].value > value) {
@@ -615,11 +615,11 @@ char *LookupSymbol(unsigned long value, struct symbol *sym)
 	    (ksym.offset > 0 && ksym.offset < msym.offset)) {
 		sym->offset = ksym.offset;
 		sym->size = ksym.size;
-		return (last);
+		return last;
 	} else {
 		sym->offset = msym.offset;
 		sym->size = msym.size;
-		return (name);
+		return name;
 	}
 
 	return NULL;
@@ -712,7 +712,7 @@ char *ExpandKadds(char *line, char *el)
 	if ((num_syms == 0) ||
 	    (kp = strstr(line, "[<")) == (char *)0) {
 		strcpy(el, line);
-		return (el);
+		return el;
 	}
 
 	/* Loop through and expand all kernel messages. */
@@ -723,7 +723,7 @@ char *ExpandKadds(char *line, char *el)
 		/* Now poised at a kernel delimiter. */
 		if ((kp = strstr(sl, ">]")) == (char *)0) {
 			strcpy(el, sl);
-			return (el);
+			return el;
 		}
 		dlm = *kp;
 		strncpy(num, sl + 1, kp - sl - 1);
@@ -755,7 +755,7 @@ char *ExpandKadds(char *line, char *el)
 
 	if (debugging)
 		fprintf(stderr, "Expanded line: %s\n", el);
-	return (el);
+	return el;
 }
 
 /**************************************************************************
@@ -795,7 +795,7 @@ int main(int argc, char *argv[])
 
 	if (!InitKsyms((char *)0)) {
 		fputs("ksym: Error loading system map.\n", stderr);
-		return (1);
+		return 1;
 	}
 
 	while (!feof(stdin)) {
@@ -807,7 +807,7 @@ int main(int argc, char *argv[])
 		fprintf(stdout, "%s\n", eline);
 	}
 
-	return (0);
+	return 0;
 }
 
 void Syslog(int priority, char *fmt, ...)

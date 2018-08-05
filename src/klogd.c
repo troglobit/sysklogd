@@ -501,7 +501,7 @@ static enum LOGSRC GetKernelLogSrc(void)
 		Syslog(LOG_INFO, "klogd v%s, log source = ksyslog "
 		                 "started.",
 		       PACKAGE_VERSION);
-		return (kernel);
+		return kernel;
 	}
 
 #ifndef TESTING
@@ -518,7 +518,7 @@ static enum LOGSRC GetKernelLogSrc(void)
 
 	Syslog(LOG_INFO, "klogd v%s, log source = %s started.",
 	       VERSION, _PATH_KLOG);
-	return (proc);
+	return proc;
 }
 
 extern void Syslog(int priority, char *fmt, ...)
@@ -613,7 +613,7 @@ static int copyin(char *line, int space,
 	for (i = 0; i < count && !strchr(delim, *ptr); i++)
 		*line++ = *ptr++;
 
-	return (i);
+	return i;
 }
 
 /*
@@ -933,11 +933,11 @@ int main(int argc, char *argv[])
 
 		case 'i': /* Reload module symbols. */
 			SignalDaemon(SIGUSR1);
-			return (0);
+			return 0;
 
 		case 'I':
 			SignalDaemon(SIGUSR2);
-			return (0);
+			return 0;
 
 		case 'k': /* Kernel symbol file. */
 			symfile = optarg;
@@ -984,7 +984,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "klogd: Invalid console logging "
 			                "level <%s> specified.\n",
 			        log_level);
-			return (1);
+			return 1;
 		}
 		console_log_level = *log_level - '0';
 	}
@@ -1065,7 +1065,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "klogd: Cannot open output file "
 			                "%s - %s\n",
 			        output, strerror(errno));
-			return (1);
+			return 1;
 		}
 	} else
 		openlog("kernel", 0, LOG_KERN);

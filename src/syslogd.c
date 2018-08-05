@@ -2305,14 +2305,14 @@ const char *cvthname(struct sockaddr_storage *f, int len)
 	if ((p = strchr(hname, '.'))) {
 		if (strcmp(p + 1, LocalDomain) == 0) {
 			*p = '\0';
-			return (hname);
+			return hname;
 		} else {
 			if (StripDomains) {
 				count = 0;
 				while (StripDomains[count]) {
 					if (strcmp(p + 1, StripDomains[count]) == 0) {
 						*p = '\0';
-						return (hname);
+						return hname;
 					}
 					count++;
 				}
@@ -2322,7 +2322,7 @@ const char *cvthname(struct sockaddr_storage *f, int len)
 				while (LocalHosts[count]) {
 					if (!strcmp(hname, LocalHosts[count])) {
 						*p = '\0';
-						return (hname);
+						return hname;
 					}
 					count++;
 				}
@@ -2330,7 +2330,7 @@ const char *cvthname(struct sockaddr_storage *f, int len)
 		}
 	}
 
-	return (hname);
+	return hname;
 }
 
 void domark(int signo)
@@ -2971,7 +2971,7 @@ int decode(char *name, struct code *codetab)
 	logit("symbolic name: %s", name);
 	if (isdigit(*name)) {
 		logit("\n");
-		return (atoi(name));
+		return atoi(name);
 	}
 	(void)strncpy(buf, name, 79);
 	for (p = buf; *p; p++)
@@ -2980,9 +2980,9 @@ int decode(char *name, struct code *codetab)
 	for (c = codetab; c->c_name; c++)
 		if (!strcmp(buf, c->c_name)) {
 			logit(" ==> %d\n", c->c_val);
-			return (c->c_val);
+			return c->c_val;
 		}
-	return (-1);
+	return -1;
 }
 
 static void logit(char *fmt, ...)

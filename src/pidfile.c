@@ -75,7 +75,7 @@ int check_pid(char *pidfile)
 	 */
 	/* But... errno is usually changed only on error.. */
 	if (kill(pid, 0) && errno == ESRCH)
-		return (0);
+		return 0;
 
 	return pid;
 }

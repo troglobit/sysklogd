@@ -185,7 +185,7 @@ extern int InitMsyms(void)
 			Syslog(LOG_ERR, "Error loading kernel symbols "
 			                "- %s\n",
 			       strerror(errno));
-		return (0);
+		return 0;
 	}
 
 	if (debugging)
@@ -230,7 +230,7 @@ extern int InitMsyms(void)
 		       (rtn == 1) ? "symbol" : "symbols",
 		       num_modules, (num_modules == 1) ? "." : "s.");
 
-	return (1);
+	return 1;
 }
 
 static int symsort(const void *p1, const void *p2)
@@ -239,12 +239,12 @@ static int symsort(const void *p1, const void *p2)
 			       *sym2 = p2;
 
 	if (sym1->value < sym2->value)
-		return (-1);
+		return -1;
 
 	if (sym1->value == sym2->value)
-		return (0);
+		return 0;
 
-	return (1);
+	return 1;
 }
 
 /**************************************************************************
@@ -381,7 +381,7 @@ static int AddSymbol(const char *line)
 
 	p = index(line, ' ');
 	if (p == NULL)
-		return (0);
+		return 0;
 	*p = '\0';
 
 	address = strtoul(line, (char **)0, 16);
@@ -395,7 +395,7 @@ static int AddSymbol(const char *line)
 		mp = AddModule(module);
 
 		if (mp == NULL)
-			return (0);
+			return 0;
 	} else
 		mp = &sym_array_modules[num_modules - 1];
 
@@ -406,17 +406,17 @@ static int AddSymbol(const char *line)
 	                                            (mp->num_syms + 1) * sizeof(struct sym_table));
 
 	if (mp->sym_array == (struct sym_table *)0)
-		return (0);
+		return 0;
 
 	mp->sym_array[mp->num_syms].name = strdup(p);
 	if (mp->sym_array[mp->num_syms].name == (char *)0)
-		return (0);
+		return 0;
 
 	/* Stuff interesting information into the module. */
 	mp->sym_array[mp->num_syms].value = address;
 	++mp->num_syms;
 
-	return (1);
+	return 1;
 }
 
 /**************************************************************************
@@ -484,7 +484,7 @@ char *LookupModuleSymbol(unsigned long value, struct symbol *sym)
 	}
 
 	if (sym->size > 0)
-		return (ret);
+		return ret;
 
 	/* It has been a hopeless exercise. */
 	return NULL;
@@ -505,7 +505,7 @@ int main(int argc, char *argv[])
 
 	if (!InitMsyms()) {
 		fprintf(stderr, "Cannot load module symbols.\n");
-		return (1);
+		return 1;
 	}
 
 	printf("Number of modules: %d\n\n", num_modules);
@@ -527,7 +527,7 @@ int main(int argc, char *argv[])
 	}
 
 	FreeModules();
-	return (0);
+	return 0;
 }
 
 void Syslog(int priority, char *fmt, ...)

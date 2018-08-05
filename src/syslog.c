@@ -248,7 +248,7 @@ int setlogmask(int pmask)
 	omask = LogMask;
 	if (pmask != 0)
 		LogMask = pmask;
-	return (omask);
+	return omask;
 }
 
 /**
