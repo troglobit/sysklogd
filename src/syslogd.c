@@ -524,9 +524,7 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#ifdef SYSV
 #include <sys/types.h>
-#endif
 #include <utmp.h>
 #include <ctype.h>
 #include <string.h>
@@ -537,17 +535,13 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
 #define SYSLOG_NAMES
 #include <sys/syslog.h>
 #include <sys/param.h>
-#include <sys/errno.h>
+#include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/file.h>
-#ifdef SYSV
 #include <fcntl.h>
-#else
-#include <sys/msgbuf.h>
-#endif
 #include <sys/uio.h>
 #include <sys/un.h>
 #include <sys/time.h>

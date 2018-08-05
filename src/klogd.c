@@ -260,11 +260,12 @@
 #include <unistd.h>
 #include <signal.h>
 #include <errno.h>
-#include <sys/fcntl.h>
+#ifdef SYSV
+#include <fcntl.h>
+#else
+#include <sys/msgbuf.h>
+#endif
 #include <sys/stat.h>
-#if !defined(__GLIBC__)
-#include <linux/time.h>
-#endif /* __GLIBC__ */
 #include <stdarg.h>
 #include <paths.h>
 #include <stdlib.h>
@@ -277,13 +278,8 @@
 
 #define __LIBRARY__
 #include <linux/unistd.h>
-#if !defined(__GLIBC__)
-# define __NR_ksyslog __NR_syslog
-_syscall3(int,ksyslog,int, type, char *, buf, int, len);
-#else
 #include <sys/klog.h>
 #define ksyslog klogctl
-#endif
 
 #define LOG_BUFFER_SIZE 4096
 #define LOG_LINE_LENGTH 1000

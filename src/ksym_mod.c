@@ -113,12 +113,13 @@
 #include <unistd.h>
 #include <signal.h>
 #include <errno.h>
-#include <sys/fcntl.h>
+#ifdef SYSV
+#include <fcntl.h>
+#else
+#include <sys/msgbuf.h>
+#endif
 #include <sys/stat.h>
 #include "module.h"
-#if !defined(__GLIBC__)
-#include <linux/time.h>
-#endif /* __GLIBC__ */
 #include <stdarg.h>
 #include <paths.h>
 #include <linux/version.h>

@@ -55,13 +55,7 @@ static char sccsid[] = "@(#)syslog.c	5.28 (Berkeley) 6/27/90";
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/file.h>
-#include <sys/signal.h>
 #include <sys/syslog.h>
-#if 0
-#include "syslog.h"
-#include "pathnames.h"
-#endif
-
 #include <sys/uio.h>
 #include <sys/wait.h>
 #include <netdb.h>
@@ -72,6 +66,7 @@ static char sccsid[] = "@(#)syslog.c	5.28 (Berkeley) 6/27/90";
 #include <stdarg.h>
 #include <paths.h>
 #include <stdio.h>
+#include <fcntl.h>
 
 #define	_PATH_LOGNAME	"/dev/log"
 
