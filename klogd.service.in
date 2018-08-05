@@ -4,7 +4,7 @@ After=syslogd.service
 
 [Service]
 Type=forking
-ExecStart=/sbin/klogd
+ExecStart=@SBINDIR@/klogd
 PIDFile=/var/run/klogd.pid
 StandardOutput=null
 Restart=on-failure

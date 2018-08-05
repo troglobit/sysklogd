@@ -4,7 +4,7 @@ Requires=syslog.socket
 
 [Service]
 Type=forking
-ExecStart=/sbin/syslogd
+ExecStart=@SBINDIR@/syslogd
 PIDFile=/var/run/syslogd.pid
 StandardOutput=null
 Restart=on-failure

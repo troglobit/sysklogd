@@ -13,6 +13,8 @@ configure
 depcomp
 install-sh
 klogd
+klogd.service
 missing
 stamp-h1
 syslogd
+syslogd.service
