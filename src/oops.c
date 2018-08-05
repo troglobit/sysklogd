@@ -29,15 +29,15 @@
     cat /proc/oops                  Display current log level and last oops time
 */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/proc_fs.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/poll.h>
+#include <linux/proc_fs.h>
 #include <linux/time.h>
 
-#define MODNAME 	"oops"
-#define PROCNAME	"oops"
+#define MODNAME "oops"
+#define PROCNAME "oops"
 
 MODULE_AUTHOR("Martin Schulze <joey@infodrom.org>");
 MODULE_DESCRIPTION("Oops module from klogd");
@@ -46,48 +46,49 @@ MODULE_LICENSE("GPL");
 static DEFINE_MUTEX(oops_lock);
 
 struct oops_t {
-  unsigned long lastoops;
-  int loglevel;
+	unsigned long lastoops;
+	int           loglevel;
 };
 static struct oops_t oops_data;
 
 static int procflag = 0;
 
 struct code {
-	char	*name;
-	int	level;
+	char *name;
+	int   level;
 };
 
 struct code priorities[] = {
-	{"emerg",	0},
-	{"panic",	0},		/* DEPRECATED */
-	{"alert",	1},
-	{"crit",	2},
-	{"err",		3},
-	{"error",	3},		/* DEPRECATED */
-	{"warning",	4},
-	{"warn",	4},		/* DEPRECATED */
-	{"notice",	5},
-	{"info",	6},
-	{"debug",	7},
-	{NULL,		-1}
+	{ "emerg",   0 },
+	{ "panic",   0 }, /* DEPRECATED */
+	{ "alert",   1 },
+	{ "crit",    2 },
+	{ "err",     3 },
+	{ "error",   3 }, /* DEPRECATED */
+	{ "warning", 4 },
+	{ "warn",    4 }, /* DEPRECATED */
+	{ "notice",  5 },
+	{ "info",    6 },
+	{ "debug",   7 },
+	{ NULL,     -1 }
 };
 
-void oops_decode_level (char *line)
+void oops_decode_level(char *line)
 {
-  char *p;
-  struct code *prio;
+	struct code *prio;
+	char *p;
 
-  if (strncmp(line, "level:", 6))
-    return;
+	if (strncmp(line, "level:", 6))
+		return;
 
-  for (p = (char *)(line) + 6;*p == ' ' || *p == '\t';p++);
+	for (p = (char *)(line) + 6; *p == ' ' || *p == '\t'; p++)
+		;
 
-  for (prio = priorities; prio->name; prio++)
-    if (!strcmp(p, prio->name)) {
-      oops_data.loglevel = prio->level;
-      return;
-    }
+	for (prio = priorities; prio->name; prio++)
+		if (!strcmp(p, prio->name)) {
+			oops_data.loglevel = prio->level;
+			return;
+		}
 }
 
 /*
@@ -95,156 +96,160 @@ void oops_decode_level (char *line)
  */
 static void oops(void)
 {
-	auto unsigned long *p = (unsigned long *) 828282828;
+	unsigned long *p = (unsigned long *)828282828;
 	*p = 5;
-	return;
 }
 
-static int oops_proc_open (struct inode *inode, struct file *file)
+static int oops_proc_open(struct inode *inode, struct file *file)
 {
 #ifdef DEBUG
-  printk (KERN_DEBUG "oops_proc_open().\n");
+	printk(KERN_DEBUG "oops_proc_open().\n");
 #endif
-  return 0;
+	return 0;
 }
 
 static ssize_t
-oops_proc_read (struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
+oops_proc_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
-  char s[70];
-  int size;
-
-  struct code *prio;
-  char *level = NULL;
+	struct code *prio;
+	char *level = NULL;
+	char s[70];
+	int size;
 
 #ifdef DEBUG
-  printk (KERN_DEBUG "oops_proc_read(%d).\n",nbytes);
+	printk(KERN_DEBUG "oops_proc_read(%d).\n", nbytes);
 #endif
 
-  if (procflag) {
-    procflag = 0;
-    return 0;
-  }
+	if (procflag) {
+		procflag = 0;
+		return 0;
+	}
 
-  for (prio = priorities;
-       prio->name && prio->level != oops_data.loglevel;
-       prio++);
-  level = prio->name;
+	for (prio = priorities;
+	     prio->name && prio->level != oops_data.loglevel;
+	     prio++)
+		;
+	level = prio->name;
 
-  if (oops_data.lastoops == 0)
-    size = sprintf (s, "Log level: %s\nLast oops: none\n", level);
-  else {
-    unsigned long now = get_seconds();
-    unsigned long delta = now - oops_data.lastoops;
-    size = sprintf (s, "Log level: %s\nLast oops: %lu (%lu second%s ago)\n", 
-		    level, oops_data.lastoops,
-		    delta, delta == 1 ? "" : "s");
-  }
+	if (oops_data.lastoops == 0)
+		size = sprintf(s, "Log level: %s\nLast oops: none\n", level);
+	else {
+		unsigned long now = get_seconds();
+		unsigned long delta = now - oops_data.lastoops;
+		size = sprintf(s, "Log level: %s\nLast oops: %lu (%lu second%s ago)\n",
+		               level, oops_data.lastoops,
+		               delta, delta == 1 ? "" : "s");
+	}
 
-  if (size < nbytes)
-    nbytes = size;
+	if (size < nbytes)
+		nbytes = size;
 
-  if (copy_to_user(buf, s, nbytes))
-    return -EFAULT;
+	if (copy_to_user(buf, s, nbytes))
+		return -EFAULT;
 
-  *ppos += nbytes;
+	*ppos += nbytes;
 
-  procflag++;
+	procflag++;
 
-  return nbytes;
+	return nbytes;
 }
 
 static int
 oops_proc_release(struct inode *inode, struct file *filp)
 {
 #ifdef DEBUG
-  printk (KERN_DEBUG "oops_proc_release().\n");
+	printk(KERN_DEBUG "oops_proc_release().\n");
 #endif
-  return 0;
+	return 0;
 }
 
 static ssize_t
 oops_proc_write(struct file *file, const char __user *buf,
                 size_t nbytes, loff_t *ppos)
 {
-  char input[100];
-  int len;
+	char input[100];
+	int len;
 
 #ifdef DEBUG
-  printk (KERN_DEBUG "oops_proc_write(%d).\n", nbytes);
+	printk(KERN_DEBUG "oops_proc_write(%d).\n", nbytes);
 #endif
 
-  len = nbytes >= sizeof(input) ? sizeof(input)-1 : nbytes;
+	len = nbytes >= sizeof(input) ? sizeof(input) - 1 : nbytes;
 
-  if (copy_from_user(input, buf, len))
-    return -EFAULT;
+	if (copy_from_user(input, buf, len))
+		return -EFAULT;
 
-  input[len] = '\0';
-  if (input[len-1] == '\n')
-    input[len-1] = '\0';
+	input[len] = '\0';
+	if (input[len - 1] == '\n')
+		input[len - 1] = '\0';
 
-  if (!strncmp(input, "level:", 6))
-    oops_decode_level(input);
-  else if (!strcmp(input, "oops")) {
-      oops_data.lastoops = get_seconds();
-      oops();
-  } else
-    printk ("<%d>%s\n", oops_data.loglevel, input);
+	if (!strncmp(input, "level:", 6))
+		oops_decode_level(input);
+	else if (!strcmp(input, "oops")) {
+		oops_data.lastoops = get_seconds();
+		oops();
+	} else
+		printk("<%d>%s\n", oops_data.loglevel, input);
 
-  return nbytes;
+	return nbytes;
 }
 
 static const struct file_operations oops_proc_operations = {
-  .read = oops_proc_read,
-  .release = oops_proc_release,
-  .write = oops_proc_write,
-  .open = oops_proc_open,
+	.read = oops_proc_read,
+	.release = oops_proc_release,
+	.write = oops_proc_write,
+	.open = oops_proc_open,
 };
 
-void oops_proc_add (void)
+void oops_proc_add(void)
 {
-  struct proc_dir_entry *entry;
+	struct proc_dir_entry *entry;
 
-  mutex_lock (&oops_lock);
+	mutex_lock(&oops_lock);
 
-  entry = create_proc_entry (PROCNAME, 0, NULL);
+	entry = create_proc_entry(PROCNAME, 0, NULL);
 
-  if (entry) {
-    entry->proc_fops = &oops_proc_operations;
-  }
+	if (entry) {
+		entry->proc_fops = &oops_proc_operations;
+	}
 
-  mutex_unlock (&oops_lock);
+	mutex_unlock(&oops_lock);
 }
 
-void oops_proc_remove (void)
+void oops_proc_remove(void)
 {
-  mutex_lock (&oops_lock);
+	mutex_lock(&oops_lock);
 
-  remove_proc_entry(PROCNAME, NULL);
+	remove_proc_entry(PROCNAME, NULL);
 
-  mutex_unlock(&oops_lock);
+	mutex_unlock(&oops_lock);
 }
 
-int oops_init (void)
+int oops_init(void)
 {
-  printk (KERN_INFO "Loading module " MODNAME ".\n");
+	printk(KERN_INFO "Loading module " MODNAME ".\n");
 
-  oops_data.lastoops = 0;
-  oops_data.loglevel = 5;
+	oops_data.lastoops = 0;
+	oops_data.loglevel = 5;
 
-  oops_proc_add();
+	oops_proc_add();
 
-  return 0;
+	return 0;
 }
 
-void oops_cleanup (void)
+void oops_cleanup(void)
 {
-  oops_proc_remove();
+	oops_proc_remove();
 
-  printk (KERN_INFO "Removing module " MODNAME ".\n");
+	printk(KERN_INFO "Removing module " MODNAME ".\n");
 }
-
 
 module_init(oops_init);
 module_exit(oops_cleanup);
 
+/**
+ * Local Variables:
+ *  indent-tabs-mode: t
+ *  c-file-style: "linux"
+ * End:
+ */

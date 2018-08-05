@@ -125,34 +125,31 @@
  *	the first hit.
  */
 
-
 /* Includes. */
-#include <stdlib.h>
-#include <malloc.h>
-#include <sys/utsname.h>
 #include "klogd.h"
 #include "ksyms.h"
 #include "module.h"
+#include <malloc.h>
+#include <stdlib.h>
+#include <sys/utsname.h>
 
 #define VERBOSE_DEBUGGING 0
 
-
-int num_syms = 0;
-static int i_am_paranoid = 0;
-static char vstring[12];
-static struct sym_table *sym_array = (struct sym_table *) 0;
+int                      num_syms = 0;
+static int               i_am_paranoid = 0;
+static char              vstring[12];
+static struct sym_table *sym_array = (struct sym_table *)0;
 
 static char *system_maps[] =
-{
-	"/boot/System.map",
-	"/System.map",
-	"/usr/src/linux/System.map",
+    {
+	    "/boot/System.map",
+	    "/System.map",
+	    "/usr/src/linux/System.map",
 #if defined(TEST)
-	"./System.map",
+	    "./System.map",
 #endif
-	(char *) 0
-};
-
+	    (char *)0
+    };
 
 #if defined(TEST)
 int debugging;
@@ -160,14 +157,12 @@ int debugging;
 extern int debugging;
 #endif
 
-
 /* Function prototypes. */
-static char * FindSymbolFile(void);
-static int AddSymbol(unsigned long, char*);
-static void FreeSymbols(void);
-static int CheckVersion(char *);
-static int CheckMapVersion(char *);
-
+static char *FindSymbolFile(void);
+static int   AddSymbol(unsigned long, char *);
+static void  FreeSymbols(void);
+static int   CheckVersion(char *);
+static int   CheckMapVersion(char *);
 
 /**************************************************************************
  * Function:	InitKsyms
@@ -186,47 +181,35 @@ static int CheckMapVersion(char *);
  *		A boolean style context is returned.  The return value will
  *		be true if initialization was successful.  False if not.
  **************************************************************************/
-
-extern int InitKsyms(mapfile)
-
-	char *mapfile;
-
+int InitKsyms(char *mapfile)
 {
-	auto char	type,
-			sym[512];
-
-	auto int version = 0;
-
-	auto unsigned long int address;
-
-	auto FILE *sym_file;
-
+	unsigned long int address;
+	FILE *sym_file;
+	char sym[512];
+	char type;
+	int version = 0;
 
 	/* Check and make sure that we are starting with a clean slate. */
-	if ( num_syms > 0 )
+	if (num_syms > 0)
 		FreeSymbols();
-
 
 	/*
 	 * Search for and open the file containing the kernel symbols.
 	 */
-	if ( mapfile == (char *) 0 )
-	{
-		if ( (mapfile = FindSymbolFile()) == (char *) 0 ) 
-		{
+	if (mapfile == NULL) {
+		if ((mapfile = FindSymbolFile()) == NULL) {
 			Syslog(LOG_WARNING, "Cannot find a map file.");
-			if ( debugging )
+			if (debugging)
 				fputs("Cannot find a map file.\n", stderr);
-			return(0);
+			return (0);
 		}
 	}
-	
-	if ( (sym_file = fopen(mapfile, "r")) == (FILE *) 0 )
-	{
+
+	if ((sym_file = fopen(mapfile, "r")) == NULL) {
 		Syslog(LOG_WARNING, "Cannot open map file: %s.", mapfile);
-		if ( debugging )
+		if (debugging)
 			fprintf(stderr, "Cannot open map file: %s.\n", mapfile);
-		return(0);
+		return (0);
 	}
 
 	/*
@@ -237,53 +220,46 @@ extern int InitKsyms(mapfile)
 	 * e-mail me a diff containing a parser with suitable political
 	 * correctness -- GW.
 	 */
-	while ( !feof(sym_file) )
-	{
-		if ( fscanf(sym_file, "%lx %c %511s\n", &address, &type, sym)
-		    != 3 )
-		{
+	while (!feof(sym_file)) {
+		if (fscanf(sym_file, "%lx %c %511s\n", &address, &type, sym) != 3) {
 			Syslog(LOG_ERR, "Error in symbol table input (#1).");
 			fclose(sym_file);
-			return(0);
+			return (0);
 		}
-		if ( VERBOSE_DEBUGGING && debugging )
+		if (VERBOSE_DEBUGGING && debugging)
 			fprintf(stderr, "Address: %lx, Type: %c, Symbol: %s\n",
-				address, type, sym);
+			        address, type, sym);
 
-		if ( AddSymbol(address, sym) == 0 )
-		{
+		if (AddSymbol(address, sym) == 0) {
 			Syslog(LOG_ERR, "Error adding symbol - %s.", sym);
 			fclose(sym_file);
-			return(0);
+			return (0);
 		}
 
-		if ( version == 0 )
+		if (version == 0)
 			version = CheckVersion(sym);
 	}
-	
 
 	Syslog(LOG_INFO, "Loaded %d symbols from %s.", num_syms, mapfile);
-	switch ( version )
-	{
-	    case -1:
+	switch (version) {
+	case -1:
 		Syslog(LOG_WARNING, "Symbols do not match kernel version.");
 		num_syms = 0;
 		break;
 
-	    case 0:
-		Syslog(LOG_WARNING, "Cannot verify that symbols match " \
-		       "kernel version.");
+	case 0:
+		Syslog(LOG_WARNING, "Cannot verify that symbols match "
+		                    "kernel version.");
 		break;
-		
-	    case 1:
+
+	case 1:
 		Syslog(LOG_INFO, "Symbols match kernel version %s.", vstring);
 		break;
 	}
-		
-	fclose(sym_file);
-	return(1);
-}
 
+	fclose(sym_file);
+	return (1);
+}
 
 /**************************************************************************
  * Function:	FindSymbolFile
@@ -317,60 +293,52 @@ extern int InitKsyms(mapfile)
  *		caller which points to the name of the file containing
  *		the symbol table to be used.
  **************************************************************************/
-
-static char * FindSymbolFile()
-
+static char *FindSymbolFile(void)
 {
-	auto char	*file = (char *) 0,
-			**mf = system_maps;
-
-	auto struct utsname utsname;
 	static char symfile[100];
+	struct utsname utsname;
+	FILE *sym_file = NULL;
+	char **mf = system_maps;
+	char *file = NULL;
 
-	auto FILE *sym_file = (FILE *) 0;
+	if (uname(&utsname) < 0) {
+		Syslog(LOG_ERR, "Cannot get kernel version information.");
+		return (0);
+	}
 
-        if ( uname(&utsname) < 0 )
-        {
-                Syslog(LOG_ERR, "Cannot get kernel version information.");
-                return(0);
-        }
-
-	if ( debugging )
+	if (debugging)
 		fputs("Searching for symbol map.\n", stderr);
-	
-	for (mf = system_maps; *mf != (char *) 0 && file == (char *) 0; ++mf)
-	{
- 
-		sprintf (symfile, "%s-%s", *mf, utsname.release);
-		if ( debugging )
+
+	for (mf = system_maps; *mf != (char *)0 && file == (char *)0; ++mf) {
+
+		sprintf(symfile, "%s-%s", *mf, utsname.release);
+		if (debugging)
 			fprintf(stderr, "Trying %s.\n", symfile);
-		if ( (sym_file = fopen(symfile, "r")) != (FILE *) 0 ) {
+		if ((sym_file = fopen(symfile, "r")) != (FILE *)0) {
 			if (CheckMapVersion(symfile) == 1)
 				file = symfile;
-			fclose (sym_file);
+			fclose(sym_file);
 		}
-		if (sym_file == (FILE *) 0 || file == (char *) 0) {
-			sprintf (symfile, "%s", *mf);
-			if ( debugging )
+		if (sym_file == (FILE *)0 || file == (char *)0) {
+			sprintf(symfile, "%s", *mf);
+			if (debugging)
 				fprintf(stderr, "Trying %s.\n", symfile);
-			if ( (sym_file = fopen(symfile, "r")) != (FILE *) 0 ) {
+			if ((sym_file = fopen(symfile, "r")) != (FILE *)0) {
 				if (CheckMapVersion(symfile) == 1)
 					file = symfile;
-				fclose (sym_file);
+				fclose(sym_file);
 			}
 		}
-
 	}
 
 	/*
 	 * At this stage of the game we are at the end of the symbol
 	 * tables.
 	 */
-	if ( debugging )
+	if (debugging)
 		fprintf(stderr, "End of search list encountered.\n");
-	return(file);
+	return (file);
 }
-
 
 /**************************************************************************
  * Function:	CheckVersion
@@ -408,34 +376,25 @@ static char * FindSymbolFile()
  *			1:->	The executing kernel is of the same version
  *				as the version string.
  **************************************************************************/
-
-static int CheckVersion(version)
-
-	char *version;
-	
-
+static int CheckVersion(char *version)
 {
-	auto int	vnum,
-			major,
-			minor,
-			patch;
-
+	static char *prefix = { "Version_" };
+	int vnum;
+	int major;
+	int minor;
+	int patch;
 #ifndef TESTING
+	struct utsname utsname;
 	int kvnum;
-	auto struct utsname utsname;
 #endif
 
-	static char *prefix = { "Version_" };
-
-
 	/* Early return if there is no hope. */
-	if ( strncmp(version, prefix, strlen(prefix)) == 0  /* ELF */ ||
-	   (*version == '_' &&
-		strncmp(++version, prefix, strlen(prefix)) == 0 ) /* a.out */ )
+	if (strncmp(version, prefix, strlen(prefix)) == 0 /* ELF */ ||
+	    (*version == '_' &&
+	     strncmp(++version, prefix, strlen(prefix)) == 0) /* a.out */)
 		;
 	else
-		return(0);
-
+		return (0);
 
 	/*
 	 * Since the symbol looks like a kernel version we can start
@@ -446,11 +405,13 @@ static int CheckVersion(version)
 	patch = vnum & 0x000000FF;
 	minor = (vnum >> 8) & 0x000000FF;
 	major = (vnum >> 16) & 0x000000FF;
-	if ( debugging )
-		fprintf(stderr, "Version string = %s, Major = %d, " \
-		       "Minor = %d, Patch = %d.\n", version +
-		       strlen(prefix), major, minor, \
-		       patch);
+	if (debugging)
+		fprintf(stderr, "Version string = %s, Major = %d, "
+		                "Minor = %d, Patch = %d.\n",
+		        version +
+		            strlen(prefix),
+		        major, minor,
+		        patch);
 	sprintf(vstring, "%d.%d.%d", major, minor, patch);
 
 #ifndef TESTING
@@ -461,34 +422,31 @@ static int CheckVersion(version)
 	 * values to determine if our system map matches the kernel
 	 * version level.
 	 */
-	if ( uname(&utsname) < 0 )
-	{
+	if (uname(&utsname) < 0) {
 		Syslog(LOG_ERR, "Cannot get kernel version information.");
-		return(0);
+		return (0);
 	}
-	if ( debugging )
-		fprintf(stderr, "Comparing kernel %s with symbol table %s.\n",\
-		       utsname.release, vstring);
+	if (debugging)
+		fprintf(stderr, "Comparing kernel %s with symbol table %s.\n",
+		        utsname.release, vstring);
 
-	if ( sscanf (utsname.release, "%d.%d.%d", &major, &minor, &patch) < 3 )
-	{
+	if (sscanf(utsname.release, "%d.%d.%d", &major, &minor, &patch) < 3) {
 		Syslog(LOG_ERR, "Kernel send bogus release string `%s'.",
 		       utsname.release);
-		return(0);
+		return (0);
 	}
 
 	/* Compute the version code from data sent by the kernel */
 	kvnum = (major << 16) | (minor << 8) | patch;
 
 	/* Failure. */
-	if ( vnum != kvnum )
-		return(-1);
+	if (vnum != kvnum)
+		return (-1);
 
-	/* Success. */
+		/* Success. */
 #endif
-	return(1);
+	return (1);
 }
-
 
 /**************************************************************************
  * Function:	CheckMapVersion
@@ -514,20 +472,15 @@ static int CheckVersion(version)
  *			1:->	The executing kernel is of the same version
  *				as the version of the map file.
  **************************************************************************/
-
-static int CheckMapVersion(fname)
-
-	char *fname;
-	
-
+static int CheckMapVersion(char *fname)
 {
-	int	version;
-	FILE	*sym_file;
-	auto unsigned long int address;
-	auto char	type,
-			sym[512];
+	unsigned long int address;
+	FILE *sym_file;
+	char sym[512];
+	char type;
+	int version;
 
-	if ( (sym_file = fopen(fname, "r")) != (FILE *) 0 ) {
+	if ((sym_file = fopen(fname, "r")) != (FILE *)0) {
 		/*
 		 * At this point a map file was successfully opened.  We
 		 * now need to search this file and look for version
@@ -536,49 +489,46 @@ static int CheckMapVersion(fname)
 		Syslog(LOG_INFO, "Inspecting %s", fname);
 
 		version = 0;
-		while ( !feof(sym_file) && (version == 0) )
-		{
-			if ( fscanf(sym_file, "%lx %c %511s\n", &address, \
-				    &type, sym) != 3 )
-			{
+		while (!feof(sym_file) && (version == 0)) {
+			if (fscanf(sym_file, "%lx %c %511s\n", &address,
+			           &type, sym) != 3) {
 				Syslog(LOG_ERR, "Error in symbol table input (#2).");
 				fclose(sym_file);
-				return(0);
+				return (0);
 			}
-			if ( VERBOSE_DEBUGGING && debugging )
-				fprintf(stderr, "Address: %lx, Type: %c, " \
-				    "Symbol: %s\n", address, type, sym);
+			if (VERBOSE_DEBUGGING && debugging)
+				fprintf(stderr, "Address: %lx, Type: %c, "
+				                "Symbol: %s\n",
+				        address, type, sym);
 
 			version = CheckVersion(sym);
 		}
 		fclose(sym_file);
 
-		switch ( version )
-		{
-		    case -1:
-			Syslog(LOG_ERR, "Symbol table has incorrect " \
-				"version number.\n");
+		switch (version) {
+		case -1:
+			Syslog(LOG_ERR, "Symbol table has incorrect "
+			                "version number.\n");
 			break;
-			
-		    case 0:
-			if ( debugging )
-				fprintf(stderr, "No version information " \
-					"found.\n");
+
+		case 0:
+			if (debugging)
+				fprintf(stderr, "No version information "
+				                "found.\n");
 			break;
-		    case 1:
-			if ( debugging )
-				fprintf(stderr, "Found table with " \
-					"matching version number.\n");
+		case 1:
+			if (debugging)
+				fprintf(stderr, "Found table with "
+				                "matching version number.\n");
 			break;
 		}
 
-		return(version);
+		return (version);
 	}
 
-	return(0);
+	return (0);
 }
 
-	
 /**************************************************************************
  * Function:	AddSymbol
  *
@@ -592,32 +542,23 @@ static int CheckMapVersion(fname)
  *		A boolean value is assumed.  True if the addition is
  *		successful.  False if not.
  **************************************************************************/
-
-static int AddSymbol(address, symbol)
-
-	unsigned long address;
-	
-	char *symbol;
-	
+static int AddSymbol(unsigned long address, char *symbol)
 {
 	/* Allocate the the symbol table entry. */
-	sym_array = (struct sym_table *) realloc(sym_array, (num_syms+1) * \
-						 sizeof(struct sym_table));
-	if ( sym_array == (struct sym_table *) 0 )
-		return(0);
+	sym_array = realloc(sym_array, (num_syms + 1) * sizeof(struct sym_table));
+	if (sym_array == NULL)
+		return (0);
 
 	/* Then the space for the symbol. */
-	sym_array[num_syms].name = (char *) malloc(strlen(symbol)*sizeof(char)\
-						   + 1);
-	if ( sym_array[num_syms].name == (char *) 0 )
-		return(0);
-	
+	sym_array[num_syms].name = malloc(strlen(symbol) * sizeof(char) + 1);
+	if (sym_array[num_syms].name == NULL)
+		return (0);
+
 	sym_array[num_syms].value = address;
 	strcpy(sym_array[num_syms].name, symbol);
 	++num_syms;
-	return(1);
+	return (1);
 }
-
 
 /**************************************************************************
  * Function:	LookupSymbol
@@ -638,37 +579,27 @@ static int AddSymbol(address, symbol)
  *		If a match is found the pointer to the symbolic name most
  *		closely matching the address is returned.
  **************************************************************************/
-
-char * LookupSymbol(value, sym)
-
-	unsigned long value;
-
-	struct symbol *sym;
-	
+char *LookupSymbol(unsigned long value, struct symbol *sym)
 {
-	auto int lp;
-	
-	auto char *last;
-	auto char *name;
-
 	struct symbol ksym, msym;
+	char *last;
+	char *name;
+	int lp;
 
 	if (!sym_array)
-		return((char *) 0);
+		return ((char *)0);
 
 	last = sym_array[0].name;
 	ksym.offset = 0;
 	ksym.size = 0;
-	if ( value < sym_array[0].value )
-		return((char *) 0);
-	
-	for(lp = 0; lp <= num_syms; ++lp)
-	{
-		if ( sym_array[lp].value > value )
-		{		
-			ksym.offset = value - sym_array[lp-1].value;
-			ksym.size = sym_array[lp].value - \
-				sym_array[lp-1].value;
+	if (value < sym_array[0].value)
+		return ((char *)0);
+
+	for (lp = 0; lp <= num_syms; ++lp) {
+		if (sym_array[lp].value > value) {
+			ksym.offset = value - sym_array[lp - 1].value;
+			ksym.size = sym_array[lp].value -
+			            sym_array[lp - 1].value;
 			break;
 		}
 		last = sym_array[lp].name;
@@ -676,29 +607,23 @@ char * LookupSymbol(value, sym)
 
 	name = LookupModuleSymbol(value, &msym);
 
-	if ( ksym.offset == 0 && msym.offset == 0 )
-	{
-		return((char *) 0);
+	if (ksym.offset == 0 && msym.offset == 0) {
+		return NULL;
 	}
 
-	if ( ksym.offset == 0 || msym.offset < 0 ||
-	     (ksym.offset > 0 && ksym.offset < msym.offset) )
-	{
+	if (ksym.offset == 0 || msym.offset < 0 ||
+	    (ksym.offset > 0 && ksym.offset < msym.offset)) {
 		sym->offset = ksym.offset;
 		sym->size = ksym.size;
-		return(last);
-	}
-	else
-	{
+		return (last);
+	} else {
 		sym->offset = msym.offset;
 		sym->size = msym.size;
-		return(name);
+		return (name);
 	}
 
-
-	return((char *) 0);
+	return NULL;
 }
-
 
 /**************************************************************************
  * Function:	FreeSymbols
@@ -713,23 +638,19 @@ char * LookupSymbol(value, sym)
  * Return:	void
  **************************************************************************/
 
-static void FreeSymbols()
-
+static void FreeSymbols(void)
 {
-	auto int lp;
+	int lp;
 
 	/* Free each piece of memory allocated for symbol names. */
-	for(lp = 0; lp < num_syms; ++lp)
+	for (lp = 0; lp < num_syms; ++lp)
 		free(sym_array[lp].name);
 
 	/* Whack the entire array and initialize everything. */
 	free(sym_array);
-	sym_array = (struct sym_table *) 0;
+	sym_array = (struct sym_table *)0;
 	num_syms = 0;
-
-	return;
 }
-
 
 /**************************************************************************
  * Function:	LogExpanded
@@ -749,23 +670,16 @@ static void FreeSymbols()
  * Return:	void
  **************************************************************************/
 
-extern char * ExpandKadds(line, el)
-
-	char *line;
-
-	char *el;
-	
+char *ExpandKadds(char *line, char *el)
 {
-	auto char	dlm,
-			*kp,
-			*sl = line,
-			*elp = el,
-			*symbol;
-
+	unsigned long int value;
+	struct symbol sym;
+	char *symbol;
+	char *elp = el;
+	char *sl  = line;
+	char *kp;
 	char num[15];
-	auto unsigned long int value;
-
-	auto struct symbol sym;
+	char dlm;
 
 	sym.offset = 0;
 	sym.size = 0;
@@ -787,52 +701,47 @@ extern char * ExpandKadds(line, el)
 	 * kernel whenever a module is loaded or unloaded.  I am
 	 * open for patches.
 	 */
-	if ( i_am_paranoid &&
-	     (strstr(line, "Oops:") != (char *) 0) && !InitMsyms() )
+	if (i_am_paranoid &&
+	    (strstr(line, "Oops:") != (char *)0) && !InitMsyms())
 		Syslog(LOG_WARNING, "Cannot load kernel module symbols.\n");
-	
 
 	/*
 	 * Early return if there do not appear to be any kernel
 	 * messages in this line.
 	 */
-	if ( (num_syms == 0) ||
-	     (kp = strstr(line, "[<")) == (char *) 0 )
-	{
+	if ((num_syms == 0) ||
+	    (kp = strstr(line, "[<")) == (char *)0) {
 		strcpy(el, line);
-		return(el);
+		return (el);
 	}
 
 	/* Loop through and expand all kernel messages. */
-	do
-	{
-		while ( sl < kp+1 )
+	do {
+		while (sl < kp + 1)
 			*elp++ = *sl++;
 
 		/* Now poised at a kernel delimiter. */
-	        if ( (kp = strstr(sl, ">]")) == (char *) 0 )
-		{
+		if ((kp = strstr(sl, ">]")) == (char *)0) {
 			strcpy(el, sl);
-			return(el);
+			return (el);
 		}
 		dlm = *kp;
-		strncpy(num,sl+1,kp-sl-1);
-		num[kp-sl-1] = '\0';
-		value = strtoul(num, (char **) 0, 16);
-		if ( (symbol = LookupSymbol(value, &sym)) == (char *) 0 )
+		strncpy(num, sl + 1, kp - sl - 1);
+		num[kp - sl - 1] = '\0';
+		value = strtoul(num, (char **)0, 16);
+		if ((symbol = LookupSymbol(value, &sym)) == (char *)0)
 			symbol = sl;
-			
+
 		strcat(elp, symbol);
 		elp += strlen(symbol);
-		if ( debugging )
-			fprintf(stderr, "Symbol: %s = %lx = %s, %x/%d\n", \
-				sl+1, value, \
-				(sym.size==0) ? symbol+1 : symbol, \
-				sym.offset, sym.size);
+		if (debugging)
+			fprintf(stderr, "Symbol: %s = %lx = %s, %x/%d\n",
+			        sl + 1, value,
+			        (sym.size == 0) ? symbol + 1 : symbol,
+			        sym.offset, sym.size);
 
 		value = 2;
-		if ( sym.size != 0 )
-		{
+		if (sym.size != 0) {
 			--value;
 			++kp;
 			elp += sprintf(elp, "+0x%x/0x%02x", sym.offset, sym.size);
@@ -840,16 +749,14 @@ extern char * ExpandKadds(line, el)
 		strncat(elp, kp, value);
 		elp += value;
 		sl = kp + value;
-		if ( (kp = strstr(sl, "[<")) == (char *) 0 )
+		if ((kp = strstr(sl, "[<")) == (char *)0)
 			strcat(elp, sl);
-	}
-	while ( kp != (char *) 0);
-		
-	if ( debugging )
-		fprintf(stderr, "Expanded line: %s\n", el);
-	return(el);
-}
+	} while (kp != (char *)0);
 
+	if (debugging)
+		fprintf(stderr, "Expanded line: %s\n", el);
+	return (el);
+}
 
 /**************************************************************************
  * Function:	SetParanoiaLevel
@@ -864,16 +771,11 @@ extern char * ExpandKadds(line, el)
  *				present when resolving kernel exceptions.
  * Return:	void
  **************************************************************************/
-
-extern void SetParanoiaLevel(level)
-
-	int level;
-
+void SetParanoiaLevel(int level)
 {
 	i_am_paranoid = level;
 	return;
 }
-
 
 /*
  * Setting the -DTEST define enables the following code fragment to
@@ -885,37 +787,30 @@ extern void SetParanoiaLevel(level)
 
 #include <stdarg.h>
 
-extern int main(int, char **);
-
-
-extern int main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
-	auto char line[1024], eline[2048];
+	char line[1024], eline[2048];
 
 	debugging = 1;
-	
-	
-	if ( !InitKsyms((char *) 0) )
-	{
+
+	if (!InitKsyms((char *)0)) {
 		fputs("ksym: Error loading system map.\n", stderr);
-		return(1);
+		return (1);
 	}
 
-	while ( !feof(stdin) )
-	{
+	while (!feof(stdin)) {
 		fgets(line, sizeof(line), stdin);
-		if (line[strlen(line)-1] == '\n') line[strlen(line)-1] = '\0'; /* Trash NL char */
+		if (line[strlen(line) - 1] == '\n')
+			line[strlen(line) - 1] = '\0'; /* Trash NL char */
 		memset(eline, '\0', sizeof(eline));
 		ExpandKadds(line, eline);
 		fprintf(stdout, "%s\n", eline);
 	}
-	
 
-	return(0);
+	return (0);
 }
 
-extern void Syslog(int priority, char *fmt, ...)
-
+void Syslog(int priority, char *fmt, ...)
 {
 	va_list ap;
 
@@ -930,9 +825,8 @@ extern void Syslog(int priority, char *fmt, ...)
 #endif
 
 /**
- * Local variables:
- *  c-indent-level: 8
- *  c-basic-offset: 8
- *  tab-width: 8
+ * Local Variables:
+ *  indent-tabs-mode: t
+ *  c-file-style: "linux"
  * End:
  */
