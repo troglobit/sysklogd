@@ -521,6 +521,7 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
 #define CONT_LINE 1 /* Allow continuation lines */
 
 #include <ctype.h>
+#include <getopt.h>
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stdio.h>
