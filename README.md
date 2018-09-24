@@ -30,11 +30,12 @@ determine a `System.map` file.
 
 Main differences from the original sysklogd are:
 
-- Built-in log-rotation support, useful for embedded systems.  No need
-  for cron and a separate logrotate daemon
+- Built-in log-rotation support, with compression by default, useful for
+  embedded systems.  No need for cron and a separate logrotate daemon
 - FreeBSD socket receive buffer size patch
 - Avoid blocking `syslogd` if console is backed up
 - Touch PID file on `SIGHUP`, for integration with [Finit][]
+- GNU configure & build system to ease porting/cross-compiling
 - Support for configuring remote syslog timeouot
 
 
