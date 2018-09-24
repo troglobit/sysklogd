@@ -1867,11 +1867,12 @@ void logrotate(struct filed *f)
 	if (S_ISREG(statf.st_mode) && statf.st_size > f->f_rotatesz) {
 		if (f->f_rotatecount > 0) { /* always 0..999 */
 			int  len = strlen(f->f_un.f_fname) + 10 + 1;
+			int  i;
 			char oldFile[len];
 			char newFile[len];
 
 			/* First age zipped log files */
-			for (int i = f->f_rotatecount; i > 1; i--) {
+			for (i = f->f_rotatecount; i > 1; i--) {
 				snprintf(oldFile, len, "%s.%d.gz", f->f_un.f_fname, i - 1);
 				snprintf(newFile, len, "%s.%d.gz", f->f_un.f_fname, i);
 
@@ -1880,7 +1881,7 @@ void logrotate(struct filed *f)
 			}
 
 			/* rename: f.8 -> f.9; f.7 -> f.8; ... */
-			for (int i = 1; i > 0; i--) {
+			for (i = 1; i > 0; i--) {
 				sprintf(oldFile, "%s.%d", f->f_un.f_fname, i - 1);
 				sprintf(newFile, "%s.%d", f->f_un.f_fname, i);
 
