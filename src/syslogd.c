@@ -696,6 +696,8 @@ struct filed {
 	int    f_prevcount;                    /* repetition cnt of prevline */
 	size_t f_repeatcount;                  /* number of "repeated" msgs */
 	int    f_flags;                        /* store some additional flags */
+	int    f_rotatecount;
+	int    f_rotatesz;
 };
 
 /*
@@ -1857,19 +1859,19 @@ void logrotate(struct filed *f)
 {
 	struct stat statf;
 
-	if (!RotateSz)
+	if (!f->f_rotatesz)
 		return;
 
 	fstat(f->f_file, &statf);
 	/* bug (mostly harmless): can wrap around if file > 4gb */
-	if (S_ISREG(statf.st_mode) && statf.st_size > RotateSz) {
-		if (RotateCnt > 0) { /* always 0..999 */
+	if (S_ISREG(statf.st_mode) && statf.st_size > f->f_rotatesz) {
+		if (f->f_rotatecount > 0) { /* always 0..999 */
 			int  len = strlen(f->f_un.f_fname) + 10 + 1;
 			char oldFile[len];
 			char newFile[len];
 
 			/* First age zipped log files */
-			for (int i = RotateCnt; i > 1; i--) {
+			for (int i = f->f_rotatecount; i > 1; i--) {
 				snprintf(oldFile, len, "%s.%d.gz", f->f_un.f_fname, i - 1);
 				snprintf(newFile, len, "%s.%d.gz", f->f_un.f_fname, i);
 
@@ -2769,6 +2771,10 @@ void cfline(char *line, struct filed *f)
 		f->f_flags = 0;
 	}
 
+	/* default rotate from command line */
+	f->f_rotatecount = RotateCnt;
+	f->f_rotatesz = RotateSz;
+
 	/* scan through the list of selectors */
 	for (p = line; *p && *p != '\t' && *p != ' ';) {
 
@@ -2922,6 +2928,23 @@ void cfline(char *line, struct filed *f)
 
 	case '|':
 	case '/':
+		/* Look for optional per-file rotate BYTES:COUNT */
+		for (q = p; !isspace(*q); q++)
+			;
+		if (isspace(*q)) {
+			int sz = 0, cnt = 0;
+
+			*q++ = 0;
+			while (*q == '\t' || *q == ' ')
+				q++;
+
+			sscanf(q, "%d:%d", &sz, &cnt);
+			if (sz > 0 && cnt > 0) {
+				f->f_rotatecount = cnt;
+				f->f_rotatesz = sz;
+			}
+		}
+
 		(void)strcpy(f->f_un.f_fname, p);
 		logit("filename: %s\n", p); /*ASP*/
 		if (syncfile)
