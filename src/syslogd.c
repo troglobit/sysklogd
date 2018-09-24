@@ -1863,22 +1863,36 @@ void logrotate(struct filed *f)
 	fstat(f->f_file, &statf);
 	/* bug (mostly harmless): can wrap around if file > 4gb */
 	if (S_ISREG(statf.st_mode) && statf.st_size > RotateSz) {
-		if (RotateCnt) { /* always 0..99 */
-			int  i = strlen(f->f_un.f_fname) + 3 + 1;
-			char oldFile[i];
-			char newFile[i];
+		if (RotateCnt > 0) { /* always 0..999 */
+			int  len = strlen(f->f_un.f_fname) + 10 + 1;
+			char oldFile[len];
+			char newFile[len];
 
-			i = RotateCnt - 1;
-			/* rename: f.8 -> f.9; f.7 -> f.8; ... */
-			while (1) {
-				sprintf(newFile, "%s.%d", f->f_un.f_fname, i);
-				if (i == 0)
-					break;
-				sprintf(oldFile, "%s.%d", f->f_un.f_fname, --i);
+			/* First age zipped log files */
+			for (int i = RotateCnt; i > 1; i--) {
+				snprintf(oldFile, len, "%s.%d.gz", f->f_un.f_fname, i - 1);
+				snprintf(newFile, len, "%s.%d.gz", f->f_un.f_fname, i);
+
 				/* ignore errors - file might be missing */
-				rename(oldFile, newFile);
+				(void)rename(oldFile, newFile);
 			}
+
+			/* rename: f.8 -> f.9; f.7 -> f.8; ... */
+			for (int i = 1; i > 0; i--) {
+				sprintf(oldFile, "%s.%d", f->f_un.f_fname, i - 1);
+				sprintf(newFile, "%s.%d", f->f_un.f_fname, i);
+
+				if (!rename(oldFile, newFile) && i > 0) {
+					size_t len = 18 + strlen(newFile) + 1;
+					char cmd[len];
+
+					snprintf(cmd, sizeof(cmd), "gzip -f %s", newFile);
+					system(cmd);
+				}
+			}
+
 			/* newFile == "f.0" now */
+			sprintf(newFile, "%s.0", f->f_un.f_fname);
 			rename(f->f_un.f_fname, newFile);
 			close(f->f_file);
 			f->f_file = open(f->f_un.f_fname, O_WRONLY | O_APPEND | O_CREAT | O_NONBLOCK | O_NOCTTY, 0644);
