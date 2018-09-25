@@ -3,20 +3,23 @@ Change Log
 
 All relevant changes to the project are documented in this file.
 
-[v1.6][UNRELEASED]
-------------------
+
+[v1.6][] - 2018-09-25
+---------------------
 
 ### Changes
 - IPv6 support forward ported from FreeBSD, by John Haxby <john.haxby@oracle.com>
 - Built-in log rotation support from BusyBox syslogd, disabled by default
+  - Enable from command line using '-b SIZE' and '-c COUNT', or
+  - Per log file in syslog.conf using 'SIZE:COUNT'
 - Automatic compression (gzip) of rotated files from .1
 - Only read /etc/services when needed, by Martin Schulze <joey@infodrom.org>
 - Improved sleep/alarm/mark implementation,  
   by Alan Jenkins <alan-jenkins@tuffmail.co.uk>
-- Move hostname setting code from `main()` into `init()`,  
-  by Thomas Jarosch <thomas.jarosch@intra2net.com>
+- Move hostname setting code from `main()` into `init()` so it is
+  re-read on SIGHUP, by Thomas Jarosch <thomas.jarosch@intra2net.com>
 - Documentation update by Martin Schulze <joey@infodrom.org>
-- Reindent code to Linux KNF
+- Re-indent code to Linux KNF
 - Touch PID file on `SIGHUP`, for integration with Finit
 - Add systemd unit files
 - Add GNU configure & build system
@@ -24,9 +27,15 @@ All relevant changes to the project are documented in this file.
   - Detect systemd PATHs
 
 ### Fixes
+- Flush log files independent of MARK, by Martin Schulze <joey@infodrom.org>
+- Fix segfault, remove faulty `fclose()`, found by Andrea Morandi and
+  Sean Young.  Fixed by Martin Schulze <joey@infodrom.org>
 - Correct continuation line problems on 64bit architecture,  
   by David Couture <glowplugrelayw0rks@gmail.com>
 - Bugfix against invalid PRI values (CVE-2014-3634), by mancha <mancha1@zoho.com>
+- Ignore backed up (low baud rate) console, and do not close it.
+  Instead, continue writing when its unclogged
+- Increase socket receive buffer size (double), patch from FreeBSD
 
 
 [v1.5.1][] - 2014-10-06

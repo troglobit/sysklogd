@@ -16,7 +16,7 @@
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-AC_INIT([sysklogd], [1.6-beta1], [https://github.com/troglobit/sysklgd/issues])
+AC_INIT([sysklogd], [1.6], [https://github.com/troglobit/sysklogd/issues])
 AM_INIT_AUTOMAKE([1.11 foreign])
 AM_SILENT_RULES([yes])
 
