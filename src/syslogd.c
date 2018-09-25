@@ -1965,8 +1965,7 @@ void fprintlog(struct filed *f, char *from, int flags, char *msg)
 			logit(" %s\n", f->f_un.f_forw.f_hname);
 			logit("Forwarding suspension not over, time "
 			      "left: %d.\n",
-			      INET_SUSPEND_TIME -
-			          fwd_suspend);
+			      INET_SUSPEND_TIME - fwd_suspend);
 		}
 		break;
 
