@@ -30,13 +30,20 @@ for logging.  For special features see the
 .BR sysklogd (8)
 manpage.
 
-Every rule consists of two fields, a 
+Every rule consists of two fields, a
 .I selector
-field and an
-.I action 
-field.  These two fields are separated by one or more spaces or
-tabs.  The selector field specifies a pattern of facilities and
-priorities belonging to the specified action.
+field an
+.I action
+and an optional
+.I logrotate
+field.  The fields are separated by one or more spaces or tabs.  The
+selector field specifies a pattern of facilities and priorities
+belonging to the specified action.  The action details where or what to
+do with the selected input.  The optional logrotate field is only for
+files and details the max SIZE:COUNT a file can reach before it is
+rotated, and later compressed.  The log rotated feature is mostly
+intended for embedded systems that do not want to have cron and a
+separate log rotate daemon.
 
 Lines starting with a hash mark (``#'') and empty lines are ignored.
 
@@ -326,6 +333,20 @@ and store them in the file
 #
 *.=info;*.=notice;\\
 	mail.none  /var/log/messages
+.fi
+.LP
+The following is almost the same but will also log rotate and compress
+aged out messages.  The size argument takes the same modifiers as the
+command line '-b' option.  Notice the leading '-' to ensure the file is
+flushed to disk after each message.
+
+.IP
+.nf
+# Log all messages, including kernel, to messages file
+# rotated every 100 kB and keep up to 10 aged out and
+# compressed files.
+*.*;kern,kern.none   -/log/messages   100k:10
+
 .fi
 .LP
 This lets the

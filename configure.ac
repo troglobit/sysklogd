@@ -31,6 +31,10 @@ AC_HEADER_STDC
 # Check for required packages
 PKG_PROG_PKG_CONFIG
 
+AC_ARG_WITH(suspend-time,
+        AS_HELP_STRING([--with-suspend-time=SEC], [Retry timeout for remote syslogd servers, default: 180]),
+	[suspend_time=$withval], [suspend_time='no'])
+
 AC_ARG_WITH(klogd-delay,
         AS_HELP_STRING([--with-klogd-delay=SEC], [when started at the same time as syslogd, default: 0]),
 	[klogd_delay=$withval], [klogd_delay='no'])
@@ -42,6 +46,12 @@ AC_ARG_WITH(syslogd-pidfile,
 AC_ARG_WITH(systemd,
      [AS_HELP_STRING([--with-systemd=DIR], [Directory for systemd service files])],,
      [with_systemd=auto])
+
+AS_IF([test "x$suspend_time" != "xno"],[
+	AS_IF([test "x$suspend_time" = "xyes"],[
+		AC_MSG_ERROR([Must supply argument])])
+	]
+	AC_DEFINE_UNQUOTED(INET_SUSPEND_TIME, $suspend_time, [Retry timeout for remote syslgod servers, default: 180]))
 
 AS_IF([test "x$klogd_delay" != "xno"],[
 	AS_IF([test "x$klogd_delay" = "xyes"],[

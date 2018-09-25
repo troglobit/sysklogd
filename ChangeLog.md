@@ -9,12 +9,19 @@ All relevant changes to the project are documented in this file.
 ### Changes
 - IPv6 support forward ported from FreeBSD, by John Haxby <john.haxby@oracle.com>
 - Built-in log rotation support from BusyBox syslogd, disabled by default
+- Automatic compression (gzip) of rotated files from .1
 - Only read /etc/services when needed, by Martin Schulze <joey@infodrom.org>
 - Improved sleep/alarm/mark implementation,  
   by Alan Jenkins <alan-jenkins@tuffmail.co.uk>
 - Move hostname setting code from `main()` into `init()`,  
   by Thomas Jarosch <thomas.jarosch@intra2net.com>
 - Documentation update by Martin Schulze <joey@infodrom.org>
+- Reindent code to Linux KNF
+- Touch PID file on `SIGHUP`, for integration with Finit
+- Add systemd unit files
+- Add GNU configure & build system
+  - Add configure flags to enable features and control behavior
+  - Detect systemd PATHs
 
 ### Fixes
 - Correct continuation line problems on 64bit architecture,  
@@ -138,6 +145,7 @@ All relevant changes to the project are documented in this file.
 
 
 [UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v1.5...HEAD
+[v1.6]:       https://github.com/troglobit/sysklogd/compare/v1.5...v1.6
 [v1.5.1]:     https://github.com/troglobit/sysklogd/compare/v1.5...v1.5.1
 [v1.5]:       https://github.com/troglobit/sysklogd/compare/v1.4...v1.5
 [v1.4]:       https://github.com/troglobit/sysklogd/compare/v1.3...v1.4

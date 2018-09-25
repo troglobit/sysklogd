@@ -257,6 +257,7 @@
 
 /* Includes. */
 #include <errno.h>
+#include <getopt.h>
 #include <signal.h>
 #include <unistd.h>
 #ifdef SYSV

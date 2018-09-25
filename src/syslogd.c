@@ -521,6 +521,7 @@ static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
 #define CONT_LINE 1 /* Allow continuation lines */
 
 #include <ctype.h>
+#include <getopt.h>
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -696,6 +697,8 @@ struct filed {
 	int    f_prevcount;                    /* repetition cnt of prevline */
 	size_t f_repeatcount;                  /* number of "repeated" msgs */
 	int    f_flags;                        /* store some additional flags */
+	int    f_rotatecount;
+	int    f_rotatesz;
 };
 
 /*
@@ -839,6 +842,7 @@ void        die(int sig);
 void doexit(int sig);
 #endif
 void        init();
+static int  strtobytes(char *arg);
 void        cfline(char *line, struct filed *f);
 int         decode(char *name, struct code *codetab);
 static void logit(char *, ...);
@@ -927,7 +931,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'b': /* Max file size (bytes) before rotating log file. */
-			RotateSz = atoi(optarg);
+			RotateSz = strtobytes(optarg);
 			break;
 
 		case 'c': /* Number (count) of log files to keep. */
@@ -1857,28 +1861,43 @@ void logrotate(struct filed *f)
 {
 	struct stat statf;
 
-	if (!RotateSz)
+	if (!f->f_rotatesz)
 		return;
 
 	fstat(f->f_file, &statf);
 	/* bug (mostly harmless): can wrap around if file > 4gb */
-	if (S_ISREG(statf.st_mode) && statf.st_size > RotateSz) {
-		if (RotateCnt) { /* always 0..99 */
-			int  i = strlen(f->f_un.f_fname) + 3 + 1;
-			char oldFile[i];
-			char newFile[i];
+	if (S_ISREG(statf.st_mode) && statf.st_size > f->f_rotatesz) {
+		if (f->f_rotatecount > 0) { /* always 0..999 */
+			int  len = strlen(f->f_un.f_fname) + 10 + 1;
+			int  i;
+			char oldFile[len];
+			char newFile[len];
 
-			i = RotateCnt - 1;
-			/* rename: f.8 -> f.9; f.7 -> f.8; ... */
-			while (1) {
-				sprintf(newFile, "%s.%d", f->f_un.f_fname, i);
-				if (i == 0)
-					break;
-				sprintf(oldFile, "%s.%d", f->f_un.f_fname, --i);
+			/* First age zipped log files */
+			for (i = f->f_rotatecount; i > 1; i--) {
+				snprintf(oldFile, len, "%s.%d.gz", f->f_un.f_fname, i - 1);
+				snprintf(newFile, len, "%s.%d.gz", f->f_un.f_fname, i);
+
 				/* ignore errors - file might be missing */
-				rename(oldFile, newFile);
+				(void)rename(oldFile, newFile);
 			}
+
+			/* rename: f.8 -> f.9; f.7 -> f.8; ... */
+			for (i = 1; i > 0; i--) {
+				sprintf(oldFile, "%s.%d", f->f_un.f_fname, i - 1);
+				sprintf(newFile, "%s.%d", f->f_un.f_fname, i);
+
+				if (!rename(oldFile, newFile) && i > 0) {
+					size_t len = 18 + strlen(newFile) + 1;
+					char cmd[len];
+
+					snprintf(cmd, sizeof(cmd), "gzip -f %s", newFile);
+					system(cmd);
+				}
+			}
+
 			/* newFile == "f.0" now */
+			sprintf(newFile, "%s.0", f->f_un.f_fname);
 			rename(f->f_un.f_fname, newFile);
 			close(f->f_file);
 			f->f_file = open(f->f_un.f_fname, O_WRONLY | O_APPEND | O_CREAT | O_NONBLOCK | O_NOCTTY, 0644);
@@ -1947,8 +1966,7 @@ void fprintlog(struct filed *f, char *from, int flags, char *msg)
 			logit(" %s\n", f->f_un.f_forw.f_hname);
 			logit("Forwarding suspension not over, time "
 			      "left: %d.\n",
-			      INET_SUSPEND_TIME -
-			          fwd_suspend);
+			      INET_SUSPEND_TIME - fwd_suspend);
 		}
 		break;
 
@@ -2727,6 +2745,35 @@ void init(void)
 } /* balance parentheses for emacs */
 #endif
 
+static int strtobytes(char *arg)
+{
+	int mod = 0, bytes;
+	size_t pos;
+
+	if (!arg)
+		return -1;
+
+	pos = strspn(arg, "0123456789");
+	if (arg[pos] != 0) {
+		if (arg[pos] == 'G')
+			mod = 3;
+		else if (arg[pos] == 'M')
+			mod = 2;
+		else if (arg[pos] == 'k')
+			mod = 1;
+		else
+			return -1;
+
+		arg[pos] = 0;
+	}
+
+	bytes = atoi(arg);
+	while (mod--)
+		bytes *= 1000;
+
+	return bytes;
+}
+
 /*
  * Crack a configuration file line
  */
@@ -2754,6 +2801,10 @@ void cfline(char *line, struct filed *f)
 		f->f_pmask[i] = TABLE_NOPRI;
 		f->f_flags = 0;
 	}
+
+	/* default rotate from command line */
+	f->f_rotatecount = RotateCnt;
+	f->f_rotatesz = RotateSz;
 
 	/* scan through the list of selectors */
 	for (p = line; *p && *p != '\t' && *p != ' ';) {
@@ -2908,6 +2959,30 @@ void cfline(char *line, struct filed *f)
 
 	case '|':
 	case '/':
+		/* Look for optional per-file rotate BYTES:COUNT */
+		for (q = p; *q && !isspace(*q); q++)
+			;
+		if (isspace(*q)) {
+			char *c;
+			int sz = 0, cnt = 0;
+
+			*q++ = 0;
+			while (*q && isspace(*q))
+				q++;
+
+			c = strchr(q, ':');
+			if (c) {
+				*c++ = 0;
+				cnt = atoi(c);
+			}
+
+			sz = strtobytes(q);
+			if (sz > 0 && cnt > 0) {
+				f->f_rotatecount = cnt;
+				f->f_rotatesz = sz;
+			}
+		}
+
 		(void)strcpy(f->f_un.f_fname, p);
 		logit("filename: %s\n", p); /*ASP*/
 		if (syncfile)
