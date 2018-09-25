@@ -36,7 +36,7 @@ Main differences from the original sysklogd are:
 - Avoid blocking `syslogd` if console is backed up
 - Touch PID file on `SIGHUP`, for integration with [Finit][]
 - GNU configure & build system to ease porting/cross-compiling
-- Support for configuring remote syslog timeouot
+- Support for configuring remote syslog timeout
 
 
 Build & Install
