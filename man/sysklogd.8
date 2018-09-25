@@ -111,7 +111,12 @@ described by the people from OpenBSD at
 .BI "\-b " "size"
 This option controls the max size of files in the built-in log-rotation.
 When present on the command line it activates log rotation of all files
-with the given maximum size.  Default: disabled (0).
+with the given maximum size.  It is also possible to control log rotate
+per log file, see
+.BR syslog.conf (5)
+for details.
+
+Default: disabled (0).
 .TP
 .BI "\-c " "count"
 This option controls the max number of files kept by the built-in
@@ -119,7 +124,12 @@ log-rotation.  To activate the built-in log rotation this option must be
 combined with the
 .BI "\-b"
 option.  The number of files kept include both gzipped files and the
-first rotated (not zipped) file.  Default: 5.
+first rotated (not zipped) file.  It is also possible to control log
+rotate per log file, see
+.BR syslog.conf (5)
+for details.
+
+Default: 5.
 .TP
 .B "\-d"
 Turns on debug mode.  Using this the daemon will not proceed a 
