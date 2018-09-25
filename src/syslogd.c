@@ -842,6 +842,7 @@ void        die(int sig);
 void doexit(int sig);
 #endif
 void        init();
+static int  strtobytes(char *arg);
 void        cfline(char *line, struct filed *f);
 int         decode(char *name, struct code *codetab);
 static void logit(char *, ...);
@@ -930,7 +931,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'b': /* Max file size (bytes) before rotating log file. */
-			RotateSz = atoi(optarg);
+			RotateSz = strtobytes(optarg);
 			break;
 
 		case 'c': /* Number (count) of log files to keep. */
@@ -2744,6 +2745,35 @@ void init(void)
 } /* balance parentheses for emacs */
 #endif
 
+static int strtobytes(char *arg)
+{
+	int mod = 0, bytes;
+	size_t pos;
+
+	if (!arg)
+		return -1;
+
+	pos = strspn(arg, "0123456789");
+	if (arg[pos] != 0) {
+		if (arg[pos] == 'G')
+			mod = 3;
+		else if (arg[pos] == 'M')
+			mod = 2;
+		else if (arg[pos] == 'k')
+			mod = 1;
+		else
+			return -1;
+
+		arg[pos] = 0;
+	}
+
+	bytes = atoi(arg);
+	while (mod--)
+		bytes *= 1000;
+
+	return bytes;
+}
+
 /*
  * Crack a configuration file line
  */
@@ -2930,16 +2960,23 @@ void cfline(char *line, struct filed *f)
 	case '|':
 	case '/':
 		/* Look for optional per-file rotate BYTES:COUNT */
-		for (q = p; !isspace(*q); q++)
+		for (q = p; *q && !isspace(*q); q++)
 			;
 		if (isspace(*q)) {
+			char *c;
 			int sz = 0, cnt = 0;
 
 			*q++ = 0;
-			while (*q == '\t' || *q == ' ')
+			while (*q && isspace(*q))
 				q++;
 
-			sscanf(q, "%d:%d", &sz, &cnt);
+			c = strchr(q, ':');
+			if (c) {
+				*c++ = 0;
+				cnt = atoi(c);
+			}
+
+			sz = strtobytes(q);
 			if (sz > 0 && cnt > 0) {
 				f->f_rotatecount = cnt;
 				f->f_rotatesz = sz;

@@ -336,15 +336,16 @@ and store them in the file
 .fi
 .LP
 The following is almost the same but will also log rotate and compress
-aged out messages.  Notice the leading '-' to ensure the file is flushed
-to disk after each message.
+aged out messages.  The size argument takes the same modifiers as the
+command line '-b' option.  Notice the leading '-' to ensure the file is
+flushed to disk after each message.
 
 .IP
 .nf
 # Log all messages, including kernel, to messages file
-# rotated every 100 kiB and keep up to 10 aged out and
+# rotated every 100 kB and keep up to 10 aged out and
 # compressed files.
-*.*;kern,kern.none   -/log/messages   1048576:10
+*.*;kern,kern.none   -/log/messages   100k:10
 
 .fi
 .LP
