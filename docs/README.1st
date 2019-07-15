@@ -6,9 +6,9 @@ to the one in former releases.  Please review the following important
 differences:
 
 * By default the syslog daemon doesn't accept any message from the
-  syslog/udp port. To enable this add "-r" to the command-line
-  arguments. You _have to_ add this on every host that should run as a
-  centralized network log server.
+  syslog/udp port. To enable this add "-r" or "-R ADDR" to the 
+  command-line arguments. You _have to_ add this on every host that 
+  should run as a centralized network log server.
 
   You also should take a look at other new command-line arguments:
   "-l" and "-s".

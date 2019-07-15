@@ -812,6 +812,7 @@ int    LastAlarm = 0;       /* last value passed to alarm() (seconds)  */
 int    DupesPending = 0;    /* Number of unflushed duplicate messages */
 int    NoFork = 0;          /* don't fork - don't run in daemon mode */
 int    AcceptRemote = 0;    /* receive messages that come via UDP */
+char  *BindAddr = NULL;     /* bind to this address for receiving messages */
 char **StripDomains = NULL; /* these domains may be stripped before writing logs */
 char **LocalHosts = NULL;   /* these hosts are logged with their hostname */
 int    NoHops = 1;          /* Can we bounce syslog messages through an intermediate host. */
@@ -907,7 +908,7 @@ int main(int argc, char *argv[])
 		funix[i] = -1;
 	}
 
-	while ((ch = getopt(argc, argv, "46Aa:b:c:dhf:l:m:np:rs:v?")) != EOF) {
+	while ((ch = getopt(argc, argv, "46Aa:b:c:dhf:l:m:np:rR:s:v?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -971,8 +972,13 @@ int main(int argc, char *argv[])
 			funixn[0] = optarg;
 			break;
 
-		case 'r': /* accept remote messages */
+		case 'r': /* accept remote messages (use wildcard address) */
 			AcceptRemote = 1;
+			break;
+
+		case 'R': /* accept remote messages (bind to given address) */
+			AcceptRemote = 1;
+			BindAddr = optarg;
 			break;
 
 		case 's':
@@ -1271,7 +1277,7 @@ int usage(int code)
 	fprintf(stdout,
 	        "Usage:\n"
 	        "  syslogd [-46Adnrvh?] [-a SOCK] [-b SIZE] [-c COUNT] [-f FILE] [-l HOST]\n"
-	        "                       [-m SEC]  [-p PATH] [-s LIST]\n"
+	        "                       [-m SEC]  [-p PATH] [-s LIST] [-R ADDR]\n"
 	        "\n"
 	        "Options:\n"
 	        "  -?        Show this help text\n"
@@ -1288,7 +1294,8 @@ int usage(int code)
 	        "  -m INTV   Interval between MARK messages in log, 0 to disable, default: 20\n"
 	        "  -n        Run in foreground, required when run from a modern init/supervisor\n"
 	        "  -p PATH   Alternate path to UNIX domain socket, default: /dev/log\n"
-	        "  -r        Act as remote syslog sink for other hosts\n"
+	        "  -r        Act as remote syslog sink for other hosts, listen on all interfaces\n"
+	        "  -R ADDR   Act as remote syslog sink for other hosts, listen on address only\n"
 	        "  -s NAME   Strip domain name before logging, use ':' for multiple domains\n"
 	        "  -v        Show program version and exit\n"
 	        "\n"
@@ -1360,7 +1367,7 @@ static int *create_inet_sockets(void)
 	hints.ai_flags = AI_PASSIVE;
 	hints.ai_family = family;
 	hints.ai_socktype = SOCK_DGRAM;
-	error = getaddrinfo(NULL, "syslog", &hints, &res);
+	error = getaddrinfo(BindAddr, "syslog", &hints, &res);
 	if (error) {
 		logerror("network logging disabled (syslog/udp service unknown).");
 		logerror("see syslogd(8) for details of whether and how to enable it.");

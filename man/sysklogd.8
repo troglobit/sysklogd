@@ -33,6 +33,9 @@ sysklogd \- Linux system logging utilities.
 .IB socket 
 ]
 .RB [ " \-r " ]
+.RB [ " \-R "
+.I address
+]
 .RB [ " \-s "
 .I domainlist
 ]
@@ -193,6 +196,11 @@ The default is to not receive any messages from the network.
 This option is introduced in version 1.3 of the sysklogd
 package.  Please note that the default behavior is the opposite of
 how older versions behave, so you might have to turn this on.
+.TP
+.BI "\-R " "address"
+This option behaves the same as the '-r' option except that instead
+of listening on all interfaces, the process will only bind to the
+given address.
 .TP
 .BI "\-s " "domainlist"
 Specify a domainname that should be stripped off before
