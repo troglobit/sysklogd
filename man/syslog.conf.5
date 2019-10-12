@@ -17,7 +17,7 @@
 .\" along with this program; if not, write to the Free Software
 .\" Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111, USA.
 .\"
-.TH SYSLOG.CONF 5 "27 November 2009" "Version 1.5" "Linux System Administration"
+.TH SYSLOG.CONF 5 "12 October 2019" "Version 2.0" "Linux System Administration"
 .SH NAME
 syslog.conf \- syslogd(8) configuration file
 .SH DESCRIPTION
@@ -208,6 +208,10 @@ is able to sort log messages by host name or program name on the
 central log host.  This way it is possible to split the log into
 separate files.
 
+By default messages to remote remote hosts are formatted in the original
+BSD style.  To enable new RFC5424 style formatting, append ``;RFC5424``
+after the hostname.
+
 .SS List of Users
 Usually critical messages are also directed to ``root'' on that
 machine.  You can specify a list of users that ought to receive the
@@ -248,7 +252,7 @@ with the exception of any kernel messages.
 # to another host and to the console
 #
 kern.*                       /var/adm/kernel
-kern.crit                    @finlandia
+kern.crit                    @finlandia;RFC5424
 kern.crit                    /dev/console
 kern.info;kern.!err          /var/adm/kernel-info
 .fi
@@ -260,10 +264,11 @@ file
 
 The second statement directs all kernel messages of priority
 .B crit
-and higher to the remote host finlandia.  This is useful, because if
-the host crashes and the disks get irreparable errors you might not be
-able to read the stored messages.  If they're on a remote host, too,
-you still can try to find out the reason for the crash.
+and higher to the remote host finlandia in RFC5424 style formatting.
+This is useful, because if the host crashes and the disks get
+irreparable errors you might not be able to read the stored messages.
+If they're on a remote host, too, you still can try to find out the
+reason for the crash.
 
 The third rule directs kernel messages of priority crit and higher to
 the actual console, so the person who works on the machine will get
@@ -404,12 +409,13 @@ and ``joey'' if they're logged in.
 
 .IP
 .nf
-*.*                          @finlandia
+*.*                          @finlandia;RFC5424
 .fi
 .LP
-This rule would redirect all messages to a remote host called
-finlandia.  This is useful especially in a cluster of machines where
-all syslog messages will be stored on only one machine.
+This rule would redirect all messages to a remote host called finlandia
+with RFC5424 style formatting.  This is useful especially in a cluster
+of machines where all syslog messages will be stored on only one
+machine.
 .SH CONFIGURATION FILE SYNTAX DIFFERENCES
 .B Syslogd
 uses a slightly different syntax for its configuration file than

@@ -2,7 +2,7 @@
 .\" Copyright 2004,6-8 Martin Schulze <joey@infodrom.org>
 .\" May be distributed under the GNU General Public License
 .\"
-.TH SYSKLOGD 8 "02 Aug 2018" "Version 1.5" "Linux System Administration"
+.TH SYSKLOGD 8 "12 October 2019" "Version 2.0" "Linux System Administration"
 .SH NAME
 sysklogd \- Linux system logging utilities.
 .SH SYNOPSIS
@@ -39,10 +39,13 @@ sysklogd \- Linux system logging utilities.
 .RB [ " \-v " ]
 .SH DESCRIPTION
 .B Sysklogd
-provides two system utilities which provide support for
-system logging and kernel message trapping.  Support of both internet and
-unix domain sockets enables this utility package to support both local
-and remote logging.
+provides two system utilities which provide support for system logging
+and kernel message trapping.  Support of both internet and unix domain
+sockets enables this utility package to support both local and remote
+logging.  The latter can optionally use RFC5424 style formatting of
+messages, see
+.BR syslog.conf (5)
+for more information.
 
 System logging is provided by a version of 
 .BR syslogd (8)
@@ -369,11 +372,11 @@ port cant be opened.  Instead
 .B syslogd
 will die immediately, blowing out an error message.
 
-To cause messages to be forwarded to another host replace
-the normal file line in the
+To forward messages to to a remote host, replace the file line in the
 .I syslog.conf
-file with the name of the host to which the messages is to be sent
-prepended with an @.
+file with the name of the hostname to which the messages is to be sent
+prepended with an @ sign.  For remote logging the hostname can also be
+appended with the flag ;RFC5424 to enable RFC5424 style formatting.
 .IP
 For example, to forward
 .B ALL
@@ -383,9 +386,9 @@ following
 entry:
 .IP
 .nf
-	# Sample syslogd configuration file to
-	# messages to a remote host forward all.
-	*.*			@hostname
+	# Sample syslogd configuration file to forward all message
+	# messages to a remote host using RFC5424 style formatting
+	*.*			@hostname;RFC5424
 .fi
 
 To forward all \fBkernel\fP messages to a remote host the
