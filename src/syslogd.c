@@ -653,6 +653,14 @@ int   funix[MAXFUNIX] = {
 #define SYNC_FILE 0x002  /* do fsync on file after printing */
 #define ADDDATE   0x004  /* add a date to the message */
 #define MARK      0x008  /* this message is a mark */
+#define RFC5424   0x010  /* format log message according to RFC 5424 */
+
+/* Timestamps of log entries. */
+struct logtime {
+	struct tm       tm;
+	suseconds_t     usec;
+};
+
 
 /*
  * This table contains plain text for h_errno errors used by the
@@ -1906,6 +1914,114 @@ void logrotate(struct filed *f)
 	}
 }
 
+/*
+ * Trims the application name ("TAG" in RFC 3164 terminology) and
+ * process ID from a message if present.
+ */
+static void
+parsemsg_rfc3164_app_name_procid(char **msg, char **app_name, char **procid)
+{
+	char *m, *app_name_begin, *procid_begin;
+	size_t app_name_length, procid_length;
+
+	m = *msg;
+
+	/* Application name. */
+	app_name_begin = m;
+	app_name_length = strspn(m,
+	    "abcdefghijklmnopqrstuvwxyz"
+	    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	    "0123456789"
+	    "_-/");
+	if (app_name_length == 0)
+		goto bad;
+	m += app_name_length;
+
+	/* Process identifier (optional). */
+	if (*m == '[') {
+		procid_begin = ++m;
+		procid_length = strspn(m, "0123456789");
+		if (procid_length == 0)
+			goto bad;
+		m += procid_length;
+		if (*m++ != ']')
+			goto bad;
+	} else {
+		procid_begin = NULL;
+		procid_length = 0;
+	}
+
+	/* Separator. */
+	if (m[0] != ':' || m[1] != ' ')
+		goto bad;
+
+	/* Split strings from input. */
+	app_name_begin[app_name_length] = '\0';
+	if (procid_begin != 0)
+		procid_begin[procid_length] = '\0';
+
+	*msg = m + 2;
+	*app_name = app_name_begin;
+	*procid = procid_begin;
+	return;
+bad:
+	*app_name = NULL;
+	*procid = NULL;
+}
+
+/*
+ * Currently unsupported RFC 5424 fields: msgid, structured_data
+ */
+static void fmt5424(char *line, size_t len, int pri, char *msg)
+{
+	struct logtime *timestamp = NULL;
+	struct logtime timestamp_now;
+	struct timeval tv;
+	suseconds_t usec;
+	char *structured_data = NULL;
+	char *app_name = NULL;
+	char *procid = NULL;
+	char *msgid = NULL;
+	char hostname[256];
+	char timebuf[33];
+
+	parsemsg_rfc3164_app_name_procid(&msg, &app_name, &procid);
+
+	gethostname(hostname, sizeof(hostname));
+
+	(void)gettimeofday(&tv, NULL);
+	now = tv.tv_sec;
+
+	if (timestamp == NULL) {
+		localtime_r(&now, &timestamp_now.tm);
+		timestamp_now.usec = tv.tv_usec;
+		timestamp = &timestamp_now;
+	}
+
+	strftime(timebuf, sizeof(timebuf), "%FT%T.______%z", &timestamp->tm);
+
+	/* Add colon to the time zone offset, which %z doesn't do */
+	timebuf[32] = '\0';
+	timebuf[31] = timebuf[30];
+	timebuf[30] = timebuf[29];
+	timebuf[29] = ':';
+
+	/* Overwrite space for microseconds with actual value */
+	usec = timestamp->usec;
+	for (int i = 25; i >= 20; --i) {
+		timebuf[i] = usec % 10 + '0';
+		usec /= 10;
+	}
+
+	snprintf(line, len, "<%d>1 %s %s %s %s %s %s %s",
+		 pri, timebuf, hostname,
+		 app_name == NULL ? "-" : app_name,
+		 procid == NULL ? "-" : procid,
+		 msgid == NULL ? "-" : msgid,
+		 structured_data == NULL ? "-" : structured_data,
+		 msg);
+}
+
 void fprintlog(struct filed *f, char *from, int flags, char *msg)
 {
 	struct iovec iov[6];
@@ -2020,8 +2136,12 @@ void fprintlog(struct filed *f, char *from, int flags, char *msg)
 		else if (finet) {
 			int i;
 			f->f_time = now;
-			(void)snprintf(line, sizeof(line), "<%d>%s", f->f_prevpri,
-			               (char *)iov[4].iov_base);
+			if (f->f_flags & RFC5424)
+				fmt5424(line, sizeof(line), f->f_prevpri,
+					(char *)iov[4].iov_base);
+			else
+				snprintf(line, sizeof(line), "<%d>%s", f->f_prevpri,
+					 (char *)iov[4].iov_base);
 			l = strlen(line);
 			if (l > MAXLINE)
 				l = MAXLINE;
@@ -2934,6 +3054,16 @@ void cfline(char *line, struct filed *f)
 	switch (*p) {
 	case '@':
 #ifdef SYSLOG_INET
+		bp = p;
+		while ((q = strchr(bp, ';'))) {
+			*q++ = 0;
+			if (q) {
+				if (!strncmp(q, "RFC5424", 7))
+					f->f_flags |= RFC5424;
+				/* More flags can be added here */
+			}
+			bp = q;
+		}
 		(void)strcpy(f->f_un.f_forw.f_hname, ++p);
 		logit("forwarding host: %s\n", p); /*ASP*/
 		memset(&hints, 0, sizeof(hints));
