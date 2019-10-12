@@ -1,6 +1,10 @@
 *~
 *.o
 .deps
+GTAGS
+GPATH
+GRTAGS
+TAGS
 Makefile
 Makefile.in
 aclocal.m4
