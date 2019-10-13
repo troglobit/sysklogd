@@ -16,6 +16,7 @@
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
+bin_PROGRAMS     = logger
 sbin_PROGRAMS    = syslogd klogd
 
 AM_CFLAGS        = -fomit-frame-pointer -fno-strength-reduce -Wno-unused-result
@@ -28,3 +29,6 @@ klogd_SOURCES    = klogd.c klogd.h syslog.c pidfile.c pidfile.h \
 		   ksym.c ksyms.h ksym_mod.c module.h
 klogd_CPPFLAGS   = -DSYSV -DFSSTND -DALLOW_KERNEL_LOGGING \
 		   -D_BSD_SOURCE -D_SVID_SOURCE -D_DEFAULT_SOURCE
+
+logger_SOURCES   = logger.c
+logger_CPPFLAGS  = -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_GNU_SOURCE -D_DEFAULT_SOURCE
