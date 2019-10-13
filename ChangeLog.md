@@ -4,6 +4,24 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.0][UNRELEASED]
+------------------
+
+### Changes
+- Added support for `;RFC5424` flag for sending to remote servers.  This
+  enables sending log messages in its newfangled format, with RFC3339
+  style timestamps, and more
+- Added new tool `logger` from the Finit project, BSD licensed
+- Update COPYING file to GPL 2 rev 2, with new FSF address and other minor stuff
+- Update license header in all files:
+  - Sync 3-clause BSD license change with upstream FreeBSD sources
+  - Sync GPL license header, new FSF address
+  - Add SPDX license identifiers to all source files
+
+### Fixes
+- Fix GCC 8 warnings; "too small destination buffer in `snprintf()`"
+
+
 [v1.6][] - 2018-09-25
 ---------------------
 
@@ -153,7 +171,7 @@ All relevant changes to the project are documented in this file.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v1.5...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v1.6...HEAD
 [v1.6]:       https://github.com/troglobit/sysklogd/compare/v1.5...v1.6
 [v1.5.1]:     https://github.com/troglobit/sysklogd/compare/v1.5...v1.5.1
 [v1.5]:       https://github.com/troglobit/sysklogd/compare/v1.4...v1.5
