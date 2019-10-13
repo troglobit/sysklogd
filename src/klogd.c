@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ *
  * klogd.c - main program for Linux kernel log daemon.
  * Copyright (c) 1995  Dr. G.W. Wettstein <greg@wind.rmcc.com>
  *

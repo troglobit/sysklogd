@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ *
  * oops.c - Dummy loadable module for testing klogd.
  * Copyright (c) 2007  Martin Schulze <joey@infodrom.org>
  *

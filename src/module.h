@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ *
  * module.h - Miscellaneous module definitions
  * Copyright (c) 1996 Richard Henderson <rth@tamu.edu>
  * Copyright (c) 2004-7 Martin Schulze <joey@infodrom.org>

@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ *
  * ksym.c - functions for kernel address->symbol translation
  * Copyright (c) 1995, 1996  Dr. G.W. Wettstein <greg@wind.rmcc.com>
  * Copyright (c) 1996 Enjellic Systems Development

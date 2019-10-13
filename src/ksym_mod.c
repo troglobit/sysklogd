@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ *
  * ksym_mod.c - functions for building symbol lookup tables for klogd
  * Copyright (c) 1995, 1996  Dr. G.W. Wettstein <greg@wind.rmcc.com>
  * Copyright (c) 1996 Enjellic Systems Development
