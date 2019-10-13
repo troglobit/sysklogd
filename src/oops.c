@@ -1,33 +1,33 @@
 /*
- *  oops.c - Dummy loadable module for testing klogd.
- *  Copyright (c) 2007  Martin Schulze <joey@infodrom.org>
+ * oops.c - Dummy loadable module for testing klogd.
+ * Copyright (c) 2007  Martin Schulze <joey@infodrom.org>
  *
- *  This file is part of the sysklogd package, a kernel and system log daemon.
+ * This file is part of the sysklogd package, a kernel and system log daemon.
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this file; see the file COPYING.  If not, write to the
  * Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston,
  * MA 02110-1301, USA.
  *
- *  Helpful documentation: http://www.tldp.org/LDP/lkmpg/2.6/html/
+ * Helpful documentation: http://www.tldp.org/LDP/lkmpg/2.6/html/
  *
- *  SYNOPSIS
+ * SYNOPSIS
  *
- *  echo TEXT > /proc/oops          Emits TEXT via printk at log level
- *                                  [<address+delta>] triggers klogd address decoding
- *  echo level: info > /proc/oops   Sets the log level to 'info'
- *  echo oops > /proc/oops          Creates a real oops, kills executing shell
- *  cat /proc/oops                  Display current log level and last oops time
+ * echo TEXT > /proc/oops          Emits TEXT via printk at log level
+ *                                 [<address+delta>] triggers klogd address decoding
+ * echo level: info > /proc/oops   Sets the log level to 'info'
+ * echo oops > /proc/oops          Creates a real oops, kills executing shell
+ * cat /proc/oops                  Display current log level and last oops time
  */
 
 #include <linux/init.h>
