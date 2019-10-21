@@ -198,22 +198,22 @@ static int parse_prio(char *arg, int *f, int *l)
 
 static int usage(int code)
 {
-	fprintf(stderr, "Usage: logger [OPTIONS] [MESSAGE]\n"
-		"\n"
-		"Write MESSAGE (or stdin) to syslog, or file (with logrotate)\n"
-		"\n"
-		"  -h       This help text\n"
-		"  -p PRIO  Priority (numeric or facility.level pair)\n"
-		"  -t TAG   Log using the specified tag (defaults to user name)\n"
-		"  -s       Log to stderr as well as the system log\n"
-		"\n"
-		"  -f FILE  File to write log messages to, instead of syslog\n"
-		"  -n SIZE  Number of bytes before rotating, default: 200 kB\n"
-		"  -r NUM   Number of rotated files to keep, default: 5\n"
-		"  -v       Show program version\n"
-		"\n"
-		"This version of logger is distributed as part of sysklogd.\n"
-		"Bug report address: %s\n", PACKAGE_BUGREPORT);
+	printf("Usage: logger [OPTIONS] [MESSAGE]\n"
+	       "\n"
+	       "Write MESSAGE (or stdin) to syslog, or file (with logrotate)\n"
+	       "\n"
+	       "  -?       This help text\n"
+	       "  -p PRIO  Priority (numeric or facility.level pair)\n"
+	       "  -t TAG   Log using the specified tag (defaults to user name)\n"
+	       "  -s       Log to stderr as well as the system log\n"
+	       "\n"
+	       "  -f FILE  File to write log messages to, instead of syslog\n"
+	       "  -n SIZE  Number of bytes before rotating, default: 200 kB\n"
+	       "  -r NUM   Number of rotated files to keep, default: 5\n"
+	       "  -v       Show program version\n"
+	       "\n"
+	       "This version of logger is distributed as part of sysklogd.\n"
+	       "Bug report address: %s\n", PACKAGE_BUGREPORT);
 
 	return code;
 }
@@ -228,14 +228,11 @@ int main(int argc, char *argv[])
 	char *ident = NULL, *logfile = NULL;
 	char buf[512] = "";
 
-	while ((c = getopt(argc, argv, "f:hn:p:r:st:v")) != EOF) {
+	while ((c = getopt(argc, argv, "?f:n:p:r:st:v")) != EOF) {
 		switch (c) {
 		case 'f':
 			logfile = optarg;
 			break;
-
-		case 'h':
-			return usage(0);
 
 		case 'n':
 			size = atoi(optarg);
@@ -263,7 +260,7 @@ int main(int argc, char *argv[])
 			return 0;
 
 		default:
-			return usage(1);
+			return usage(0);
 		}
 	}
 
