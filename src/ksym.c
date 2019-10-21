@@ -682,7 +682,6 @@ char *ExpandKadds(char *line, char *el)
 	char *sl  = line;
 	char *kp;
 	char num[15];
-	char dlm;
 
 	sym.offset = 0;
 	sym.size = 0;
@@ -728,7 +727,7 @@ char *ExpandKadds(char *line, char *el)
 			strcpy(el, sl);
 			return el;
 		}
-		dlm = *kp;
+
 		strncpy(num, sl + 1, kp - sl - 1);
 		num[kp - sl - 1] = '\0';
 		value = strtoul(num, NULL, 16);
