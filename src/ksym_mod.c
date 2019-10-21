@@ -466,9 +466,9 @@ char *LookupModuleSymbol(unsigned long value, struct symbol *sym)
 		     ++nsym) {
 			if (mp->sym_array[nsym].value > value) {
 				if (sym->size == 0 ||
-				    (value - last->value) < sym->offset ||
-				    ((sym->offset == (value - last->value)) &&
-				     (mp->sym_array[nsym].value - last->value) < sym->size)) {
+				    (value - last->value) < (unsigned long)sym->offset ||
+				    (((unsigned long)sym->offset == (value - last->value)) &&
+				     (mp->sym_array[nsym].value - last->value) < (unsigned long)sym->size)) {
 					sym->offset = value - last->value;
 					sym->size = mp->sym_array[nsym].value -
 					            last->value;

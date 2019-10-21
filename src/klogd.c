@@ -807,7 +807,7 @@ static void LogLine(char *ptr, int len)
 				** verify there is room in the line buffer
 				*/
 				sym_space = space + (line - sym_start);
-				if (sym_space < strlen(symbol) + 30) { /*(30 should be overkill)*/
+				if (sym_space < (int)strlen(symbol) + 30) { /*(30 should be overkill)*/
 					parse_state = PARSING_TEXT; /* not enough space */
 					break;
 				}
