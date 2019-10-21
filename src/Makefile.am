@@ -19,7 +19,9 @@
 bin_PROGRAMS     = logger
 sbin_PROGRAMS    = syslogd klogd
 
-AM_CFLAGS        = -fomit-frame-pointer -fno-strength-reduce -Wno-unused-result
+AM_CFLAGS        = -W -Wall -Wextra
+AM_CFLAGS       += -Wno-unused-result -Wno-unused-parameter
+AM_CFLAGS       += -fomit-frame-pointer -fno-strength-reduce
 
 syslogd_SOURCES  = syslogd.c pidfile.c pidfile.h
 syslogd_CPPFLAGS = -DSYSV -DFSSTND -DSYSLOG_INET -DINET6 -DNO_SCCS -DSYSLOG_UNIXAF \
