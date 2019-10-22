@@ -33,7 +33,7 @@ klogd_SOURCES    = klogd.c klogd.h syslog.c pidfile.c pidfile.h \
 klogd_CPPFLAGS   = -DSYSV -DFSSTND -DALLOW_KERNEL_LOGGING \
 		   -D_BSD_SOURCE -D_SVID_SOURCE -D_DEFAULT_SOURCE
 
-logger_SOURCES   = logger.c
+logger_SOURCES   = logger.c syslog.c
 logger_CPPFLAGS  = -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_GNU_SOURCE -D_DEFAULT_SOURCE
 
 tsyslogd_SOURCES  = syslogd.c pidfile.c pidfile.h
