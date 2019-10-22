@@ -1187,6 +1187,7 @@ int main(int argc, char *argv[])
 			restart = 0;
 			logit("\nReceived SIGHUP, reloading syslogd.\n");
 			init();
+#ifndef TESTING
 			if (check_pid(PidFile)) {
 				if (touch_pid(PidFile))
 					logerror("Not possible to touch pidfile");
@@ -1194,6 +1195,7 @@ int main(int argc, char *argv[])
 				if (!write_pid(PidFile))
 					logerror("Failed to write pidfile");
 			}
+#endif
 			continue;
 		}
 		if (nfds == 0) {

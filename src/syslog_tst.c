@@ -23,7 +23,7 @@
 
 int main(int argc, char *argv[])
 {
-	char *nl,
+	char *nl;
 	char bufr[512];
 	int logged = 0;
 
