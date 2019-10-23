@@ -106,7 +106,7 @@
  *	the first hit.
  */
 
-/* Includes. */
+#include "config.h"
 #include <ctype.h>
 #include <errno.h>
 #include <malloc.h>
@@ -115,11 +115,7 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
-#ifdef SYSV
 #include <fcntl.h>
-#else
-#include <sys/msgbuf.h>
-#endif
 #include "module.h"
 #include <linux/version.h>
 #include <paths.h>

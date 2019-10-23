@@ -258,16 +258,13 @@
  *	Remove special treatment of the percent sign.
  */
 
-/* Includes. */
+#include "config.h"
+
 #include <errno.h>
 #include <getopt.h>
 #include <signal.h>
 #include <unistd.h>
-#ifdef SYSV
 #include <fcntl.h>
-#else
-#include <sys/msgbuf.h>
-#endif
 #include "klogd.h"
 #include "ksyms.h"
 #include <paths.h>
@@ -277,7 +274,6 @@
 #ifndef TESTING
 #include "pidfile.h"
 #endif
-#include "config.h"
 
 #define __LIBRARY__
 #include <linux/unistd.h>
