@@ -29,15 +29,13 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(lint) && !defined(NO_SCCS)
-char copyright2[] =
-    "@(#) Copyright (c) 1983, 1988 Regents of the University of California.\n\
- All rights reserved.\n";
-#endif /* not lint */
-
-#if !defined(lint) && !defined(NO_SCCS)
-static char sccsid[] = "@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
-#endif /* not lint */
+#ifndef lint
+static const char copyright[] __attribute__((unused)) =
+	"@(#) Copyright (c) 1983, 1988, 1993\n\
+		The Regents of the University of California.  All rights reserved.\n";
+static char sccsid[] __attribute__((unused)) =
+	"@(#)syslogd.c	5.27 (Berkeley) 10/10/88";
+#endif
 
 /*
  *  syslogd -- log system messages
