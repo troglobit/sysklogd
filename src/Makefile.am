@@ -25,19 +25,17 @@ AM_CFLAGS       += -Wno-unused-result -Wno-unused-parameter
 AM_CFLAGS       += -fomit-frame-pointer -fno-strength-reduce
 
 syslogd_SOURCES  = syslogd.c pidfile.c pidfile.h
-syslogd_CPPFLAGS = -DSYSV -DFSSTND -DSYSLOG_INET -DINET6 -DNO_SCCS -DSYSLOG_UNIXAF \
-		   -D_BSD_SOURCE -D_SVID_SOURCE -D_DEFAULT_SOURCE
+syslogd_CPPFLAGS = -DSYSV -DINET6 -D_BSD_SOURCE -D_SVID_SOURCE -D_DEFAULT_SOURCE
 
 klogd_SOURCES    = klogd.c klogd.h syslog.c pidfile.c pidfile.h \
 		   ksym.c ksyms.h ksym_mod.c module.h
-klogd_CPPFLAGS   = -DSYSV -DFSSTND -DALLOW_KERNEL_LOGGING \
+klogd_CPPFLAGS   = -DSYSV -DALLOW_KERNEL_LOGGING \
 		   -D_BSD_SOURCE -D_SVID_SOURCE -D_DEFAULT_SOURCE
 
 logger_SOURCES   = logger.c syslog.c
 logger_CPPFLAGS  = -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_GNU_SOURCE -D_DEFAULT_SOURCE
 
 tsyslogd_SOURCES  = syslogd.c pidfile.c pidfile.h
-tsyslogd_CPPFLAGS = -DSYSV -DFSSTND -DSYSLOG_INET -DINET6 -DNO_SCCS -DSYSLOG_UNIXAF \
-		    -D_BSD_SOURCE -D_SVID_SOURCE -D_DEFAULT_SOURCE -DTESTING
+tsyslogd_CPPFLAGS = -DSYSV -DINET6 -D_BSD_SOURCE -D_SVID_SOURCE -D_DEFAULT_SOURCE -DTESTING
 
 syslog_tst_SOURCES = syslog_tst.c

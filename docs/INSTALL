@@ -7,24 +7,13 @@
     Compilation has been tested with versions 2.5.8, 2.6.3 and 2.7.0 of
     the gcc compiler and libc versions 4.5.26 and 4.6.27.
 
-3.) The FSSTND makes suggestions as to appropriate locations for
-    system binaries.  Since not everyone agrees with standards it is
-    up to the system administrator installing the utilities to choose
-    the most appropriate locations for the binaries and their
-    configuration files.  By default the package will compile and
-    install following the FSSTND recommendations.  If a decision is
-    made to change this behavior consult the makefile and the sources.
-    The FSSTND define controls selection of values which may be
-    influenced by the choice of conformance with the FSSTND or site
-    preferences.
-
-4.) For proper functioning both of these utilities are best run as root.
+3.) For proper functioning both of these utilities are best run as root.
     This is probably not much of a problem since they will probably be
     started either by init or as part of the rc.* startup process.  There
     may be security concerns with running syslogd as root.  Please repeat
     step 1 if you are unsure of why this may be the case.
 
-5.) If kernel address to symbol translation is desired there is the
+4.) If kernel address to symbol translation is desired there is the
     possibility that a new kernel will need to be compiled.  The patches
     to delimit kernel addresses requiring translation were added to
     kernel 1.3.43.  If this kernel or a newer kernel is used there is

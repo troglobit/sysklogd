@@ -49,10 +49,6 @@ MANDIR = $(prefix)/usr/share/man
 # useful if klogd is started simultaneously or in close-proximity to syslogd.
 # KLOGD_START_DELAY = -DKLOGD_DELAY=5
 
-# The following define determines whether the package adheres to the
-# file system standard.
-FSSTND = -DFSSTND
-
 # The following define establishes ownership for the man pages.
 # Avery tells me that there is a difference between Debian and
 # Slackware.  Rather than choose sides I am leaving it up to the user.
@@ -67,10 +63,9 @@ MAN_PERMS = 644
 # ballot below.
 SYSLOGD_PIDNAME = -DSYSLOGD_PIDNAME=\"syslogd.pid\"
 
-SYSLOGD_FLAGS= -DSYSLOG_INET -DSYSLOG_UNIXAF -DINET6 -DNO_SCCS ${FSSTND} \
-	${SYSLOGD_PIDNAME}
+SYSLOGD_FLAGS= -DINET6 ${SYSLOGD_PIDNAME}
 SYSLOG_FLAGS= -DALLOW_KERNEL_LOGGING
-KLOGD_FLAGS = ${FSSTND} ${KLOGD_START_DELAY}
+KLOGD_FLAGS = ${KLOGD_START_DELAY}
 DEB =
 
 all: syslogd klogd

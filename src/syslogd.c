@@ -570,10 +570,7 @@ static char sccsid[] __attribute__((unused)) =
 #include "pidfile.h"
 #endif
 #include "config.h"
-
-#if defined(__linux__)
 #include <paths.h>
-#endif
 
 #ifndef UTMP_FILE
 #ifdef UTMP_FILENAME
@@ -593,18 +590,10 @@ static char sccsid[] __attribute__((unused)) =
 
 #if defined(SYSLOGD_PIDNAME)
 #undef _PATH_LOGPID
-#if defined(FSSTND)
 #define _PATH_LOGPID _PATH_VARRUN SYSLOGD_PIDNAME
 #else
-#define _PATH_LOGPID "/etc/" SYSLOGD_PIDNAME
-#endif
-#else
 #ifndef _PATH_LOGPID
-#if defined(FSSTND)
 #define _PATH_LOGPID _PATH_VARRUN "syslogd.pid"
-#else
-#define _PATH_LOGPID "/etc/syslogd.pid"
-#endif
 #endif
 #endif
 
@@ -734,12 +723,10 @@ int repeatinterval[] = { 30, 60 }; /* # of secs before flush */
 		if (++(f)->f_repeatcount > MAXREPEAT)   \
 			(f)->f_repeatcount = MAXREPEAT; \
 	}
-#ifdef SYSLOG_INET
 #ifndef INET_SUSPEND_TIME
 #define INET_SUSPEND_TIME 180 /* equal to 3 minutes */
 #endif
 #define INET_RETRY_MAX    10  /* maximum of retries for getaddrinfo() */
-#endif
 
 #define LIST_DELIMITER    ':' /* delimiter between two hosts */
 
@@ -868,13 +855,9 @@ int         decode(char *name, struct code *codetab);
 static void logit(char *, ...);
 static void allocate_log(void);
 void        sighup_handler(int);
-
-#ifdef SYSLOG_UNIXAF
-static int create_unix_socket(const char *path);
-#endif
-#ifdef SYSLOG_INET
+static int  create_unix_socket(const char *path);
 static int *create_inet_sockets();
-#endif
+
 
 int main(int argc, char *argv[])
 {
@@ -907,9 +890,7 @@ int main(int argc, char *argv[])
 
 #ifndef TESTING
 	int fd;
-#ifdef SYSLOG_INET
 	struct sockaddr_storage frominet;
-#endif
 	pid_t ppid = getpid();
 #endif
 	int ch;
@@ -1052,11 +1033,10 @@ int main(int argc, char *argv[])
 		}
 	} else
 #endif
+	{
 		debugging_on = 1;
-#ifndef SYSV
-	else
 		setlinebuf(stdout);
-#endif
+	}
 
 #ifndef TESTING
 	/* tuck my process id away */
@@ -1131,7 +1111,7 @@ int main(int argc, char *argv[])
 		errno = 0;
 		FD_ZERO(&readfds);
 		maxfds = 0;
-#ifdef SYSLOG_UNIXAF
+
 #ifndef TESTING
 		/*
 		 * Add the Unix Domain Sockets to the list of read
@@ -1146,8 +1126,7 @@ int main(int argc, char *argv[])
 			}
 		}
 #endif
-#endif
-#ifdef SYSLOG_INET
+
 #ifndef TESTING
 		/*
 		 * Add the Internet Domain Socket to the list of read
@@ -1162,7 +1141,6 @@ int main(int argc, char *argv[])
 			}
 			logit("Listening on syslog UDP port.\n");
 		}
-#endif
 #endif
 #ifdef TESTING
 		FD_SET(fileno(stdin), &readfds);
@@ -1218,7 +1196,6 @@ int main(int argc, char *argv[])
 		}
 
 #ifndef TESTING
-#ifdef SYSLOG_UNIXAF
 		for (i = 0; i < nfunix; i++) {
 			if ((fd = funix[i]) != -1 && FD_ISSET(fd, &readfds)) {
 				memset(line, 0, sizeof(line));
@@ -1233,9 +1210,7 @@ int main(int argc, char *argv[])
 				}
 			}
 		}
-#endif
 
-#ifdef SYSLOG_INET
 		if (InetInuse && AcceptRemote && finet) {
 			for (i = 0; i < *finet; i++) {
 				if (finet[i + 1] != -1 && FD_ISSET(finet[i + 1], &readfds)) {
@@ -1266,7 +1241,6 @@ int main(int argc, char *argv[])
 				}
 			}
 		}
-#endif
 #else
                 if (FD_ISSET(fileno(stdin), &readfds)) {
                         logit("Message from stdin.\n");
@@ -1337,7 +1311,6 @@ static void increase_rcvbuf(int fd)
 	}
 }
 
-#ifdef SYSLOG_UNIXAF
 static int create_unix_socket(const char *path)
 {
 	struct sockaddr_un sunx;
@@ -1359,9 +1332,6 @@ static int create_unix_socket(const char *path)
 		logerror(line);
 		logit("cannot create %s (%d).\n", path, errno);
 		close(fd);
-#ifndef SYSV
-		die(0);
-#endif
 		return -1;
 	}
 
@@ -1369,9 +1339,7 @@ static int create_unix_socket(const char *path)
 
 	return fd;
 }
-#endif
 
-#ifdef SYSLOG_INET
 static int *create_inet_sockets(void)
 {
 	struct addrinfo hints, *res, *r;
@@ -1459,7 +1427,6 @@ static int *create_inet_sockets(void)
 	}
 	return socks;
 }
-#endif
 
 char **crunch_list(list) char *list;
 {
@@ -1519,26 +1486,11 @@ char **crunch_list(list) char *list;
 }
 
 void untty(void)
-#ifdef SYSV
 {
 	if (!Debug) {
 		setsid();
 	}
-	return;
 }
-#else
-{
-	int i;
-
-	if (!Debug) {
-		i = open(_PATH_TTY, O_RDWR);
-		if (i >= 0) {
-			(void)ioctl(i, (int)TIOCNOTTY, NULL);
-			(void)close(i);
-		}
-	}
-}
-#endif
 
 /*
  * Parse the line to make sure that the msg is not a composite of more
@@ -1717,28 +1669,16 @@ time_t now;
 void logmsg(int pri, char *msg, const char *from, int flags)
 {
 	struct filed *f;
-#ifdef __gnu_linux__
 	sigset_t mask;
-#else
-#ifndef SYSV
-	sigset_t omask;
-#endif
-#endif
 	char *timestamp;
 	int fac, prilev, lognum, msglen;
 
 	logit("logmsg: %s, flags %x, from %s, msg %s\n", textpri(pri), flags, from, msg);
 
-#ifdef __gnu_linux__
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGHUP);
 	sigaddset(&mask, SIGALRM);
 	sigprocmask(SIG_BLOCK, &mask, NULL);
-#else
-#ifndef SYSV
-	omask = sigblock(sigmask(SIGHUP) | sigmask(SIGALRM));
-#endif
-#endif
 
 	/*
 	 * Check to see if msg looks non-standard.
@@ -1776,15 +1716,11 @@ void logmsg(int pri, char *msg, const char *from, int flags)
 			(void)close(f->f_file);
 			f->f_file = -1;
 		}
-#ifdef __gnu_linux__
+
 		sigprocmask(SIG_UNBLOCK, &mask, NULL);
-#else
-#ifndef SYSV
-		(void)sigsetmask(omask);
-#endif
-#endif
 		return;
 	}
+
 #ifdef SYSV
 	for (lognum = 0; lognum <= nlogs; lognum++) {
 		f = &Files[lognum];
@@ -1867,13 +1803,8 @@ void logmsg(int pri, char *msg, const char *from, int flags)
 			}
 		}
 	}
-#ifdef __gnu_linux__
+
 	sigprocmask(SIG_UNBLOCK, &mask, NULL);
-#else
-#ifndef SYSV
-	(void)sigsetmask(omask);
-#endif
-#endif
 }
 #if FALSE
 } /* balance parentheses for emacs */
@@ -2041,12 +1972,10 @@ void fprintlog(struct filed *f, char *from, int flags, char *msg)
 	struct iovec iov[6];
 	struct iovec *v = iov;
 	char repbuf[80];
-#ifdef SYSLOG_INET
 	struct addrinfo hints, *ai;
 	time_t fwd_suspend;
 	char line[MAXLINE + 1];
 	int l, err;
-#endif
 
 	logit("Called fprintlog, ");
 
@@ -2084,7 +2013,6 @@ void fprintlog(struct filed *f, char *from, int flags, char *msg)
 		logit("\n");
 		break;
 
-#ifdef SYSLOG_INET
 	case F_FORW_SUSP:
 		fwd_suspend = time(NULL) - f->f_time;
 		if (fwd_suspend >= INET_SUSPEND_TIME) {
@@ -2183,7 +2111,6 @@ void fprintlog(struct filed *f, char *from, int flags, char *msg)
 			}
 		}
 		break;
-#endif
 
 	case F_CONSOLE:
 		f->f_time = now;
@@ -2787,7 +2714,6 @@ void init(void)
 	/* close the configuration file */
 	(void)fclose(cf);
 
-#ifdef SYSLOG_UNIXAF
 	for (i = 0; i < nfunix; i++) {
 		if (funix[i] != -1)
 			/* Don't close the socket, preserve it instead
@@ -2797,9 +2723,7 @@ void init(void)
 		if ((funix[i] = create_unix_socket(funixn[i])) != -1)
 			logit("Opened UNIX socket `%s'.\n", funixn[i]);
 	}
-#endif
 
-#ifdef SYSLOG_INET
 	if (Forwarding || AcceptRemote) {
 		if (!finet) {
 			finet = create_inet_sockets();
@@ -2818,7 +2742,6 @@ void init(void)
 		}
 		InetInuse = 0;
 	}
-#endif
 
 	Initialized = 1;
 
@@ -2913,9 +2836,7 @@ static int strtobytes(char *arg)
  */
 void cfline(char *line, struct filed *f)
 {
-#ifdef SYSLOG_INET
 	struct addrinfo hints, *ai;
-#endif
 	char buf[MAXLINE];
 	char xbuf[MAXLINE + 24];
 	char *p, *q, *bp;
@@ -3067,7 +2988,6 @@ void cfline(char *line, struct filed *f)
 	logit("leading char in action: %c\n", *p);
 	switch (*p) {
 	case '@':
-#ifdef SYSLOG_INET
 		bp = p;
 		while ((q = strchr(bp, ';'))) {
 			*q++ = 0;
@@ -3098,7 +3018,6 @@ void cfline(char *line, struct filed *f)
 			f->f_type = F_FORW;
 			f->f_un.f_forw.f_addr = ai;
 		}
-#endif
 		break;
 
 	case '|':

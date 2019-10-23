@@ -284,11 +284,7 @@
 #define LOG_LINE_LENGTH 1000
 
 #ifndef TESTING
-#if defined(FSSTND)
 static char *PidFile = _PATH_VARRUN "klogd.pid";
-#else
-static char *PidFile = "/etc/klogd.pid";
-#endif
 #endif
 
 static int kmsg;
