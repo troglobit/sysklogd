@@ -852,7 +852,7 @@ void        debug_switch();
 void        logerror(const char *type);
 void        die(int sig);
 #ifndef TESTING
-void doexit(int sig);
+void        doexit(int sig);
 #endif
 void        init();
 static int  strtobytes(char *arg);
@@ -2110,11 +2110,7 @@ void fprintlog(struct filed *f, char *from, int flags, char *msg)
 
 	case F_CONSOLE:
 		f->f_time = now;
-#ifdef UNIXPC
-		if (1) {
-#else
 		if (flags & IGN_CONS) {
-#endif
 			logit(" (ignored).\n");
 			break;
 		}
@@ -2196,9 +2192,6 @@ void fprintlog(struct filed *f, char *from, int flags, char *msg)
 		f->f_prevcount = 0;
 	return;
 }
-#if FALSE
-} /* balance parentheses for emacs */
-#endif
 
 jmp_buf ttybuf;
 
@@ -2237,10 +2230,7 @@ void wallmsg(struct filed *f, struct iovec *iov)
 	if (fork() == 0) {
 		(void)signal(SIGTERM, SIG_DFL);
 		(void)alarm(0);
-#ifndef SYSV
-		(void)signal(SIGTTOU, SIG_IGN);
-		(void)sigsetmask(0);
-#endif
+
 		(void)snprintf(greetings, sizeof(greetings),
 		               "\r\n\7Message from syslogd@%s at %.24s ...\r\n",
 		               (char *)iov[2].iov_base, ctime(&now));
@@ -2308,18 +2298,19 @@ void wallmsg(struct filed *f, struct iovec *iov)
 void reapchild(int signo)
 {
 	int saved_errno = errno;
-#if defined(SYSV) && !defined(linux)
-	(void)signal(SIGCHLD, reapchild); /* reset signal handler -ASP */
-	wait(NULL);
-#else
+
+#ifdef linux
 	int status;
 
-	while (wait3(&status, WNOHANG, (struct rusage *)NULL) > 0)
+	while (wait3(&status, WNOHANG, NULL) > 0)
 		;
+
+	signal(SIGCHLD, reapchild); /* reset signal handler -ASP */
+#else
+	signal(SIGCHLD, reapchild); /* reset signal handler -ASP */
+	wait(NULL);
 #endif
-#ifdef linux
-	(void)signal(SIGCHLD, reapchild); /* reset signal handler -ASP */
-#endif
+
 	errno = saved_errno;
 }
 
