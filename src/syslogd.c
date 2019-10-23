@@ -530,8 +530,6 @@ static char sccsid[] __attribute__((unused)) =
 #define TIMERINTVL     30              /* interval for checking flush, mark */
 #define RCVBUF_MINSIZE (80 * 1024)     /* minimum size of dgram rcv buffer */
 
-#define CONT_LINE 1 /* Allow continuation lines */
-
 #include <ctype.h>
 #include <getopt.h>
 #include <setjmp.h>
@@ -2548,12 +2546,8 @@ void init(void)
 	struct filed *f;
 	unsigned int Forwarding = 0;
 	FILE *cf;
-#ifdef CONT_LINE
 	char  cbuf[BUFSIZ];
 	char *cline;
-#else
-	char cline[BUFSIZ];
-#endif
 	char *p;
 	int i, lognum;
 
@@ -2661,12 +2655,8 @@ void init(void)
 	/*
 	 *  Foreach line in the conf table, open that file.
 	 */
-#if CONT_LINE
 	cline = cbuf;
 	while (fgets(cline, sizeof(cbuf) - (cline - cbuf), cf) != NULL) {
-#else
-	while (fgets(cline, sizeof(cline), cf) != NULL) {
-#endif
 		/*
 		 * check for end-of-section, comments, strip off trailing
 		 * spaces and newline character.
@@ -2675,12 +2665,11 @@ void init(void)
 			;
 		if (*p == '\0' || *p == '#')
 			continue;
-#if CONT_LINE
+
 		memmove(cline, p, strlen(p) + 1);
-#endif
 		for (p = strchr(cline, '\0'); isspace(*--p);)
 			;
-#if CONT_LINE
+
 		if (*p == '\\') {
 			if ((p - cbuf) > BUFSIZ - 30) {
 				/* Oops the buffer is full - what now? */
@@ -2692,7 +2681,7 @@ void init(void)
 			}
 		} else
 			cline = cbuf;
-#endif
+
 		*++p = '\0';
 #ifndef SYSV
 		f = (struct filed *)calloc(1, sizeof(*f));
@@ -2701,11 +2690,8 @@ void init(void)
 #endif
 		allocate_log();
 		f = &Files[lognum++];
-#if CONT_LINE
+
 		cfline(cbuf, f);
-#else
-		cfline(cline, f);
-#endif
 		if (f->f_type == F_FORW || f->f_type == F_FORW_SUSP || f->f_type == F_FORW_UNKN) {
 			Forwarding++;
 		}
@@ -2797,7 +2783,6 @@ void init(void)
 	logit("syslogd: restarted.\n");
 }
 #if FALSE
-}
 }
 } /* balance parentheses for emacs */
 #endif
