@@ -689,9 +689,8 @@ const char *sys_h_errlist[] = {
  */
 
 struct filed {
-#ifndef SYSV
 	struct filed *f_next;                /* next in linked list */
-#endif
+
 	short  f_type;                       /* entry type, see below */
 	short  f_file;                       /* file descriptor */
 	time_t f_time;                       /* time this was last written */
@@ -860,7 +859,6 @@ static int  strtobytes(char *arg);
 void        cfline(char *line, struct filed *f);
 int         decode(char *name, struct code *codetab);
 static void logit(char *, ...);
-static void allocate_log(void);
 void        sighup_handler(int);
 static int  create_unix_socket(const char *path);
 static int *create_inet_sockets();
@@ -1678,7 +1676,7 @@ void logmsg(int pri, char *msg, const char *from, int flags)
 	struct filed *f;
 	sigset_t mask;
 	char *timestamp;
-	int fac, prilev, lognum, msglen;
+	int fac, prilev, msglen;
 
 	logit("logmsg: %s, flags %x, from %s, msg %s\n", textpri(pri), flags, from, msg);
 
@@ -1728,13 +1726,7 @@ void logmsg(int pri, char *msg, const char *from, int flags)
 		return;
 	}
 
-#ifdef SYSV
-	for (lognum = 0; lognum <= nlogs; lognum++) {
-		f = &Files[lognum];
-#else
 	for (f = Files; f; f = f->f_next) {
-#endif
-
 		/* skip messages that are incorrect priority */
 		if ((f->f_pmask[fac] == TABLE_NOPRI) ||
 		    ((f->f_pmask[fac] & (1 << prilev)) == 0))
@@ -1813,9 +1805,6 @@ void logmsg(int pri, char *msg, const char *from, int flags)
 
 	sigprocmask(SIG_UNBLOCK, &mask, NULL);
 }
-#if FALSE
-} /* balance parentheses for emacs */
-#endif
 
 void logrotate(struct filed *f)
 {
@@ -2208,7 +2197,6 @@ void fprintlog(struct filed *f, char *from, int flags, char *msg)
 	return;
 }
 #if FALSE
-}
 } /* balance parentheses for emacs */
 #endif
 
@@ -2416,9 +2404,6 @@ const char *cvthname(struct sockaddr_storage *f, int len)
 void domark(int signo)
 {
 	struct filed *f;
-#ifdef SYSV
-	int lognum;
-#endif
 
 	if (MarkInterval > 0) {
 		now = time(0);
@@ -2429,12 +2414,7 @@ void domark(int signo)
 		}
 	}
 
-#ifdef SYSV
-	for (lognum = 0; lognum <= nlogs; lognum++) {
-		f = &Files[lognum];
-#else
 	for (f = Files; f; f = f->f_next) {
-#endif
 		if (f->f_prevcount && now >= REPEATTIME(f)) {
 			logit("flush %s: repeated %d times, %d sec.\n",
 			      TypeNames[f->f_type], f->f_prevcount,
@@ -2475,7 +2455,6 @@ void logerror(const char *type)
 		(void)snprintf(buf, sizeof(buf), "syslogd: %s: %s", type, strerror(errno));
 	errno = 0;
 	logmsg(LOG_SYSLOG | LOG_ERR, buf, LocalHostName, ADDDATE);
-	return;
 }
 
 void die(int signo)
@@ -2540,11 +2519,7 @@ void doexit(int signo)
  */
 void init(void)
 {
-#ifndef TESTING
-#ifndef SYSV
 	struct filed **nextp = NULL;
-#endif
-#endif
 	struct hostent *hent;
 	struct filed *f;
 	unsigned int Forwarding = 0;
@@ -2592,11 +2567,7 @@ void init(void)
 		Files = NULL;
 	}
 
-#ifdef SYSV
-	lognum = 0;
-#else
 	f = NULL;
-#endif
 
 	/* Get hostname */
 	(void)gethostname(LocalHostName, sizeof(LocalHostName));
@@ -2636,21 +2607,28 @@ void init(void)
 	/* open the configuration file */
 	if ((cf = fopen(ConfFile, "r")) == NULL) {
 		logit("cannot open %s.\n", ConfFile);
-#ifdef SYSV
-		allocate_log();
-		f = &Files[lognum++];
+
 #ifndef TESTING
 		cfline("*.err\t" _PATH_CONSOLE, f);
 #else
 		snprintf(cbuf, sizeof(cbuf), "*.*\t%s", ttyname(0));
 		cfline(cbuf, f);
 #endif
-#else
+
 		*nextp = calloc(1, sizeof(*f));
+		if (!*nextp) {
+			logerror("Cannot allocate memory for log target/file");
+			return;
+		}
 		cfline("*.ERR\t" _PATH_CONSOLE, *nextp);
-		(*nextp)->f_next = calloc(1, sizeof(*f)) /* ASP */
-		    cfline("*.PANIC\t*", (*nextp)->f_next);
-#endif
+
+		(*nextp)->f_next = calloc(1, sizeof(*f)); /* ASP */
+		if (!*nextp) {
+			logerror("Cannot allocate memory for log target/file");
+			return;
+		}
+		cfline("*.PANIC\t*", (*nextp)->f_next);
+
 		Initialized = 1;
 		return;
 	}
@@ -2686,13 +2664,18 @@ void init(void)
 			cline = cbuf;
 
 		*++p = '\0';
-#ifndef SYSV
+
 		f = (struct filed *)calloc(1, sizeof(*f));
-		*nextp = f;
+		if (!f) {
+			logerror("Cannot allocate memory for log file");
+			return;
+		}
+
+		if (!nextp)
+			Files = f;
+		else
+			*nextp = f;
 		nextp = &f->f_next;
-#endif
-		allocate_log();
-		f = &Files[lognum++];
 
 		cfline(cbuf, f);
 		if (f->f_type == F_FORW || f->f_type == F_FORW_SUSP || f->f_type == F_FORW_UNKN) {
@@ -2735,15 +2718,8 @@ void init(void)
 	Initialized = 1;
 
 	if (Debug) {
-#ifdef SYSV
-		for (lognum = 0; lognum <= nlogs; lognum++) {
-			f = &Files[lognum];
-			if (f->f_type != F_UNUSED) {
-				printf("%2d: ", lognum);
-#else
 		for (f = Files; f; f = f->f_next) {
 			if (f->f_type != F_UNUSED) {
-#endif
 				for (i = 0; i <= LOG_NFACILITIES; i++)
 					if (f->f_pmask[i] == TABLE_NOPRI)
 						printf(" X ");
@@ -2785,10 +2761,6 @@ void init(void)
 	(void)signal(SIGHUP, sighup_handler);
 	logit("syslogd: restarted.\n");
 }
-#if FALSE
-}
-} /* balance parentheses for emacs */
-#endif
 
 static int strtobytes(char *arg)
 {
@@ -2837,9 +2809,7 @@ void cfline(char *line, struct filed *f)
 	errno = 0; /* keep strerror() stuff out of logerror messages */
 
 	/* clear out file entry */
-#ifndef SYSV
 	memset((char *)f, 0, sizeof(*f));
-#endif
 	for (i = 0; i <= LOG_NFACILITIES; i++) {
 		f->f_pmask[i] = TABLE_NOPRI;
 		f->f_flags = 0;
@@ -3123,43 +3093,6 @@ static void logit(char *fmt, ...)
 	va_end(ap);
 
 	fflush(stdout);
-}
-
-/*
- * The following function is responsible for allocating/reallocating the
- * array which holds the structures which define the logging outputs.
- */
-static void allocate_log(void)
-{
-	logit("Called allocate_log, nlogs = %d.\n", nlogs);
-
-	/*
-	 * Decide whether the array needs to be initialized or needs to
-	 * grow.
-	 */
-	if (nlogs == -1) {
-		Files = malloc(sizeof(struct filed));
-		if (Files == NULL) {
-			logit("Cannot initialize log structure.");
-			logerror("Cannot initialize log structure.");
-			return;
-		}
-	} else {
-		/* Re-allocate the array. */
-		Files = realloc(Files, (nlogs + 2) * sizeof(struct filed));
-		if (Files == NULL) {
-			logit("Cannot grow log structure.");
-			logerror("Cannot grow log structure.");
-			return;
-		}
-	}
-
-	/*
-	 * Initialize the array element, bump the number of elements in the
-	 * the array and return.
-	 */
-	++nlogs;
-	memset(&Files[nlogs], '\0', sizeof(struct filed));
 }
 
 /*
