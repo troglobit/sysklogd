@@ -570,6 +570,15 @@ static char sccsid[] __attribute__((unused)) =
 #include "config.h"
 #include <paths.h>
 
+/*
+ * Linux uses EIO instead of EBADFD (mrn 12 May 96)
+ */
+#ifdef linux
+#define EHANGUP EIO
+#else
+#define EHANGUP EBADFD
+#endif
+
 #ifndef UTMP_FILE
 #ifdef UTMP_FILENAME
 #define UTMP_FILE UTMP_FILENAME
@@ -2165,15 +2174,9 @@ void fprintlog(struct filed *f, char *from, int flags, char *msg)
 
 			(void)close(f->f_file);
 			/*
-			 * Check for EBADF on TTY's due to vhangup() XXX
-			 * Linux uses EIO instead (mrn 12 May 96)
+			 * Check for EBADF/EIO on TTY's due to vhangup()
 			 */
-			if ((f->f_type == F_TTY || f->f_type == F_CONSOLE)
-#ifdef linux
-			    && e == EIO) {
-#else
-			    && e == EBADF) {
-#endif
+			if ((f->f_type == F_TTY || f->f_type == F_CONSOLE) && e == EHANGUP) {
 				f->f_file = open(f->f_un.f_fname, O_WRONLY | O_APPEND | O_NOCTTY);
 				if (f->f_file < 0) {
 					f->f_type = F_UNUSED;
