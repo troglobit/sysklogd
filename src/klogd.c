@@ -360,14 +360,12 @@ void doexit(int signo)
 
 void restart(int signo)
 {
-	signal(SIGCONT, restart);
 	change_state = 1;
 	caught_TSTP = 0;
 }
 
 void stop_logging(int signo)
 {
-	signal(SIGTSTP, stop_logging);
 	change_state = 1;
 	caught_TSTP = 1;
 }
@@ -382,13 +380,8 @@ void reload_daemon(int signo)
 	change_state = 1;
 	reload_symbols = 1;
 
-	if (signo == SIGUSR2) {
+	if (signo == SIGUSR2)
 		++reload_symbols;
-		signal(SIGUSR2, reload_daemon);
-	} else
-		signal(SIGUSR1, reload_daemon);
-
-	return;
 }
 
 static void Terminate(void)

@@ -2297,19 +2297,12 @@ void wallmsg(struct filed *f, struct iovec *iov)
 
 void reapchild(int signo)
 {
-	int saved_errno = errno;
-
-#ifdef linux
+	int saved_errno;
 	int status;
 
-	while (wait3(&status, WNOHANG, NULL) > 0)
+	saved_errno = errno;
+	while (waitpid(-1, &status, WNOHANG) > 0)
 		;
-
-	signal(SIGCHLD, reapchild); /* reset signal handler -ASP */
-#else
-	signal(SIGCHLD, reapchild); /* reset signal handler -ASP */
-	wait(NULL);
-#endif
 
 	errno = saved_errno;
 }
@@ -2415,7 +2408,6 @@ void domark(int signo)
 			DupesPending--;
 		}
 	}
-	(void)signal(SIGALRM, domark);
 
 	LastAlarm = MarkInterval - MarkSeq;
 	if (DupesPending && LastAlarm > TIMERINTVL)
@@ -3095,7 +3087,6 @@ static void logit(char *fmt, ...)
 void sighup_handler(int signo)
 {
 	restart = 1;
-	signal(SIGHUP, sighup_handler);
 }
 
 /**
