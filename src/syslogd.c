@@ -814,11 +814,7 @@ int   InetInuse = 0;          /* non-zero if INET sockets are being used */
 int  *finet = NULL;           /* Internet datagram sockets */
 int   Initialized = 0;        /* set when we have initialized ourselves */
 int   MarkInterval = 20 * 60; /* interval between marks in seconds */
-#ifdef INET6
-int family = PF_UNSPEC; /* protocol family (IPv4, IPv6 or both) */
-#else
-int family = PF_INET; /* protocol family (IPv4 only) */
-#endif
+int    family = PF_UNSPEC;  /* protocol family (IPv4, IPv6 or both) */
 int    send_to_all = 0;     /* send message to all IPv4/IPv6 addresses */
 int    MarkSeq = 0;         /* mark sequence number */
 int    LastAlarm = 0;       /* last value passed to alarm() (seconds)  */
@@ -919,11 +915,9 @@ int main(int argc, char *argv[])
 			family = PF_INET;
 			break;
 
-#ifdef INET6
 		case '6':
 			family = PF_INET6;
 			break;
-#endif
 
 		case 'A':
 			send_to_all++;
@@ -1381,15 +1375,13 @@ static int *create_inet_sockets(void)
 			continue;
 		}
 		if (r->ai_family == AF_INET6) {
-			if (setsockopt(*s, IPPROTO_IPV6, IPV6_V6ONLY,
-			               (char *)&on, sizeof(on)) < 0) {
+			if (setsockopt(*s, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) < 0) {
 				logerror("setsockopt (IPV6_ONLY), suspending IPv6");
 				close(*s);
 				continue;
 			}
 		}
-		if (setsockopt(*s, SOL_SOCKET, SO_REUSEADDR,
-		               (char *)&on, sizeof(on)) < 0) {
+		if (setsockopt(*s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
 			logerror("setsockopt(REUSEADDR), suspending inet");
 			close(*s);
 			continue;
