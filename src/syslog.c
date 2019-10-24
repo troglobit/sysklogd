@@ -91,6 +91,16 @@ static int         LogStat = 0;            /* status bits, set by openlog() */
 static const char *LogTag = "syslog";      /* string to tag the entry with */
 static int         LogFacility = LOG_USER; /* default facility code */
 
+/* wrapper for GLIBC, which provides this for security measures */
+void __syslog_chk(int pri, int flag __attribute__((unused)), const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vsyslog(pri, fmt, ap);
+	va_end(ap);
+}
+
 void syslog(int pri, const char *fmt, ...)
 {
 	va_list ap;
