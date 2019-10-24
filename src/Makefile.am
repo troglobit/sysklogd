@@ -22,7 +22,7 @@ noinst_PROGRAMS  = tsyslogd syslog_tst
 
 AM_CFLAGS        = -W -Wall -Wextra
 AM_CFLAGS       += -Wno-unused-result -Wno-unused-parameter
-AM_CFLAGS       += -fomit-frame-pointer -fno-strength-reduce
+AM_CFLAGS       += -fno-strict-aliasing -fno-strength-reduce
 
 syslogd_SOURCES  = syslogd.c pidfile.c pidfile.h
 syslogd_CPPFLAGS = -D_BSD_SOURCE -D_DEFAULT_SOURCE
