@@ -830,6 +830,7 @@ static void LogKernelLine(void)
 	if ((rdcnt = ksyslog(2, log_buffer, sizeof(log_buffer) - 1)) < 0) {
 		if (errno == EINTR)
 			return;
+
 		fprintf(stderr,
 			"klogd: Error return from sys_sycall: %d - %s\n",
 		        errno, strerror(errno));

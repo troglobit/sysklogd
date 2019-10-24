@@ -285,7 +285,6 @@ static void FreeModules(void)
 	free(sym_array_modules);
 	sym_array_modules = NULL;
 	num_modules = 0;
-	return;
 }
 
 /**************************************************************************
@@ -538,8 +537,6 @@ void Syslog(int priority, char *fmt, ...)
 	vfprintf(stdout, fmt, ap);
 	va_end(ap);
 	fputc('\n', stdout);
-
-	return;
 }
 
 #endif /* TEST */

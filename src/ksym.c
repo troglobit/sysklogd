@@ -776,7 +776,6 @@ char *ExpandKadds(char *line, char *el)
 void SetParanoiaLevel(int level)
 {
 	i_am_paranoid = level;
-	return;
 }
 
 /*
@@ -821,8 +820,6 @@ void Syslog(int priority, char *fmt, ...)
 	vfprintf(stdout, fmt, ap);
 	va_end(ap);
 	fputc('\n', stdout);
-
-	return;
 }
 #endif
 

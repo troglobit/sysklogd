@@ -1107,6 +1107,7 @@ int main(int argc, char *argv[])
 	/* Main loop begins here. */
 	for (;;) {
 		int nfds;
+
 		errno = 0;
 		FD_ZERO(&readfds);
 		maxfds = 0;
@@ -1156,8 +1157,8 @@ int main(int argc, char *argv[])
 					logit("%d ", nfds);
 			logit("\n");
 		}
-		nfds = select(maxfds + 1, (fd_set *)&readfds, (fd_set *)NULL,
-		              (fd_set *)NULL, (struct timeval *)NULL);
+
+		nfds = select(maxfds + 1, &readfds, NULL, NULL, NULL);
 		if (restart) {
 			restart = 0;
 			logit("\nReceived SIGHUP, reloading syslogd.\n");
@@ -1173,6 +1174,7 @@ int main(int argc, char *argv[])
 #endif
 			continue;
 		}
+
 		if (nfds == 0) {
 			logit("No select activity.\n");
 			continue;
@@ -1484,9 +1486,8 @@ char **crunch_list(list) char *list;
 
 void untty(void)
 {
-	if (!Debug) {
+	if (!Debug)
 		setsid();
-	}
 }
 
 /*
@@ -1518,8 +1519,8 @@ void printchopped(const char *hname, char *msg, size_t len, int fd)
 			printline(hname, tmpline);
 			if ((strlen(msg) + 1) == len)
 				return;
-			else
-				start = strchr(msg, '\0') + 1;
+
+			start = strchr(msg, '\0') + 1;
 		}
 	}
 
@@ -1544,8 +1545,6 @@ void printchopped(const char *hname, char *msg, size_t len, int fd)
 		printline(hname, start);
 		start = end + 1;
 	} while (*start != '\0');
-
-	return;
 }
 
 /*
@@ -1600,7 +1599,6 @@ void printline(const char *hname, char *msg)
 	*q = '\0';
 
 	logmsg(pri, line, hname, SYNC_FILE);
-	return;
 }
 
 /*
@@ -1617,6 +1615,7 @@ void printsys(char *msg)
 	for (p = msg; *p != '\0';) {
 		flags = ADDDATE;
 		pri = DEFSPRI;
+
 		if (*p == '<') {
 			pri = 0;
 			while (isdigit(*++p))
@@ -1627,8 +1626,10 @@ void printsys(char *msg)
 			/* kernel printf's come out on console */
 			flags |= IGN_CONS;
 		}
+
 		if (pri & ~(LOG_FACMASK | LOG_PRIMASK))
 			pri = DEFSPRI;
+
 		q = lp;
 		while (*p != '\0' && (c = *p++) != '\n' &&
 		       q < &line[MAXLINE])
@@ -1636,7 +1637,6 @@ void printsys(char *msg)
 		*q = '\0';
 		logmsg(pri, line, LocalHostName, flags);
 	}
-	return;
 }
 
 /*
@@ -2180,9 +2180,9 @@ void fprintlog(struct filed *f, char *from, int flags, char *msg)
 		wallmsg(f, iov);
 		break;
 	} /* switch */
+
 	if (f->f_type != F_FORW_UNKN)
 		f->f_prevcount = 0;
-	return;
 }
 
 jmp_buf ttybuf;
