@@ -862,44 +862,19 @@ static int *create_inet_sockets();
 
 int main(int argc, char *argv[])
 {
-	int i;
+	extern char *optarg;
+	extern int optind;
 #ifndef TESTING
-	ssize_t msglen;
-#endif
-#if !defined(__GLIBC__)
-	int len, num_fds;
-#else /* __GLIBC__ */
-#ifndef TESTING
-	socklen_t len;
-#endif
-	int num_fds;
-#endif /* __GLIBC__ */
-	/*
-	 * It took me quite some time to figure out how this is
-	 * supposed to work so I guess I should better write it down.
-	 * unixm is a list of file descriptors from which one can
-	 * read().  This is in contrary to readfds which is a list of
-	 * file descriptors where activity is monitored by select()
-	 * and from which one cannot read().  -Joey
-	 *
-	 * Changed: unixm is gone, since we now use datagram unix sockets.
-	 * Hence we recv() from unix sockets directly (rather than
-	 * first accept()ing connections on them), so there's no need
-	 * for separate book-keeping.  --okir
-	 */
-	fd_set readfds;
-
-#ifndef TESTING
-	int fd;
 	struct sockaddr_storage frominet;
 	pid_t ppid = getpid();
+	socklen_t len;
+	ssize_t msglen;
+	int fd;
 #endif
-	int ch;
-
+	fd_set readfds;
 	char line[MAXLINE + 1];
-	extern int optind;
-	extern char *optarg;
-	int maxfds;
+	int num_fds, maxfds;
+	int i, ch;
 
 #ifndef TESTING
 	chdir("/");
