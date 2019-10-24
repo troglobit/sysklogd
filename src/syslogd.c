@@ -1227,11 +1227,12 @@ int main(int argc, char *argv[])
                         if (i > 0) {
                                 printchopped(LocalHostName, line, i + 1, fileno(stdin));
                         } else if (i < 0) {
-                                if (errno != EINTR) {
+                                if (errno != EINTR)
                                         logerror("stdin");
-                                }
-                        }
-                        FD_CLR(fileno(stdin), &readfds);
+                        } else {
+				logit("EOF\n");
+				exit(0);
+			}
                 }
 
 #endif
