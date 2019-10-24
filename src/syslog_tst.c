@@ -54,7 +54,6 @@ int main(int argc, char *argv[])
 		syslog(LOG_INFO, "Info log.");
 		syslog(LOG_DEBUG, "Debug log.");
 		closelog();
-		return 0;
 	}
 
 	return 0;

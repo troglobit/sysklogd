@@ -34,7 +34,8 @@ klogd_CPPFLAGS   = -DALLOW_KERNEL_LOGGING -D_BSD_SOURCE -D_DEFAULT_SOURCE
 logger_SOURCES   = logger.c syslog.c
 logger_CPPFLAGS  = -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_GNU_SOURCE -D_DEFAULT_SOURCE
 
-tsyslogd_SOURCES  = syslogd.c pidfile.c pidfile.h
-tsyslogd_CPPFLAGS = -D_BSD_SOURCE -D_DEFAULT_SOURCE -DTESTING
+tsyslogd_SOURCES  = $(syslogd_SOURCES)
+tsyslogd_CPPFLAGS = $(syslogd_CPPFLAGS) -DTESTING
 
-syslog_tst_SOURCES = syslog_tst.c
+syslog_tst_SOURCES = syslog_tst.c syslog.c
+syslog_tst_CPPFLAGS = -D_BSD_SOURCE -D_DEFAULT_SOURCE -DTESTING

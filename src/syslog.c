@@ -82,6 +82,9 @@ static char sccsid[] = "@(#)syslog.c	5.28 (Berkeley) 6/27/90";
 
 #define _PATH_LOGNAME "/dev/log"
 
+#ifndef TESTING
+static struct sockaddr SyslogAddr;         /* AF_UNIX address of local logger */
+#endif
 static int         LogFile = -1;           /* fd for log */
 static int         connected;              /* have done connect */
 static int         LogStat = 0;            /* status bits, set by openlog() */
@@ -200,9 +203,6 @@ void vsyslog(int pri, const char *fmt, va_list ap)
 	(void)close(fd);
 }
 
-#ifndef TESTING
-static struct sockaddr SyslogAddr; /* AF_UNIX address of local logger */
-#endif
 /*
  * OPENLOG -- open system log
  */
@@ -222,19 +222,19 @@ void openlog(const char *ident, int logstat, int logfac)
 #ifndef TESTING
 	if (LogFile == -1) {
 		SyslogAddr.sa_family = AF_UNIX;
-		strncpy(SyslogAddr.sa_data, _PATH_LOGNAME,
-		        sizeof(SyslogAddr.sa_data));
+		strncpy(SyslogAddr.sa_data, _PATH_LOGNAME, sizeof(SyslogAddr.sa_data));
 		if (LogStat & LOG_NDELAY) {
 			LogFile = socket(AF_UNIX, SOCK_DGRAM, 0);
-			/*			fcntl(LogFile, F_SETFD, 1); */
+			fcntl(LogFile, F_SETFD, 1); /* FD_CLOEXEC */
 		}
 	}
 	if (LogFile != -1 && !connected &&
 	    connect(LogFile, &SyslogAddr, sizeof(SyslogAddr.sa_family) + strlen(SyslogAddr.sa_data)) != -1)
+		connected = 1;
 #else
 	LogFile = fileno(stdout);
+	connected = 1;
 #endif
-		connected = 1;
 }
 
 /*
