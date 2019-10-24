@@ -826,7 +826,7 @@ static void LogKernelLine(void)
 	 * which will contain old messages.  Then read the kernel log
 	 * messages into this fresh buffer.
 	 */
-	memset(log_buffer, '\0', sizeof(log_buffer));
+	memset(log_buffer, 0, sizeof(log_buffer));
 	if ((rdcnt = ksyslog(2, log_buffer, sizeof(log_buffer) - 1)) < 0) {
 		if (errno == EINTR)
 			return;
@@ -849,7 +849,7 @@ static void LogProcLine(void)
 	 * which will contain old messages.  Then read the kernel messages
 	 * from the message pseudo-file into this fresh buffer.
 	 */
-	memset(log_buffer, '\0', sizeof(log_buffer));
+	memset(log_buffer, 0, sizeof(log_buffer));
 	if ((rdcnt = read(kmsg, log_buffer, sizeof(log_buffer) - 1)) < 0) {
 		if (errno == EINTR)
 			return;

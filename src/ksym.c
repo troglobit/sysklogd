@@ -804,7 +804,7 @@ int main(int argc, char *argv[])
 		fgets(line, sizeof(line), stdin);
 		if (line[strlen(line) - 1] == '\n')
 			line[strlen(line) - 1] = '\0'; /* Trash NL char */
-		memset(eline, '\0', sizeof(eline));
+		memset(eline, 0, sizeof(eline));
 		ExpandKadds(line, eline);
 		fprintf(stdout, "%s\n", eline);
 	}

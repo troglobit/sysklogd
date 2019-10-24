@@ -1243,7 +1243,7 @@ int main(int argc, char *argv[])
 #else
                 if (FD_ISSET(fileno(stdin), &readfds)) {
                         logit("Message from stdin.\n");
-                        memset(line, '\0', sizeof(line));
+                        memset(line, 0, sizeof(line));
                         line[0] = '.';
                         parts[fileno(stdin)] = NULL;
                         i = read(fileno(stdin), line, MAXLINE);
@@ -1535,7 +1535,7 @@ void printchopped(const char *hname, char *msg, size_t len, int fd)
 		else {
 			strcpy(parts[fd], p);
 			logit("Saving partial msg: %s\n", parts[fd]);
-			memset(p, '\0', ptlngth);
+			memset(p, 0, ptlngth);
 		}
 	}
 
