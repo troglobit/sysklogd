@@ -569,6 +569,7 @@ static char sccsid[] __attribute__((unused)) =
 #endif
 #include "config.h"
 #include <paths.h>
+#include "compat.h"
 
 /*
  * Linux uses EIO instead of EBADFD (mrn 12 May 96)
@@ -2711,35 +2712,6 @@ void init(void)
 
 	(void)signal(SIGHUP, sighup_handler);
 	logit("syslogd: restarted.\n");
-}
-
-static int strtobytes(char *arg)
-{
-	int mod = 0, bytes;
-	size_t pos;
-
-	if (!arg)
-		return -1;
-
-	pos = strspn(arg, "0123456789");
-	if (arg[pos] != 0) {
-		if (arg[pos] == 'G')
-			mod = 3;
-		else if (arg[pos] == 'M')
-			mod = 2;
-		else if (arg[pos] == 'k')
-			mod = 1;
-		else
-			return -1;
-
-		arg[pos] = 0;
-	}
-
-	bytes = atoi(arg);
-	while (mod--)
-		bytes *= 1000;
-
-	return bytes;
 }
 
 /*
