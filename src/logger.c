@@ -39,6 +39,7 @@
 #include <syslog.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include "compat.h"
 
 static const char version_info[] = PACKAGE_NAME " v" PACKAGE_VERSION;
 
@@ -123,6 +124,19 @@ static int checksz(FILE *fp, off_t sz)
 	return 0;
 }
 
+static int logit(int level, char *buf, size_t len)
+{
+	if (buf[0]) {
+		syslog(level, "%s", buf);
+		return 0;
+	}
+
+	while ((fgets(buf, len, stdin)))
+		syslog(level, "%s", buf);
+
+	return 0;
+}
+
 static int flogit(char *logfile, int num, off_t sz, char *buf, size_t len)
 {
 	FILE *fp;
@@ -153,19 +167,6 @@ reopen:
 	}
 
 	return fclose(fp);
-}
-
-static int logit(int level, char *buf, size_t len)
-{
-	if (buf[0]) {
-		syslog(level, "%s", buf);
-		return 0;
-	}
-
-	while ((fgets(buf, len, stdin)))
-		syslog(level, "%s", buf);
-
-	return 0;
 }
 
 static int parse_prio(char *arg, int *f, int *l)
@@ -202,20 +203,40 @@ static int usage(int code)
 	       "\n"
 	       "Write MESSAGE (or stdin) to syslog, or file (with logrotate)\n"
 	       "\n"
-	       "  -?       This help text\n"
-	       "  -p PRIO  Priority (numeric or facility.level pair)\n"
+	       "  -p PRIO  Log message priority (numeric or facility.level pair)\n"
 	       "  -t TAG   Log using the specified tag (defaults to user name)\n"
 	       "  -s       Log to stderr as well as the system log\n"
 	       "\n"
-	       "  -f FILE  File to write log messages to, instead of syslog\n"
-	       "  -n SIZE  Number of bytes before rotating, default: 200 kB\n"
-	       "  -r NUM   Number of rotated files to keep, default: 5\n"
+	       "  -f FILE  Log file to write messages to, instead of syslog daemon\n"
+	       "  -r S:R   Log file rotation, default: 200 kB max \e[4ms\e[0mize, 5 \e[4mr\e[0motations\n"
+	       "\n"
+	       "  -?       This help text\n"
 	       "  -v       Show program version\n"
 	       "\n"
 	       "This version of logger is distributed as part of sysklogd.\n"
 	       "Bug report address: %s\n", PACKAGE_BUGREPORT);
 
 	return code;
+}
+
+static void parse_rotation(char *optarg, off_t *size, int *num)
+{
+	char buf[100];
+	char *c;
+	int sz = 0, cnt = 0;
+
+	strlcpy(buf, optarg, sizeof(buf));
+	c = strchr(buf, ':');
+	if (c) {
+		*c++ = 0;
+		cnt  = atoi(c);
+	}
+
+	sz = strtobytes(buf);
+	if (sz > 0)
+		*size = sz;
+	if (cnt)
+		*num = cnt;
 }
 
 int main(int argc, char *argv[])
@@ -228,14 +249,10 @@ int main(int argc, char *argv[])
 	char *ident = NULL, *logfile = NULL;
 	char buf[512] = "";
 
-	while ((c = getopt(argc, argv, "?f:n:p:r:st:v")) != EOF) {
+	while ((c = getopt(argc, argv, "?f:p:r:st:v")) != EOF) {
 		switch (c) {
 		case 'f':
 			logfile = optarg;
-			break;
-
-		case 'n':
-			size = atoi(optarg);
 			break;
 
 		case 'p':
@@ -244,7 +261,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'r':
-			num = atoi(optarg);
+			parse_rotation(optarg, &size, &num);
 			break;
 
 		case 's':

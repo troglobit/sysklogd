@@ -34,11 +34,10 @@
 .Nm
 .Op Fl hsv
 .Op Fl f Ar FILE
-.Op Fl n Ar SIZE
 .Op Fl p Ar PRIO
-.Op Fl r Ar NUM
+.Op Fl r Ar SIZE:NUM
 .Op Fl t Ar TAG
-.Qq Ar message
+.Op Ar MESSAGE
 .Sh DESCRIPTIOMN
 .Nm
 can be used to send messages to the system log from a UNIX shell, or
@@ -47,27 +46,59 @@ script.
 This program follows the usual UNIX command line syntax:
 .Bl -tag -width Ds
 .It Fl f Ar FILE
-File to write log messages to, instead of syslog.
+Log file to write messages to, instead of syslog daemon.
 .It Fl h
 Show program help.
-.It Fl n Ar SIZE
-Number of bytes before rotating when logging to a file, default: 200 kB.
 .It Fl p Ar PRIO
-Priority, numeric or facility.level pair.
-.It Fl r Ar NUM
-Number of rotated files to keep when logging to a file, default: 5.
+Priority, numeric or
+.Ar facility.level
+pair.
+.It Fl r Ar SIZE:NUM
+Controls log file rotation.
+.Ar SIZE
+denotes number of bytes before rotating, default: 200 kB.
+.Ar NUM
+denotes number of rotated files to keep when logging to a file, default:
+5.
 .It Fl s
 Log to stderr as well as the system log.
 .It Fl t Ar TAG
 Log using the specified tag, default: username.
 .It Fl v
 Show program version.
+.It Ar MESSAGE
+Log message to write.  Remember to use single/double qoutes if calling
+.Nm
+from a shell prompt due to expansion the shell does.
 .El
 .Sh EXAMPLES
 .Bd -unfilled -offset left
 logger -t dropbear -p auth.notice "Successful login for user 'admin' from 1.2.3.4"
 logger -t udhcpc -f /tmp/script.log "New lease 1.2.3.200 obtained for interface eth0"
 .Ed
+.Sh FILES
+.Bl -tag -width /var/run/log -compact
+.It Ar FILE
+If a log file is enabled, using
+.Fl f Ar FILE ,
+then this file is opened and written to by
+.Nm .
+With log file rotation,
+.Fl r Ar SIZE:NUM ,
+this means
+.Nm
+also creates
+.Pa FILE.1 FILE.2 FILE.3.gz
+etc.
+.It Pa /var/run/log
+Socket to connect to for communicating with
+.Xr syslogd 8 .
+In older implementations
+.Pa /dev/log
+was used.  This means this version of
+.Nm
+is not compatible with older releases, or other (local) syslog servers.
+.El
 .Sh SEE ALSO
 .Xr syslog 3
 .Xr syslogd 8
@@ -83,5 +114,6 @@ and be extended upon in the sysklogd project.
 .Sh STANDARDS
 The
 .Nm
-command is expected to be IEEE Std 1003.2 ("POSIX.2") compatible.
+command is expected to be IEEE Std 1003.2 ("POSIX.2") compatible, with
+extensions for RFC5424 and log file rotation.
 .Sh AVAILABILITY
