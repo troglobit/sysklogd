@@ -32,6 +32,11 @@ AC_HEADER_STDC
 # Check for required packages
 PKG_PROG_PKG_CONFIG
 
+# Check for usually missing API's, which we can replace
+AC_REPLACE_FUNCS([strlcpy strlcat])
+AC_CONFIG_LIBOBJ_DIR([lib])
+
+# Command line options
 AC_ARG_WITH(suspend-time,
         AS_HELP_STRING([--with-suspend-time=SEC], [Retry timeout for remote syslogd servers, default: 180]),
 	[suspend_time=$withval], [suspend_time='no'])
