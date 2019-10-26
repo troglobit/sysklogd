@@ -552,7 +552,6 @@ static char sccsid[] __attribute__((unused)) =
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/syslog.h>
 #include <sys/time.h>
 #include <sys/uio.h>
 #include <sys/un.h>
@@ -569,6 +568,7 @@ static char sccsid[] __attribute__((unused)) =
 #endif
 #include "config.h"
 #include <paths.h>
+#include "syslog.h"
 #include "compat.h"
 
 /*
