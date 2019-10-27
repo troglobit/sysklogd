@@ -26,7 +26,7 @@ AM_CFLAGS       += -Wno-unused-result -Wno-unused-parameter
 AM_CFLAGS       += -fno-strict-aliasing -fno-strength-reduce
 
 syslogd_SOURCES  = syslogd.c pidfile.c pidfile.h
-syslogd_CPPFLAGS = -D_BSD_SOURCE -D_DEFAULT_SOURCE
+syslogd_CPPFLAGS = -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_DEFAULT_SOURCE
 syslogd_LDADD    = $(LIBS) $(LIBOBJS)
 
 klogd_SOURCES    = klogd.c klogd.h syslog.c pidfile.c pidfile.h \
