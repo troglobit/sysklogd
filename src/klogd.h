@@ -22,6 +22,8 @@
  * MA 02110-1301, USA.
  */
 
+#ifndef SYSKLOGD_KLOGD_H_
+#define SYSKLOGD_KLOGD_H_
 
 #include <stdio.h>
 #include <syslog.h>
@@ -32,3 +34,5 @@ extern int   InitMsyms(void);
 extern char *ExpandKadds(char *, char *);
 extern void  SetParanoiaLevel(int);
 extern void  Syslog(int priority, char *fmt, ...);
+
+#endif /* SYSKLOGD_KLOGD_H_ */

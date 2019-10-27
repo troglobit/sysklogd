@@ -22,6 +22,9 @@
  * MA 02110-1301, USA.
  */
 
+#ifndef SYSKLOGD_PIDFILE_H_
+#define SYSKLOGD_PIDFILE_H_
+
 /* read_pid
  *
  * Reads the specified pidfile and returns the read pid.
@@ -58,3 +61,5 @@ int touch_pid (char *pidfile);
  * is returned
  */
 int remove_pid (char *pidfile);
+
+#endif /* SYSKLOGD_PIDFILE_H_ */

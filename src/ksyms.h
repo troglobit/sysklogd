@@ -23,6 +23,8 @@
  * MA 02110-1301, USA.
  */
 
+#ifndef SYSKLOGD_KSYMS_H_
+#define SYSKLOGD_KSYMS_H_
 
 struct symbol {
 	char *name;
@@ -32,3 +34,5 @@ struct symbol {
 
 extern char *LookupSymbol(unsigned long, struct symbol *);
 extern char *LookupModuleSymbol(unsigned long int, struct symbol *);
+
+#endif /* SYSKLOGD_KSYMS_H_ */

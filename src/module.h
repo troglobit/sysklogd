@@ -23,6 +23,8 @@
  * MA 02110-1301, USA.
  */
 
+#ifndef SYSKLOGD_MODULE_H_
+#define SYSKLOGD_MODULE_H_
 
 struct sym_table {
 	unsigned long  value;
@@ -36,3 +38,4 @@ struct Module {
 	char              *name;
 };
 
+#endif /* SYSKLOGD_MODULE_H_ */
