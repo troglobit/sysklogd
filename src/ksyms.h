@@ -23,7 +23,6 @@
  * MA 02110-1301, USA.
  */
 
-/* Variables, structures and type definitions static to this module. */
 
 struct symbol {
 	char *name;
@@ -31,7 +30,5 @@ struct symbol {
 	int offset;
 };
 
-
-/* Function prototypes. */
 extern char *LookupSymbol(unsigned long, struct symbol *);
 extern char *LookupModuleSymbol(unsigned long int, struct symbol *);

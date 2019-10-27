@@ -41,69 +41,6 @@
  * possible.
  *
  * At least that is the plan.
- *
- * Wed Aug 21 09:20:09 CDT 1996:  Dr. Wettstein
- *	The situation where no module support has been compiled into a
- *	kernel is now detected.  An informative message is output indicating
- *	that the kernel has no loadable module support whenever kernel
- *	module symbols are loaded.
- *
- *	An informative message is printed indicating the number of kernel
- *	modules and the number of symbols loaded from these modules.
- *
- * Sun Jun 15 16:23:29 MET DST 1997: Michael Alan Dorman
- *	Some more glibc patches made by <mdorman@debian.org>.
- *
- * Sat Jan 10 15:00:18 CET 1998: Martin Schulze <joey@infodrom.north.de>
- *	Fixed problem with klogd not being able to be built on a kernel
- *	newer than 2.1.18.  It was caused by modified structures
- *	inside the kernel that were included.  I have worked in a
- *	patch from Alessandro Suardi <asuardi@uninetcom.it>.
- *
- * Sun Jan 25 20:57:34 CET 1998: Martin Schulze <joey@infodrom.north.de>
- *	Another patch for Linux/alpha by Christopher C Chimelis
- *	<chris@classnet.med.miami.edu>.
- *
- * Thu Mar 19 23:39:29 CET 1998: Manuel Rodrigues <pmanuel@cindy.fe.up.pt>
- *	Changed lseek() to llseek() in order to support > 2GB address
- *	space which provided by kernels > 2.1.70.
- *
- * Mon Apr 13 18:18:45 CEST 1998: Martin Schulze <joey@infodrom.north.de>
- *	Removed <sys/module.h> as it's no longer part of recent glibc
- *	versions.  Added prototyp for llseek() which has been
- *	forgotton in <unistd.h> from glibc.  Added more log
- *	information if problems occurred while reading a system map
- *	file, by submission from Mark Simon Phillips <M.S.Phillips@nortel.co.uk>.
- *
- * Sun Jan  3 18:38:03 CET 1999: Martin Schulze <joey@infodrom.north.de>
- *	Corrected return value of AddModule if /dev/kmem can't be
- *	loaded.  This will prevent klogd from segfaulting if /dev/kmem
- *	is not available.  Patch from Topi Miettinen <tom@medialab.sonera.net>.
- *
- * Tue Sep 12 23:11:13 CEST 2000: Martin Schulze <joey@infodrom.ffis.de>
- *	Changed llseek() to lseek64() in order to skip a libc warning.
- *
- * Wed Mar 31 17:35:01 CEST 2004: Martin Schulze <joey@infodrom.org>
- *	Removed references to <linux/module.h> since it doesn't work
- *	anymore with its recent content from Linux 2.4/2.6, created
- *	module.h locally instead.
- *
- * Fri May 25 20:07:30 CEST 2007: Martin Schulze <joey@infodrom.org>
- *	Use new query_module function rather than the old obsolete
- *	hack of stepping through /dev/kmem.
- *
- * Mon May 28 16:46:59 CEST 2007: Martin Schulze <joey@infodrom.org>
- *	Since Linux 2.6 query_module is depricated and no implemented
- *	anymore.  Thus, overhauled symbol import via /proc/kallsyms
- *
- * Thu May 31 12:12:23 CEST 2007: Martin Schulze <joey@infodrom.org>
- *	Only read kernel symbols from /proc/kallsyms if no System.map
- *	has been read as it may contain more symbols.
- *
- * Thu May 31 16:56:26 CEST 2007: Martin Schulze <joey@infodrom.org>
- *	Improved symbol lookup, since symbols are spread over the entire
- *	address space.  Return the symbol that fits best instead of
- *	the first hit.
  */
 
 #include "config.h"

@@ -1,20 +1,5 @@
 /* Program to test daemon logging. */
 
-/*
- * Sat Dec 11 12:07:50 CST 1993:  Dr. Wettstein
- *	Compiles clean with -Wall.  Renamed for first public distribution.
- *	Use this freely but if you make a ton of money with it I
- *	expect a cut...  :-)
- *
- * Thu Jan  6 11:52:10 CST 1994:  Dr. Wettstein
- *	Added support for reading getting log input from the standard
- *	input.  To activate this use a - as the single arguement to the
- *	the program.  Note that there is a hack in the code to pause
- *	after each 1K has been written.  This eliminates what appears
- *	to be a problem with overrunning a UNIX domain socket with
- *	excessive amounts of input.
- */
-
 #include <stdio.h>
 #include <string.h>
 #include <sys/param.h>

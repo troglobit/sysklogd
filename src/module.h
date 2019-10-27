@@ -23,20 +23,6 @@
  * MA 02110-1301, USA.
  */
 
-/* ChangeLog:
- *
- * Wed Mar 31 17:35:01 CEST 2004: Martin Schulze <joey@infodrom.org>
- *	Created local copy of module.h based on the content of Linux
- *	2.2 since <linux/module.h> doesn't work anymore with its
- *	recent content from Linux 2.4/2.6.
- *
- * Thu May 25 09:14:33 CEST 2006: Martin Schulze <joey@infodrom.org>
- *	Removed asm/atomic.h since it is not needed anymore.
- *
- * Mon May 28 16:46:59 CEST 2007: Martin Schulze <joey@infodrom.org>
- *	Removed several structs not used anymore.  Moved structs from
- *	ksym_mod.c over here.
- */
 
 struct sym_table {
 	unsigned long  value;

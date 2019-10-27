@@ -22,11 +22,6 @@
  * MA 02110-1301, USA.
  */
 
-/*
- * Sat Aug 19 13:24:33 MET DST 1995: Martin Schulze
- *	First version (v0.2) released
- */
-
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
