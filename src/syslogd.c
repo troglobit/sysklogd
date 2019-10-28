@@ -334,7 +334,8 @@ struct code FacNames[] = {
 	{ NULL,       -1             },
 };
 
-int   Debug;                             /* debug flag */
+static int	Debug;		/* debug flag */
+static int	Foreground = 0;	/* don't fork - don't run in daemon mode */
 char  LocalHostName[MAXHOSTNAMELEN + 1]; /* our hostname */
 char *LocalDomain;                       /* our local domain name */
 char *emptystring = "";
@@ -467,7 +468,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'n': /* don't fork */
-			NoFork = 1;
+			Foreground = 1;
 			break;
 
 		case 'p': /* path to regular log socket */
@@ -505,7 +506,7 @@ int main(int argc, char *argv[])
 		usage(1);
 
 #ifndef TESTING
-	if (!(Debug || NoFork)) {
+	if ((!Foreground) && (!Debug)) {
 		logit("Checking pidfile.\n");
 		if (!check_pid(PidFile)) {
 			signal(SIGTERM, doexit);
