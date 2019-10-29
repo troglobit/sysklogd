@@ -23,7 +23,12 @@ AM_SILENT_RULES([yes])
 
 AC_CONFIG_SRCDIR([src/syslogd.c])
 AC_CONFIG_HEADER([config.h])
-AC_CONFIG_FILES([Makefile src/Makefile man/Makefile klogd.service syslogd.service])
+AC_CONFIG_FILES([Makefile
+		 man/Makefile
+		 src/Makefile
+		 test/Makefile
+		 klogd.service
+		 syslogd.service])
 
 AC_PROG_CC
 AC_PROG_INSTALL

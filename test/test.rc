@@ -1,0 +1,5 @@
+NM=syslog-test
+CFG=/tmp/${NM}.conf
+LOG=/tmp/${NM}.log
+PID=/tmp/${NM}.pid
+SCK=/tmp/${NM}.sock
