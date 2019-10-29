@@ -195,6 +195,7 @@ struct syslog_data {
 	int	log_opened;
 	int	log_stat;
 	const char	*log_tag;
+	const char	*log_sockpath;	/* Path to socket */
 	char	log_hostname[256];	/* MAXHOSTNAMELEN */
 	int	log_fac;
 	int	log_mask;
@@ -207,6 +208,7 @@ struct syslog_data {
     .log_opened = 0, \
     .log_stat = 0, \
     .log_tag  = 0, \
+    .log_sockpath = NULL, \
     .log_hostname = { '\0' }, \
     .log_fac = LOG_USER, \
     .log_mask = 0xff, \

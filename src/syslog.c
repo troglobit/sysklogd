@@ -483,13 +483,16 @@ static void
 connectlog_r(struct syslog_data *data)
 {
 	/* AF_UNIX address of local logger */
-	static const struct sockaddr_un sun = {
+	static struct sockaddr_un sun = {
 		.sun_family = AF_LOCAL,
 #ifdef HAVE_SA_LEN
 		.sun_len = sizeof(sun),
 #endif
 		.sun_path = _PATH_LOG,
 	};
+
+	if (data->log_sockpath && !access(data->log_sockpath, W_OK))
+		strlcpy(sun.sun_path, data->log_sockpath, sizeof(sun.sun_path));
 
 	if (data->log_file == -1 || fcntl(data->log_file, F_GETFL, 0) == -1) {
 		data->log_file = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);

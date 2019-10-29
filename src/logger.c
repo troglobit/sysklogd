@@ -205,9 +205,10 @@ int main(int argc, char *argv[])
 	int rotate = 0;
 	off_t size = 200 * 1024;
 	char *ident = NULL, *logfile = NULL;
+	char *sockpath = NULL;
 	char buf[512] = "";
 
-	while ((c = getopt(argc, argv, "?f:p:r:st:v")) != EOF) {
+	while ((c = getopt(argc, argv, "?f:p:r:st:u:v")) != EOF) {
 		switch (c) {
 		case 'f':
 			logfile = optarg;
@@ -228,6 +229,10 @@ int main(int argc, char *argv[])
 
 		case 't':
 			ident = optarg;
+			break;
+
+		case 'u':
+			sockpath = optarg;
 			break;
 
 		case 'v':	/* version */
@@ -267,6 +272,10 @@ int main(int argc, char *argv[])
 		}
 
 		log.log_file = fileno(fp);
+	} else if (sockpath) {
+		if (access(sockpath, W_OK))
+			err(1, "Socket path %s", sockpath);
+		log.log_sockpath = sockpath;
 	}
 
 	openlog_r(ident, log_opts, facility, &log);
