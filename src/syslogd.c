@@ -342,7 +342,7 @@ int main(int argc, char *argv[])
 		funix[i] = -1;
 	}
 
-	while ((ch = getopt(argc, argv, "46Aa:dhHf:l:m:np:R:rs:v?")) != EOF) {
+	while ((ch = getopt(argc, argv, "46Aa:dhHf:l:m:nP:p:R:rs:v?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -394,6 +394,10 @@ int main(int argc, char *argv[])
 
 		case 'n': /* don't fork */
 			Foreground = 1;
+			break;
+
+		case 'P':
+			PidFile = optarg;
 			break;
 
 		case 'p': /* path to regular log socket */
@@ -681,13 +685,15 @@ int usage(int code)
 	        "  -l HOST   Host name to log without its FQDN, use ':' for multiple hosts\n"
 	        "  -m INTV   Interval between MARK messages in log, 0 to disable, default: 20\n"
 	        "  -n        Run in foreground, required when run from a modern init/supervisor\n"
+		"  -P FILE   Specify an	alternative file in which to store the process ID.\n"
+		"            The default is %s."
 	        "  -p PATH   Alternate path to UNIX domain socket, default: %s\n"
 	        "  -r        Act as remote syslog sink for other hosts\n"
 	        "  -s NAME   Strip domain name before logging, use ':' for multiple domains\n"
 	        "  -v        Show program version and exit\n"
 	        "\n"
 	        "Bug report address: %s\n",
-		_PATH_LOG, PACKAGE_BUGREPORT);
+		_PATH_LOGPID, _PATH_LOG, PACKAGE_BUGREPORT);
 	exit(code);
 }
 

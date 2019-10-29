@@ -23,6 +23,9 @@ sysklogd \- Linux system logging utilities.
 .I interval
 ] 
 .RB [ " \-n " ]
+.RB [ " \-P "
+.I pid file
+]
 .RB [ " \-p"
 .IB socket 
 ]
@@ -153,6 +156,11 @@ Avoid auto-backgrounding.  This is needed especially if the
 .B syslogd
 is started and controlled by
 .BR init (8).
+.TP
+.BI "\-P " "pid_file"
+Specify an alternative file in which to store the process ID.
+The default is
+.IR /var/run/syslog.pid .
 .TP
 .BI "\-p " "socket"
 You can specify an alternative unix domain socket instead of
