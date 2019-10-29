@@ -57,6 +57,8 @@ static char sccsid[] __attribute__((unused)) =
 #define TIMERINTVL     30              /* interval for checking flush, mark */
 #define RCVBUF_MINSIZE (80 * 1024)     /* minimum size of dgram rcv buffer */
 
+#include "config.h"
+
 #include <assert.h>
 #include <ctype.h>
 #include <getopt.h>
@@ -91,12 +93,9 @@ static char sccsid[] __attribute__((unused)) =
 #include <netinet/in.h>
 #include <resolv.h>
 #include <syscall.h>
-#ifndef TESTING
-#include "pidfile.h"
-#endif
-#include "config.h"
 #include <paths.h>
 
+#include "pidfile.h"
 #include "syslogd.h"
 #include "compat.h"
 
@@ -314,9 +313,7 @@ void        domark();
 void        debug_switch();
 void        logerror(const char *type);
 void        die(int sig);
-#ifndef TESTING
 void        doexit(int sig);
-#endif
 void        init();
 static int  strtobytes(char *arg);
 void        cfline(char *line, struct filed *f);
@@ -331,13 +328,11 @@ int main(int argc, char *argv[])
 {
 	extern char *optarg;
 	extern int optind;
-#ifndef TESTING
 	struct sockaddr_storage frominet;
 	pid_t ppid = getpid();
 	socklen_t len;
 	ssize_t msglen;
 	int fd;
-#endif
 	fd_set readfds;
 	char line[MAXLINE + 1];
 	int num_fds, maxfds;
@@ -440,7 +435,6 @@ int main(int argc, char *argv[])
 	if ((argc -= optind))
 		usage(1);
 
-#ifndef TESTING
 	if ((!Foreground) && (!Debug)) {
 		logit("Checking pidfile.\n");
 		if (!check_pid(PidFile)) {
@@ -471,14 +465,11 @@ int main(int argc, char *argv[])
 			fputs("syslogd: Already running.\n", stderr);
 			exit(1);
 		}
-	} else
-#endif
-	{
+	} else {
 		debugging_on = 1;
 		setlinebuf(stdout);
 	}
 
-#ifndef TESTING
 	/* tuck my process id away */
 	if (!Debug) {
 		logit("Writing pidfile.\n");
@@ -495,8 +486,7 @@ int main(int argc, char *argv[])
 				kill(ppid, SIGTERM);
 			exit(1);
 		}
-	} /* if ( !Debug ) */
-#endif
+	}
 
 	consfile.f_type = F_CONSOLE;
 	(void)strcpy(consfile.f_un.f_fname, ctty);
@@ -521,10 +511,8 @@ int main(int argc, char *argv[])
 	logit("Allocated parts table for %d file descriptors.\n", num_fds);
 	if ((parts = malloc(num_fds * sizeof(char *))) == NULL) {
 		logerror("Cannot allocate memory for message parts table.");
-#ifndef TESTING
 		if (getpid() != ppid)
 			kill(ppid, SIGTERM);
-#endif
 		die(0);
 	}
 	for (i = 0; i < num_fds; ++i)
@@ -532,17 +520,17 @@ int main(int argc, char *argv[])
 
 	logit("Starting.\n");
 	init();
-#ifndef TESTING
+
 	if (Debug) {
 		logit("Debugging disabled, SIGUSR1 to turn on debugging.\n");
 		debugging_on = 0;
 	}
+
 	/*
 	 * Send a signal to the parent to it can terminate.
 	 */
 	if (getpid() != ppid)
 		kill(ppid, SIGTERM);
-#endif
 
 	/* Main loop begins here. */
 	for (;;) {
@@ -552,7 +540,6 @@ int main(int argc, char *argv[])
 		FD_ZERO(&readfds);
 		maxfds = 0;
 
-#ifndef TESTING
 		/*
 		 * Add the Unix Domain Sockets to the list of read
 		 * descriptors.
@@ -579,13 +566,6 @@ int main(int argc, char *argv[])
 			}
 			logit("Listening on syslog UDP port.\n");
 		}
-#else
-		FD_SET(fileno(stdin), &readfds);
-		if (fileno(stdin) > maxfds)
-			maxfds = fileno(stdin);
-
-		logit("Listening on stdin.  Press Ctrl-C to interrupt.\n");
-#endif
 
 		if (debugging_on) {
 			logit("Calling select, active file descriptors (max %d): ", maxfds);
@@ -600,7 +580,7 @@ int main(int argc, char *argv[])
 			restart = 0;
 			logit("\nReceived SIGHUP, reloading syslogd.\n");
 			init();
-#ifndef TESTING
+
 			if (check_pid(PidFile)) {
 				if (touch_pid(PidFile))
 					logerror("Not possible to touch pidfile");
@@ -608,7 +588,6 @@ int main(int argc, char *argv[])
 				if (!write_pid(PidFile))
 					logerror("Failed to write pidfile");
 			}
-#endif
 			continue;
 		}
 
@@ -633,7 +612,6 @@ int main(int argc, char *argv[])
 			logit("\n");
 		}
 
-#ifndef TESTING
 		for (i = 0; i < nfunix; i++) {
 			if ((fd = funix[i]) != -1 && FD_ISSET(fd, &readfds)) {
 				memset(line, 0, sizeof(line));
@@ -680,26 +658,6 @@ int main(int argc, char *argv[])
 				}
 			}
 		}
-#else
-                if (FD_ISSET(fileno(stdin), &readfds)) {
-                        logit("Message from stdin.\n");
-                        memset(line, 0, sizeof(line));
-                        line[0] = '.';
-                        parts[fileno(stdin)] = NULL;
-                        i = read(fileno(stdin), line, MAXLINE);
-			logit("Message len: %d line: '%s'\n", i, line);
-                        if (i > 0) {
-                                parsemsg(LocalHostName, line);
-                        } else if (i < 0) {
-                                if (errno != EINTR)
-                                        logerror("stdin");
-                        } else {
-				logit("EOF\n");
-				exit(0);
-			}
-                }
-
-#endif
 	}
 }
 
@@ -2261,21 +2219,18 @@ void die(int signo)
 	for (i = 0; i < nfunix; i++)
 		if (funixn[i] && funix[i] != -1)
 			(void)unlink(funixn[i]);
-#ifndef TESTING
+
 	(void)remove_pid(PidFile);
-#endif
 	exit(0);
 }
 
 /*
  * Signal handler to terminate the parent process.
  */
-#ifndef TESTING
 void doexit(int signo)
 {
 	exit(0);
 }
-#endif
 
 /*
  *  INIT -- Initialize syslogd from configuration table
@@ -2371,12 +2326,7 @@ void init(void)
 	if ((cf = fopen(ConfFile, "r")) == NULL) {
 		logit("cannot open %s.\n", ConfFile);
 
-#ifndef TESTING
 		cfline("*.err\t" _PATH_CONSOLE, f);
-#else
-		snprintf(cbuf, sizeof(cbuf), "*.*\t%s", ttyname(0));
-		cfline(cbuf, f);
-#endif
 
 		*nextp = calloc(1, sizeof(*f));
 		if (!*nextp) {

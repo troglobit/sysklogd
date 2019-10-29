@@ -44,17 +44,12 @@
  * systemd/journald this is reserved and may already exist as
  * a directory.  For compatibility with GLIBC syslog API, for
  * those who opt not to use this replacement API, we use the
- * default/traditional Linux path /dev/log.  In case we're in
- * unit TESTING mode we usr /tmp/log.sock
+ * default/traditional Linux path /dev/log.
  */
-#ifndef TESTING
-# ifndef __linux__
-#  define	_PATH_LOG	"/var/run/log"
-# else
-#  define	_PATH_LOG	"/dev/log"
-# endif
+#ifndef __linux__
+#define	_PATH_LOG	"/var/run/log"
 #else
-# define	_PATH_LOG	"/tmp/log.sock"
+#define	_PATH_LOG	"/dev/log"
 #endif
 
 /*

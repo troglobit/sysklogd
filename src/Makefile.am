@@ -19,7 +19,6 @@ AUTOMAKE_OPTIONS = subdir-objects
 
 bin_PROGRAMS     = logger
 sbin_PROGRAMS    = syslogd klogd
-noinst_PROGRAMS  = tsyslogd syslog_tst
 
 AM_CFLAGS        = -W -Wall -Wextra
 AM_CFLAGS       += -Wno-unused-result -Wno-unused-parameter
@@ -38,10 +37,3 @@ logger_SOURCES   = logger.c syslog.c
 logger_CPPFLAGS  = -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_DEFAULT_SOURCE
 logger_LDADD     = $(LIBS) $(LIBOBJS)
 
-tsyslogd_SOURCES  = $(syslogd_SOURCES)
-tsyslogd_CPPFLAGS = $(syslogd_CPPFLAGS) -DTESTING
-tsyslogd_LDADD    = $(LIBS) $(LIBOBJS)
-
-syslog_tst_SOURCES  = syslog_tst.c syslog.c
-syslog_tst_CPPFLAGS = -D_BSD_SOURCE -D_DEFAULT_SOURCE -DTESTING
-syslog_tst_LDADD    = $(LIBS) $(LIBOBJS)
