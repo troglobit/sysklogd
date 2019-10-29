@@ -358,7 +358,6 @@ static int	RotateCnt = 5;	/* Max number (count) of log files to keep, set with -
 extern int errno;
 
 /* Function prototypes. */
-int         main(int argc, char **argv);
 char      **crunch_list(char *list);
 int         usage(int code);
 void        untty(void);
@@ -577,8 +576,7 @@ int main(int argc, char *argv[])
 	/* Create a partial message table for all file descriptors. */
 	num_fds = getdtablesize();
 	logit("Allocated parts table for %d file descriptors.\n", num_fds);
-	if ((parts = (char **)malloc(num_fds * sizeof(char *))) ==
-	    NULL) {
+	if ((parts = malloc(num_fds * sizeof(char *))) == NULL) {
 		logerror("Cannot allocate memory for message parts table.");
 #ifndef TESTING
 		if (getpid() != ppid)
@@ -624,9 +622,7 @@ int main(int argc, char *argv[])
 					maxfds = funix[i];
 			}
 		}
-#endif
 
-#ifndef TESTING
 		/*
 		 * Add the Internet Domain Socket to the list of read
 		 * descriptors.
@@ -640,8 +636,7 @@ int main(int argc, char *argv[])
 			}
 			logit("Listening on syslog UDP port.\n");
 		}
-#endif
-#ifdef TESTING
+#else
 		FD_SET(fileno(stdin), &readfds);
 		if (fileno(stdin) > maxfds)
 			maxfds = fileno(stdin);
@@ -724,9 +719,11 @@ int main(int argc, char *argv[])
 						      i + 1, addr);
 					}
 					if (msglen > 0) {
+						const char *from;
+
 						/* Note that if cvthname() returns NULL then
 						   we shouldn't attempt to log the line -- jch */
-						const char *from = cvthname(&frominet, len);
+						from = cvthname(&frominet, len);
 						if (from)
 							printchopped(from, line,
 							             msglen + 2, finet[i + 1]);
@@ -784,13 +781,13 @@ int usage(int code)
 	        "  -l HOST   Host name to log without its FQDN, use ':' for multiple hosts\n"
 	        "  -m INTV   Interval between MARK messages in log, 0 to disable, default: 20\n"
 	        "  -n        Run in foreground, required when run from a modern init/supervisor\n"
-	        "  -p PATH   Alternate path to UNIX domain socket, default: /dev/log\n"
+	        "  -p PATH   Alternate path to UNIX domain socket, default: %s\n"
 	        "  -r        Act as remote syslog sink for other hosts\n"
 	        "  -s NAME   Strip domain name before logging, use ':' for multiple domains\n"
 	        "  -v        Show program version and exit\n"
 	        "\n"
 	        "Bug report address: %s\n",
-	        PACKAGE_BUGREPORT);
+		_PATH_LOG, PACKAGE_BUGREPORT);
 	exit(code);
 }
 
@@ -1941,7 +1938,7 @@ void die(int signo)
 	int was_initialized = Initialized;
 
 	Initialized = 0; /* Don't log SIGCHLDs in case we
-				   receive one during exiting */
+			    receive one during exiting */
 
 	for (lognum = 0; lognum <= nlogs; lognum++) {
 		f = &Files[lognum];
