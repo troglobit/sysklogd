@@ -34,10 +34,28 @@
 #ifndef _SYS_SYSLOG_H_ /* From NetBSD, for co-existance with C-library header */
 #define _SYS_SYSLOG_H_
 
+#include "config.h"
+
 #include <features.h>
 #include <stdarg.h>
 
-#define	_PATH_LOG	"/var/run/log"
+/*
+ * Default on *BSD is /var/run/log, but on Linux systems with
+ * systemd/journald this is reserved and may already exist as
+ * a directory.  For compatibility with GLIBC syslog API, for
+ * those who opt not to use this replacement API, we use the
+ * default/traditional Linux path /dev/log.  In case we're in
+ * unit TESTING mode we usr /tmp/log.sock
+ */
+#ifndef TESTING
+# ifndef __linux__
+#  define	_PATH_LOG	"/var/run/log"
+# else
+#  define	_PATH_LOG	"/dev/log"
+# endif
+#else
+# define	_PATH_LOG	"/tmp/log.sock"
+#endif
 
 /*
  * priorities/facilities are encoded into a single 32-bit quantity, where the
@@ -161,14 +179,15 @@ CODE facilitynames[] = {
  * LOG_ODELAY no longer does anything.
  * LOG_NDELAY is the inverse of what it used to be.
  */
-#define	LOG_PID		0x01	/* log the pid with each message */
-#define	LOG_CONS	0x02	/* log on the console if errors in sending */
-#define	LOG_ODELAY	0x04	/* delay open until first syslog() (default) */
-#define	LOG_NDELAY	0x08	/* don't delay open */
-#define	LOG_NOWAIT	0x10	/* don't wait for console forks: DEPRECATED */
-#define	LOG_PERROR	0x20	/* log to stderr as well */
-#define LOG_PTRIM	0x40	/* trim tag and pid from messages to stderr */
-#define LOG_NLOG	0x80	/* don't write to the system log */
+#define	LOG_PID		0x001	/* log the pid with each message */
+#define	LOG_CONS	0x002	/* log on the console if errors in sending */
+#define	LOG_ODELAY	0x004	/* delay open until first syslog() (default) */
+#define	LOG_NDELAY	0x008	/* don't delay open */
+#define	LOG_NOWAIT	0x010	/* don't wait for console forks: DEPRECATED */
+#define	LOG_PERROR	0x020	/* log to stderr as well */
+#define	LOG_PTRIM	0x040	/* trim tag and pid from messages to stderr */
+#define	LOG_NLOG	0x080	/* don't write to the system log */
+#define	LOG_STDOUT	0x100	/* like nlog, for debugging syslogp() API */
 
 #ifndef __KERNEL__
 
