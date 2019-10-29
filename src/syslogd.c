@@ -267,34 +267,33 @@ struct code FacNames[] = {
 	{ NULL,       -1             },
 };
 
-static int	Debug;		/* debug flag */
-static int	Foreground = 0;	/* don't fork - don't run in daemon mode */
-char  LocalHostName[MAXHOSTNAMELEN + 1]; /* our hostname */
-char *LocalDomain;                       /* our local domain name */
-char *emptystring = "";
-int   InetInuse = 0;          /* non-zero if INET sockets are being used */
-int  *finet = NULL;           /* Internet datagram sockets */
-int   Initialized = 0;        /* set when we have initialized ourselves */
-int   MarkInterval = 20 * 60; /* interval between marks in seconds */
-int    family = PF_UNSPEC;  /* protocol family (IPv4, IPv6 or both) */
-static int	mask_C1 = 1;	/* mask characters from 0x80 - 0x9F */
-static int	send_to_all;	/* send message to all IPv4/IPv6 addresses */
-int    MarkSeq = 0;         /* mark sequence number */
+static int	  Debug;		/* debug flag */
+static int	  Foreground = 0;	/* don't fork - don't run in daemon mode */
+static char	  LocalHostName[MAXHOSTNAMELEN + 1]; /* our hostname */
+static char	 *LocalDomain;			     /* our local domain name */
+static char	 *emptystring = "";
+static int	  InetInuse = 0;	  /* non-zero if INET sockets are being used */
+static int	 *finet = NULL;		  /* Internet datagram sockets */
+static int	  Initialized = 0;	  /* set when we have initialized ourselves */
+static int	  MarkInterval = 20 * 60; /* interval between marks in seconds */
+static int	  family = PF_UNSPEC;	  /* protocol family (IPv4, IPv6 or both) */
+static int	  mask_C1 = 1;		  /* mask characters from 0x80 - 0x9F */
+static int	  send_to_all;		  /* send message to all IPv4/IPv6 addresses */
+static int	  MarkSeq = 0;		  /* mark sequence number */
 
-static int	RemoteAddDate;	/* Always set the date on remote messages */
-static int	RemoteHostname;	/* Log remote hostname from the message */
+static int	  RemoteAddDate;	  /* Always set the date on remote messages */
+static int	  RemoteHostname;	  /* Log remote hostname from the message */
 
-static int	KeepKernFac;	/* Keep remotely logged kernel facility */
+static int	  KeepKernFac;		  /* Keep remotely logged kernel facility */
 
-int    LastAlarm = 0;       /* last value passed to alarm() (seconds)  */
-int    DupesPending = 0;    /* Number of unflushed duplicate messages */
-int    AcceptRemote = 0;    /* receive messages that come via UDP */
-char **StripDomains = NULL; /* these domains may be stripped before writing logs */
-char **LocalHosts = NULL;   /* these hosts are logged with their hostname */
-int    NoHops = 1;          /* Can we bounce syslog messages through an intermediate host. */
-static off_t	RotateSz = 0;	/* Max file size (bytes) before rotating, disabled by default */
-static int	RotateCnt = 5;	/* Max number (count) of log files to keep, set with -c <NUM> */
-extern int errno;
+static int	  LastAlarm = 0;	  /* last value passed to alarm() (seconds)  */
+static int	  DupesPending = 0;	  /* Number of unflushed duplicate messages */
+static int	  AcceptRemote = 0;	  /* receive messages that come via UDP */
+static char	**StripDomains = NULL;	  /* these domains may be stripped before writing logs */
+static char	**LocalHosts = NULL;	  /* these hosts are logged with their hostname */
+static int	  NoHops = 1;		  /* Can we bounce syslog messages through an intermediate host. */
+static off_t	  RotateSz = 0;		  /* Max file size (bytes) before rotating, disabled by default */
+static int	  RotateCnt = 5;	  /* Max number (count) of log files to keep, set with -c <NUM> */
 
 /* Function prototypes. */
 char      **crunch_list(char *list);
