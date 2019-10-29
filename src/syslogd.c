@@ -405,9 +405,6 @@ int main(int argc, char *argv[])
 	int num_fds, maxfds;
 	int i, ch;
 
-#ifndef TESTING
-	chdir("/");
-#endif
 	for (i = 1; i < MAXFUNIX; i++) {
 		funixn[i] = "";
 		funix[i] = -1;
@@ -506,6 +503,8 @@ int main(int argc, char *argv[])
 		logit("Checking pidfile.\n");
 		if (!check_pid(PidFile)) {
 			signal(SIGTERM, doexit);
+			chdir("/");
+
 			if (fork()) {
 				/*
 				 * Parent process
