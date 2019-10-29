@@ -29,7 +29,9 @@
  * SUCH DAMAGE.
  */
 
-#include <config.h>
+#include "config.h"
+
+#include <err.h>
 #include <errno.h>
 #include <getopt.h>
 #include <stdio.h>
@@ -42,7 +44,7 @@
 #include "compat.h"
 
 static const char version_info[] = PACKAGE_NAME " v" PACKAGE_VERSION;
-
+static struct syslog_data log    = SYSLOG_DATA_INIT;
 
 static int create(char *path, mode_t mode, uid_t uid, gid_t gid)
 {
@@ -113,6 +115,7 @@ static int checksz(FILE *fp, off_t sz)
 {
 	struct stat st;
 
+	fsync(fileno(fp));
 	if (sz <= 0)
 		return 0;
 
@@ -124,49 +127,20 @@ static int checksz(FILE *fp, off_t sz)
 	return 0;
 }
 
-static int logit(int level, char *buf, size_t len)
+char *chomp(char *str)
 {
-	if (buf[0]) {
-		syslog(level, "%s", buf);
-		return 0;
-	}
+        char *p;
 
-	while ((fgets(buf, len, stdin)))
-		syslog(level, "%s", buf);
+        if (!str || strlen(str) < 1) {
+                errno = EINVAL;
+                return NULL;
+        }
 
-	return 0;
-}
+        p = str + strlen(str) - 1;
+        while (p >= str && *p == '\n')
+                *p-- = 0;
 
-static int flogit(char *logfile, int num, off_t sz, char *buf, size_t len)
-{
-	FILE *fp;
-
-reopen:
-	fp = fopen(logfile, "a");
-	if (!fp) {
-		syslog(LOG_ERR | LOG_PERROR, "Failed opening %s: %s", logfile, strerror(errno));
-		return 1;
-	}
-
-	if (buf[0]) {
-		fprintf(fp, "%s\n", buf);
-		fsync(fileno(fp));
-		if (checksz(fp, sz))
-			return logrotate(logfile, num, sz);
-	} else {
-		while ((fgets(buf, len, stdin))) {
-			fputs(buf, fp);
-			fsync(fileno(fp));
-
-			if (checksz(fp, sz)) {
-				logrotate(logfile, num, sz);
-				buf[0] = 0;
-				goto reopen;
-			}
-		}
-	}
-
-	return fclose(fp);
+        return str;
 }
 
 static int parse_prio(char *arg, int *f, int *l)
@@ -178,20 +152,22 @@ static int parse_prio(char *arg, int *f, int *l)
 		*ptr++ = 0;
 
 		for (int i = 0; facilitynames[i].c_name; i++) {
-			if (!strcmp(facilitynames[i].c_name, arg)) {
-				*f = facilitynames[i].c_val;
-				break;
-			}
+			if (strcmp(facilitynames[i].c_name, arg))
+				continue;
+
+			*f = facilitynames[i].c_val;
+			break;
 		}
 
 		arg = ptr;
 	}
 
 	for (int i = 0; prioritynames[i].c_name; i++) {
-		if (!strcmp(prioritynames[i].c_name, arg)) {
-			*l = prioritynames[i].c_val;
-			break;
-		}
+		if (strcmp(prioritynames[i].c_name, arg))
+			continue;
+
+		*l = prioritynames[i].c_val;
+		break;
 	}
 
 	return 0;
@@ -203,7 +179,7 @@ static int usage(int code)
 	       "\n"
 	       "Write MESSAGE (or stdin) to syslog, or file (with logrotate)\n"
 	       "\n"
-	       "  -p PRIO  Log message priority (numeric or facility.level pair)\n"
+	       "  -p PRIO  Log message priority (numeric or facility.severity pair)\n"
 	       "  -t TAG   Log using the specified tag (defaults to user name)\n"
 	       "  -s       Log to stderr as well as the system log\n"
 	       "\n"
@@ -221,10 +197,12 @@ static int usage(int code)
 
 int main(int argc, char *argv[])
 {
-	int c, rc, num = 5;
+	FILE *fp;
+	int c, num = 5;
 	int facility = LOG_USER;
-	int level = LOG_INFO;
-	int log_opts = LOG_NOWAIT;
+	int severity = LOG_INFO;
+	int log_opts = LOG_NDELAY | LOG_PID;
+	int rotate = 0;
 	off_t size = 200 * 1024;
 	char *ident = NULL, *logfile = NULL;
 	char buf[512] = "";
@@ -236,7 +214,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'p':
-			if (parse_prio(optarg, &facility, &level))
+			if (parse_prio(optarg, &facility, &severity))
 				return usage(1);
 			break;
 
@@ -276,14 +254,34 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	openlog(ident, log_opts, facility);
+	if (logfile) {
+		if (strcmp(logfile, "-")) {
+			log_opts |= LOG_NLOG;
+			fp = fopen(logfile, "a");
+			if (!fp)
+				err(1, "Failed opening %s for writing: %m", logfile);
+			rotate = 1;
+		} else {
+			log_opts |= LOG_STDOUT;
+			fp = stdout;
+		}
 
-	if (logfile)
-		rc = flogit(logfile, num, size, buf, sizeof(buf));
-	else
-		rc = logit(level, buf, sizeof(buf));
+		log.log_file = fileno(fp);
+	}
 
-	closelog();
+	openlog_r(ident, log_opts, facility, &log);
 
-	return rc;
+	if (!buf[0]) {
+		while ((fgets(buf, sizeof(buf), stdin)))
+			syslog_r(severity, &log, "%s", chomp(buf));
+	} else
+		syslog_r(severity, &log, "%s", buf);
+
+	closelog_r(&log);
+
+	if (rotate && checksz(fp, size))
+		logrotate(logfile, num, size);
+
+	return 0;
 }
+

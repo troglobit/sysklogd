@@ -40,6 +40,7 @@ __RCSID("$NetBSD: syslog.c,v 1.55 2015/10/26 11:44:30 roy Exp $");
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/uio.h>
 #include <sys/un.h>
@@ -71,13 +72,28 @@ static mutex_t	syslog_mutex = MUTEX_INITIALIZER;
  * wrapper to catch GLIBC syslog(), which provides this for security measures
  * Note: we only enter here if user includes GLIBC syslog.h
  */
-void __syslog_chk(int pri, int flag __attribute__((unused)), const char *fmt, ...)
+void
+__syslog_chk(int pri, int flag __attribute__((unused)), const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
 	vsyslog(pri, fmt, ap);
 	va_end(ap);
+}
+
+/*
+ * Used to determine file/socket type of log_file
+ */
+static int
+is_socket(int fd)
+{
+	struct stat st;
+
+	if (fstat(fd, &st) || !S_ISSOCK(st.st_mode))
+		return 0;
+
+	return 1;
 }
 
 /*
@@ -186,8 +202,10 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 	char tbuf[TBUF_LEN], fmt_cpy[FMT_LEN], fmt_cat[FMT_LEN] = "";
 	size_t tbuf_left, fmt_left, msgsdlen;
 	char *fmt = fmt_cat;
-	struct iovec iov[7];	/* prog + [ + pid + ]: + fmt + crlf */
-	int opened, iovcnt;
+	char dbuf[30];
+	struct iovec iov[8];	/* date/time + prog + [ + pid + ]: + fmt + crlf */
+	int iovcnt = 0;
+	int opened;
 
 #define INTERNALLOG	LOG_ERR|LOG_CONS|LOG_PERROR|LOG_PID
 	/* Check for invalid bits. */
@@ -219,8 +237,11 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 		tbuf_left -= prlen;				\
 	} while (/*CONSTCOND*/0)
 
-	prlen = snprintf(p, tbuf_left, "<%d>1 ", pri);
-	DEC();
+	if (!(data->log_stat & LOG_NLOG)) {
+		prlen = snprintf(p, tbuf_left, "<%d>1 ", pri);
+		DEC();
+	} else
+		prlen = 0;
 
 	if (gettimeofday(&tv, NULL) != -1) {
 		/* strftime() implies tzset(), localtime_r() doesn't. */
@@ -240,6 +261,13 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 			p[prlen-1] = p[prlen-2];
 			p[prlen-2] = ':';
 			prlen += 1;
+		}
+
+		if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG)) {
+			strftime(dbuf, sizeof(dbuf), "%b %d %Y %T ", &tmnow);
+			iov[iovcnt].iov_base = dbuf;
+			iov[iovcnt].iov_len = strlen(dbuf);
+			iovcnt++;
 		}
 	}
 
@@ -266,8 +294,7 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 	if (data == &sdata)
 		mutex_unlock(&syslog_mutex);
 
-	if (data->log_stat & (LOG_PERROR|LOG_CONS)) {
-		iovcnt = 0;
+	if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG)) {
 		iov[iovcnt].iov_base = p;
 		iov[iovcnt].iov_len = prlen - 1;
 		iovcnt++;
@@ -276,7 +303,7 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 
 	if (data->log_stat & LOG_PID) {
 		prlen = snprintf(p, tbuf_left, "%d ", getpid());
-		if (data->log_stat & (LOG_PERROR|LOG_CONS)) {
+		if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG)) {
 			iov[iovcnt].iov_base = __UNCONST("[");
 			iov[iovcnt].iov_len = 1;
 			iovcnt++;
@@ -289,7 +316,7 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 		}
 	} else {
 		prlen = snprintf(p, tbuf_left, "- ");
-		if (data->log_stat & (LOG_PERROR|LOG_CONS)) {
+		if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG)) {
 			iov[iovcnt].iov_base = __UNCONST(BRCOSP + 1);
 			iov[iovcnt].iov_len = 2;
 			iovcnt++;
@@ -311,7 +338,7 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 	} else
 		strlcat(fmt_cat, "-", FMT_LEN);
 
-	if (data->log_stat & (LOG_PERROR|LOG_CONS))
+	if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG))
 		msgsdlen = strlen(fmt_cat) + 1;
 	else
 		msgsdlen = 0;	/* XXX: GCC */
@@ -354,8 +381,7 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 	*t = '\0';
 
 	prlen = vsnprintf(p, tbuf_left, fmt_cpy, ap);
-
-	if (data->log_stat & (LOG_PERROR|LOG_CONS)) {
+	if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG)) {
 		iov[iovcnt].iov_base = p + msgsdlen;
 		iov[iovcnt].iov_len = prlen - msgsdlen;
 		iovcnt++;
@@ -378,6 +404,21 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 	if (opened)
 		openlog_unlocked_r(data->log_tag, data->log_stat, 0, data);
 	connectlog_r(data);
+
+	/* Don't write to system log, instead use fd in log_file */
+	if (data->log_stat & LOG_NLOG) {
+		iov[iovcnt].iov_base = __UNCONST(CRLF + 1);
+		iov[iovcnt].iov_len = 1;
+		(void)writev(data->log_file, iov, iovcnt + 1);
+		goto done;
+	}
+
+	/* Log to stdout, usually for debugging syslogp() API */
+	if (data->log_stat & LOG_STDOUT) {
+		strlcat(tbuf, "\n", sizeof(tbuf));
+		write(data->log_file, tbuf, strlen(tbuf));
+		goto done;
+	}
 
 	/*
 	 * If the send() failed, there are two likely scenarios:
@@ -411,6 +452,7 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 		(void)close(fd);
 	}
 
+done:
 	if (data == &sdata)
 		mutex_unlock(&syslog_mutex);
 
@@ -450,15 +492,19 @@ connectlog_r(struct syslog_data *data)
 	};
 
 	if (data->log_file == -1 || fcntl(data->log_file, F_GETFL, 0) == -1) {
-		if ((data->log_file = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC,
-		    0)) == -1)
+		data->log_file = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+		if (data->log_file == -1)
 			return;
 		data->log_connected = 0;
 	}
 	if (!data->log_connected) {
-		if (connect(data->log_file,
-		    (const struct sockaddr *)(const void *)&sun,
-		    (socklen_t)sizeof(sun)) == -1) {
+		if (!is_socket(data->log_file)) {
+			data->log_connected = 1;
+			return;
+		}
+
+		if (connect(data->log_file, (const struct sockaddr *)&sun,
+			    sizeof(sun)) == -1) {
 			(void)close(data->log_file);
 			data->log_file = -1;
 		} else

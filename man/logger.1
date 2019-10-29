@@ -40,18 +40,29 @@
 .Op Ar MESSAGE
 .Sh DESCRIPTIOMN
 .Nm
-can be used to send messages to the system log from a UNIX shell, or
-script.
+can be used to log messages to the system log daemon from a UNIX shell,
+or script.  Optionally a stand-alone log file can be used, which is the
+automatically log rotated.  Without a
+.Ar MESSAGE
+argument
+.Nm
+reads input from
+.Ar stdin .
 .Sh OPTIONS
 This program follows the usual UNIX command line syntax:
 .Bl -tag -width Ds
 .It Fl f Ar FILE
 Log file to write messages to, instead of syslog daemon.
+.Nm
+accepts
+.Fl f-
+as an alias for
+.Ar stdout .
 .It Fl h
 Show program help.
 .It Fl p Ar PRIO
 Priority, numeric or
-.Ar facility.level
+.Ar facility.severity
 pair.
 .It Fl r Ar SIZE:NUM
 Controls log file rotation.
@@ -69,7 +80,15 @@ Show program version.
 .It Ar MESSAGE
 Log message to write.  Remember to use single/double qoutes if calling
 .Nm
-from a shell prompt due to expansion the shell does.
+from a shell prompt due to expansion the shell does.  If no message is
+given
+.Nm
+will read from
+.Ar stdin
+until EOF.  In this mode every new row (newline separated) is converted
+into an independent
+.Xr syslog 3
+call.
 .El
 .Sh EXAMPLES
 .Bd -unfilled -offset left
