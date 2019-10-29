@@ -11,12 +11,6 @@ sysklogd \- Linux system logging utilities.
 .RB [ " \-a "
 .I socket
 ]
-.RB [ " \-b "
-.I size
-]
-.RB [ " \-c "
-.I count
-] 
 .RB [ " \-d " ]
 .RB [ " \-f "
 .I config file
@@ -31,6 +25,9 @@ sysklogd \- Linux system logging utilities.
 .RB [ " \-n " ]
 .RB [ " \-p"
 .IB socket 
+]
+.RB [ " \-R "
+.I size:count
 ]
 .RB [ " \-r " ]
 .RB [ " \-s "
@@ -111,32 +108,6 @@ within the syslogd.c source file.  An example for a chroot() daemon is
 described by the people from OpenBSD at
 <http://www.guides.sk/psionic/dns/>.
 .TP
-.BI "\-b " "size"
-This option controls the max size of files in the built-in log-rotation.
-When present on the command line it activates log rotation of all files
-with the given maximum size.  It is also possible to control log rotate
-per log file, see
-.BR syslog.conf (5)
-for details.
-
-The size argument takes optional modifiers; k, M, G.  E.g., 100M is
-100MB, 42k is 42 kB, etc.
-
-Default: disabled (0).
-.TP
-.BI "\-c " "count"
-This option controls the max number of files kept by the built-in
-log-rotation.  To activate the built-in log rotation this option must be
-combined with the
-.BI "\-b"
-option.  The number of files kept include both gzipped files and the
-first rotated (not zipped) file.  It is also possible to control log
-rotate per log file, see
-.BR syslog.conf (5)
-for details.
-
-Default: 5.
-.TP
 .B "\-d"
 Turns on debug mode.  Using this the daemon will not proceed a 
 .BR fork (2)
@@ -186,6 +157,23 @@ is started and controlled by
 .BI "\-p " "socket"
 You can specify an alternative unix domain socket instead of
 .IR /dev/log "."
+.TP
+.BI "\-R " "size[:count]"
+This option controls the max size and number of backup files kept by the
+built-in log-rotation.  When present on the command line it activates
+log rotation of all files with the given maximum size.  It is also
+possible to control log rotate per log file, see
+.BR syslog.conf (5)
+for details.
+
+The size argument takes optional modifiers; k, M, G.  E.g., 100M is
+100MB, 42k is 42 kB, etc.
+
+The optional number of files kept include both gzipped files and the
+first rotated (not zipped) file.  The default for this, when omitted,
+is 5.
+
+Default: disabled.
 .TP
 .B "\-r"
 This option will enable the facility to receive message from the

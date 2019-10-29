@@ -219,26 +219,6 @@ static int usage(int code)
 	return code;
 }
 
-static void parse_rotation(char *optarg, off_t *size, int *num)
-{
-	char buf[100];
-	char *c;
-	int sz = 0, cnt = 0;
-
-	strlcpy(buf, optarg, sizeof(buf));
-	c = strchr(buf, ':');
-	if (c) {
-		*c++ = 0;
-		cnt  = atoi(c);
-	}
-
-	sz = strtobytes(buf);
-	if (sz > 0)
-		*size = sz;
-	if (cnt)
-		*num = cnt;
-}
-
 int main(int argc, char *argv[])
 {
 	int c, rc, num = 5;

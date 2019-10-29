@@ -353,8 +353,8 @@ int    AcceptRemote = 0;    /* receive messages that come via UDP */
 char **StripDomains = NULL; /* these domains may be stripped before writing logs */
 char **LocalHosts = NULL;   /* these hosts are logged with their hostname */
 int    NoHops = 1;          /* Can we bounce syslog messages through an intermediate host. */
-int    RotateSz = 0;        /* Max file size (bytes) before rotating, disabled by default */
-int    RotateCnt = 5;       /* Max number (count) of log files to keep, set with -c <NUM> */
+static off_t	RotateSz = 0;	/* Max file size (bytes) before rotating, disabled by default */
+static int	RotateCnt = 5;	/* Max number (count) of log files to keep, set with -c <NUM> */
 extern int errno;
 
 /* Function prototypes. */
@@ -413,7 +413,7 @@ int main(int argc, char *argv[])
 		funix[i] = -1;
 	}
 
-	while ((ch = getopt(argc, argv, "46Aa:b:c:dhf:l:m:np:rs:v?")) != EOF) {
+	while ((ch = getopt(argc, argv, "46Aa:dhf:l:m:np:R:rs:v?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -432,14 +432,6 @@ int main(int argc, char *argv[])
 				funixn[nfunix++] = optarg;
 			else
 				fprintf(stderr, "Out of descriptors, ignoring %s\n", optarg);
-			break;
-
-		case 'b': /* Max file size (bytes) before rotating log file. */
-			RotateSz = strtobytes(optarg);
-			break;
-
-		case 'c': /* Number (count) of log files to keep. */
-			RotateCnt = atoi(optarg);
 			break;
 
 		case 'd': /* debug */
@@ -473,6 +465,10 @@ int main(int argc, char *argv[])
 
 		case 'p': /* path to regular log socket */
 			funixn[0] = optarg;
+			break;
+
+		case 'R':
+			parse_rotation(optarg, &RotateSz, &RotateCnt);
 			break;
 
 		case 'r': /* accept remote messages */

@@ -100,4 +100,24 @@ static inline int strtobytes(char *arg)
 	return bytes;
 }
 
+static inline void parse_rotation(char *optarg, off_t *size, int *num)
+{
+	char buf[100];
+	char *c;
+	int sz = 0, cnt = 0;
+
+	strlcpy(buf, optarg, sizeof(buf));
+	c = strchr(buf, ':');
+	if (c) {
+		*c++ = 0;
+		cnt  = atoi(c);
+	}
+
+	sz = strtobytes(buf);
+	if (sz > 0)
+		*size = sz;
+	if (cnt)
+		*num = cnt;
+}
+
 #endif /* SYSKLOGD_COMPAT_H_ */
