@@ -15,6 +15,7 @@
 .Nm
 .Op Fl ?46Adhnrv
 .Op Fl a Ar SOCK
+.Op Fl b Ar :SVC
 .Op Fl f Ar FILE
 .Op Fl l Ar HOST[:HOST]
 .Op Fl m Ar MINUTES
@@ -91,6 +92,11 @@ environment needs even more, you have to increase the symbol
 within the
 .Pa syslogd.c
 source file.
+.It Fl b Ar :service
+Bind to a specific port.  The port can be specified as a service name or
+number.  The default service is
+.Ql syslog
+(514/udp).
 .It Fl d
 Turns on debug mode.  This implicitly enables
 .Fl n
@@ -298,7 +304,7 @@ same time syslogd listens on the standard syslog port for messages
 forwarded from other hosts.  To have this work correctly the
 .Xr services 5
 files (typically found in
-.Pa /etc/servces )
+.Pa /etc/services )
 must have the following entry:
 .Bd -literal -offset indent
 syslog          514/udp

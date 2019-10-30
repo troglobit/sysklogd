@@ -277,6 +277,7 @@ static int	 *finet = NULL;		  /* Internet datagram sockets */
 static int	  Initialized = 0;	  /* set when we have initialized ourselves */
 static int	  MarkInterval = 20 * 60; /* interval between marks in seconds */
 static int	  family = PF_UNSPEC;	  /* protocol family (IPv4, IPv6 or both) */
+static char      *service = "syslog";	  /* Port to bind to, default 514/udp */
 static int	  mask_C1 = 1;		  /* mask characters from 0x80 - 0x9F */
 static int	  send_to_all;		  /* send message to all IPv4/IPv6 addresses */
 static int	  MarkSeq = 0;		  /* mark sequence number */
@@ -308,6 +309,7 @@ void        wallmsg(struct filed *f, struct iovec *iov, int iovcnt);
 void        reapchild();
 const char *cvtaddr(struct sockaddr_storage *f, int len);
 const char *cvthname(struct sockaddr_storage *f, int len);
+static void flog(int pri, char *fmt, ...);
 void        domark();
 void        debug_switch();
 void        logerror(const char *type);
@@ -334,6 +336,7 @@ int main(int argc, char *argv[])
 	int fd;
 	fd_set readfds;
 	char line[MAXLINE + 1];
+	char *ptr;
 	int num_fds, maxfds;
 	int i, ch;
 
@@ -342,7 +345,7 @@ int main(int argc, char *argv[])
 		funix[i] = -1;
 	}
 
-	while ((ch = getopt(argc, argv, "46Aa:dhHf:l:m:nP:p:R:rs:v?")) != EOF) {
+	while ((ch = getopt(argc, argv, "46Aa:b:dhHf:l:m:nP:p:R:rs:v?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -361,6 +364,12 @@ int main(int argc, char *argv[])
 				funixn[nfunix++] = optarg;
 			else
 				fprintf(stderr, "Out of descriptors, ignoring %s\n", optarg);
+			break;
+
+		case 'b':
+			ptr = strchr(optarg, ':');
+			if (ptr)
+				service = ++ptr;
 			break;
 
 		case 'd': /* debug */
@@ -756,11 +765,11 @@ static int *create_inet_sockets(void)
 	hints.ai_flags = AI_PASSIVE;
 	hints.ai_family = family;
 	hints.ai_socktype = SOCK_DGRAM;
-	error = getaddrinfo(NULL, "syslog", &hints, &res);
+	error = getaddrinfo(NULL, service, &hints, &res);
 	if (error) {
-		logerror("network logging disabled (syslog/udp service unknown).");
+		flog(LOG_SYSLOG | LOG_ERR, "network logging disabled (%s/udp "
+		     " service unknown): %s", service, gai_strerror(error));
 		logerror("see syslogd(8) for details of whether and how to enable it.");
-		logerror(gai_strerror(error));
 		return NULL;
 	}
 
@@ -1749,12 +1758,16 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 		logit(" %s\n", f->f_un.f_forw.f_hname);
 		fwd_suspend = time(NULL) - f->f_time;
 		if (fwd_suspend >= INET_SUSPEND_TIME) {
+			char *host;
+
 			logit("Forwarding suspension to unknown over, retrying\n");
 			memset(&hints, 0, sizeof(hints));
 			hints.ai_family = family;
 			hints.ai_socktype = SOCK_DGRAM;
-			if ((err = getaddrinfo(f->f_un.f_forw.f_hname, "syslog", &hints, &ai))) {
-				logit("Failure: %s\n", gai_strerror(err));
+			host = f->f_un.f_forw.f_hname;
+			err = getaddrinfo(host, service, &hints, &ai);
+			if (err) {
+				logit("Failure resolving %s:%s: %s\n", host, service, gai_strerror(err));
 				logit("Retries: %d\n", f->f_prevcount);
 				if (--f->f_prevcount < 0) {
 					logit("Giving up.\n");
@@ -1762,15 +1775,14 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 				} else
 					logit("Left retries: %d\n", f->f_prevcount);
 			} else {
-				logit("%s found, resuming.\n", f->f_un.f_forw.f_hname);
+				logit("%s found, resuming.\n", host);
 				f->f_un.f_forw.f_addr = ai;
 				f->f_prevcount = 0;
 				f->f_type = F_FORW;
 				goto f_forw;
 			}
 		} else
-			logit("Forwarding suspension not over, time "
-			      "left: %d\n",
+			logit("Forwarding suspension not over, time left: %d\n",
 			      INET_SUSPEND_TIME - fwd_suspend);
 		break;
 
@@ -2651,7 +2663,7 @@ void cfline(char *line, struct filed *f)
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = family;
 		hints.ai_socktype = SOCK_DGRAM;
-		if (getaddrinfo(p, "syslog", &hints, &ai)) {
+		if (getaddrinfo(p, service, &hints, &ai)) {
 			/*
 			 * The host might be unknown due to an
 			 * inaccessible nameserver (perhaps on the
