@@ -116,7 +116,7 @@ static inline void parse_rotation(char *optarg, off_t *size, int *num)
 	sz = strtobytes(buf);
 	if (sz > 0)
 		*size = sz;
-	if (cnt)
+	if (cnt > 0)
 		*num = cnt;
 }
 

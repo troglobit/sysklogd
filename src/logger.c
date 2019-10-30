@@ -115,6 +115,9 @@ static int checksz(FILE *fp, off_t sz)
 {
 	struct stat st;
 
+	if (!fp)
+		return 0;
+
 	fsync(fileno(fp));
 	if (sz <= 0)
 		return 0;
@@ -177,14 +180,14 @@ static int usage(int code)
 {
 	printf("Usage: logger [OPTIONS] [MESSAGE]\n"
 	       "\n"
-	       "Write MESSAGE (or stdin) to syslog, or file (with logrotate)\n"
+	       "Write MESSAGE (or line-by-line stdin) to syslog, or file (with logrotate).\n"
 	       "\n"
 	       "  -p PRIO  Log message priority (numeric or facility.severity pair)\n"
 	       "  -t TAG   Log using the specified tag (defaults to user name)\n"
 	       "  -s       Log to stderr as well as the system log\n"
 	       "\n"
 	       "  -f FILE  Log file to write messages to, instead of syslog daemon\n"
-	       "  -r S:R   Log file rotation, default: 200 kB max \e[4ms\e[0mize, 5 \e[4mr\e[0motations\n"
+	       "  -r S[:R] Enable log file rotation, default: 200 kB \e[4ms\e[0mize, 5 \e[4mr\e[0motations\n"
 	       "\n"
 	       "  -?       This help text\n"
 	       "  -v       Show program version\n"
@@ -197,7 +200,7 @@ static int usage(int code)
 
 int main(int argc, char *argv[])
 {
-	FILE *fp;
+	FILE *fp = NULL;
 	int c, num = 5;
 	int facility = LOG_USER;
 	int severity = LOG_INFO;
@@ -221,6 +224,8 @@ int main(int argc, char *argv[])
 
 		case 'r':
 			parse_rotation(optarg, &size, &num);
+			if (size > 0 && num > 0)
+				rotate = 1;
 			break;
 
 		case 's':
@@ -265,7 +270,6 @@ int main(int argc, char *argv[])
 			fp = fopen(logfile, "a");
 			if (!fp)
 				err(1, "Failed opening %s for writing: %m", logfile);
-			rotate = 1;
 		} else {
 			log_opts |= LOG_STDOUT;
 			fp = stdout;
