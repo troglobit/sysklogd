@@ -3,6 +3,6 @@
 
 MSG="foobar"
 
-../src/logger -u ${SCK} ${MSG}
+../src/logger -u ${SOCK} ${MSG}
 
 grep ${MSG} ${LOG}

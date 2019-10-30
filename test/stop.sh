@@ -2,10 +2,12 @@
 . ./test.rc
 
 if [ -e ${PID} ]; then
+    echo "Killing `cat ${PID}` ..."
     kill `cat ${PID}`
 fi
 
-rm -f ${CFG}
 rm -f ${LOG}
 rm -f ${PID}
-rm -f ${SCK}
+rm -f ${CAP}
+rm -f ${SOCK}
+rm -f ${CONF}

@@ -5,11 +5,12 @@ if [ x"${srcdir}" = x ]; then
     srcdir=.
 fi
 
-cat <<EOF > ${CFG} 
+cat <<EOF > ${CONF}
 *.*	-${LOG}
-*.*	@192.168.1.1
+*.*	@127.0.0.2
 EOF
 
-../src/syslogd -d -n -f ${CFG} -p ${SCK} -P ${PID} &
+../src/syslogd -b :${PORT} -d -n -f ${CONF} -p ${SOCK} &
+echo "$!" > ${PID}
 
 sleep 1

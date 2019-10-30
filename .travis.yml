@@ -14,6 +14,7 @@ addons:
   apt:
     packages:
       - tree
+      - tshark
 
 # Custom build script for the time being, no "make test" yet
 script:

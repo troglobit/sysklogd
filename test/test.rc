@@ -1,5 +1,7 @@
 NM=syslog-test
-CFG=/tmp/${NM}.conf
 LOG=/tmp/${NM}.log
 PID=/tmp/${NM}.pid
-SCK=/tmp/${NM}.sock
+CAP=/tmp/${NM}.pcapng
+CONF=/tmp/${NM}.conf
+SOCK=/tmp/${NM}.sock
+PORT=5514
