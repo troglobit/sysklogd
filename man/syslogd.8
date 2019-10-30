@@ -1,1 +1,583 @@
-.so man8/sysklogd.8
+.\"                                                              -*- nroff -*-
+.\" Copyright 1994-1996  Dr. Greg Wettstein, Enjellic Systems Development.
+.\" Copyright 1997-2008  Martin Schulze <joey@infodrom.org>
+.\" Copyright 2018-2019  Joachim Nilsson <troglobit@gmail.com>
+.\"
+.\" May be distributed under the GNU General Public License
+.\"
+.Dd Oct 30, 2019
+.Dt syslogd 8
+.Os "sysklogd (2.0)"
+.Sh NAME
+.Nm syslogd
+.Nd System Log Daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl ?46Adhnrv
+.Op Fl a Ar SOCK
+.Op Fl f Ar FILE
+.Op Fl l Ar HOST[:HOST]
+.Op Fl m Ar MINUTES
+.Op Fl P Ar FILE
+.Op Fl p Ar SOCK
+.Op Fl R Ar size[:count]
+.Op Fl s Ar NAME[:NAME]
+.Sh DESCRIPTION
+.Nm
+support RFC3164 and RFC5424 style log messages for both local and remote
+logging using Internet and UNIX domain sockets.  The companion daemon,
+.Xr klogd 8 ,
+is used for trapping kernel messages and events.
+.Pp
+.Nm
+is derived from BSD sources, today
+.Fx
+is the reference for
+.Nm
+and
+.Nx
+for the new
+.Xr syslogp 3
+API, which fully supports the new features of RFC5424.  Please note; 1)
+the intention is to follow standard BSD
+.Nm
+behavior, 2) despite having a stand-alone
+.Xr syslog 3 ,
+and
+.Xr syslogp 3
+API in
+.Lb libsyslog ,
+this version of
+.Nm
+interacts transparently with the standard C library
+.Xr syslog 3
+API, as implemented in GLIBC, musl libc, and uClibc.
+.Pp
+When
+.Nm
+starts up it reads its main configuration file
+.Pa /etc/syslog.conf ,
+or an alternate file given with the
+.Fl f Ar FILE
+option.  For details on how to configure syslog priority
+(facility.severity) filtering, see
+.Xr syslog.conf 5 .
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl 4
+Force
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Force
+.Nm
+to use IPv6 addresses only.
+.It Fl A
+Ordinarily,
+.Nm
+tries to send the message to only one address even if the host has
+more than one A or AAAA record.  If this option is specified,
+.Nm
+tries to send the message to all addresses.
+.It Fl a Ar SOCK
+Using this argument you can specify additional sockets from that
+.Nm
+has to listen to.  This is needed if you're going to let some daemon
+run within a
+.Xr chroot 8
+environment.  You can use up to 19 additional sockets.  If your
+environment needs even more, you have to increase the symbol
+.Ql MAXFUNIX
+within the
+.Pa syslogd.c
+source file.
+.It Fl d
+Turns on debug mode.  This implicitly enables
+.Fl n
+to prevent
+.Nm
+from backgrounding itself.  Debug information is written to the current
+TTY.  SIGUSR1 is required to confirm continued debug messages when the
+daemon has finished started up.  See the
+.Sx DEBUGGING
+section for more information.
+.It Fl f Ar FILE
+Specify an alternative configuration file instead of the default
+.Pa /etc/syslog.conf .
+.It Fl h
+By default syslogd will not forward messages it receives from remote
+hosts.  Specifying this switch on the command line will cause the log
+daemon to forward any remote messages it receives to forwarding hosts
+which have been defined.  This can cause syslog loops that fill up hard
+disks quite fast and thus needs to be used with caution.
+.It Fl l Ar HOST
+Specify a hostname that should be logged only with its simple hostname
+and not the fqdn.  Multiple hosts may be specified using the colon (':')
+separator.
+.It Fl m Ar MINUTES
+.Nm
+logs a mark timestamp regularly.  The default interval between two
+.Ql -- MARK --
+lines is 20 minutes.  This can be changed with this option.  Setting
+this to zero disables log marks entirely.
+.Pp
+Depending on other log messages generated these lines may not be written
+consecutively.  The
+.Ql -- MARK --
+message is only written if the log file hasn't been touched in
+.Ar MINUTES / 2
+minutes.
+.It Fl n
+Run in foreground, required when run from a modern init/supervisor.  See
+your system
+.Xr init 8
+for details.
+.It Fl P Ar FILE
+Specify an alternate file in which to store the process ID.
+The default is
+.Pa /var/run/syslog.pid .
+.It Fl p Ar SOCK
+Specify an alternate UNIX domain socket instead of the default
+.Pa /dev/log .
+.It Fl R Ar size[:count]
+Enable built-in support for log rotation of files listed in
+.Pa /etc/syslog.conf .
+This feature is particulary useful for small and embedded systems that
+do not want the overhead of
+.Xr cron 8
+and
+.Xr logrotate 8 .
+.Pp
+The option controls the max size and number of backup files kept by the
+built-in log-rotation.  When present on the command line it activates
+log rotation of all files with the given maximum size.  It is also
+possible to control log rotate per log file, see
+.Xr syslog.conf 5
+for details.
+.Pp
+The size argument takes optional modifiers; k, M, G.  E.g., 100M is
+100MB, 42k is 42 kB, etc.
+.Pp
+The optional number of files kept include both gzipped files and the
+first rotated (not zipped) file.  The default for this, when omitted,
+is 5.
+.It Fl r
+This option enables the facility to receive message from the network
+using an internet domain socket with the syslog service (see
+.Xr services 5 ).
+The default is to not receive any messages from the network.
+.Pp
+This option is introduced in version 1.3 of the
+.Nm sysklogd
+package.  Please note that the default behavior is the opposite of how
+older versions behave, so you might have to turn this on.
+.It Fl s NAME
+Specify domain name(s) to be stripped off before logging.  Multiple
+domains may be specified using the colon (':') separator.  Note, no
+sub-domains may be specified but only entire domains.  For example if
+.Fl s Ar north.de
+is specified and the host logging resolves to
+.Ql satu.infodrom.north.de
+nothing is stripped, instead two domains must be specified:
+.Fl s Ar north.de:infodrom.north.de .
+.It Fl v
+Print
+.Nm
+version and exit.
+.Sh CONFIGURATION FILE SYNTAX DIFFERENCES
+.Nm
+uses a slightly different syntax for its configuration file than the
+original BSD sources.  Originally all messages of a specific priority
+and above were forwarded to the log file.
+.Pp
+For example the following line caused ALL output from daemons using
+the daemon facilities (debug is the lowest priority, so every higher
+will also match) to go into 
+.Pa /usr/adm/daemons :
+.Bd -literal -offset indent
+# Sample syslog.conf
+daemon.debug		/usr/adm/daemons
+.Ed
+.Pp
+Under the new scheme this behavior remains the same.  The difference is
+the addition of four new specifiers, the asterisk ('*') wildcard, the
+equation sign ('='), the exclamation mark ('!'), and the minus sign
+('-').
+.Pp
+The '*' specifies that all messages for the specified facility are to be
+directed to the destination.  Note that this behavior is degenerate with
+specifying a priority level of debug.  Users have indicated that the
+asterisk notation is more intuitive.
+.Pp
+The '=' wildcard is used to restrict logging to the specified priority
+class.  This allows, for example, routing only debug messages to a
+particular logging source.
+.Pp
+For example, the following line in
+.Pa syslog.conf
+directs debug messages from all sources to the
+.Pa /usr/adm/debug
+file.
+.Bd -literal -offset indent
+# Sample syslog.conf
+*.=debug		/usr/adm/debug
+.Ed
+.Pp
+.\" The '!' as the first character of a priority inverts the above
+.\" mentioned interpretation.
+The '!' is used to exclude logging of the specified priorities.  This
+affects all (!) possibilities of specifying priorities.
+.Pp
+For example the following lines in
+.Pa syslog.conf
+log all messages of facility
+.Ql mail
+except those with priority
+.Ql info
+to the
+.Pa /usr/adm/mail 
+file.  All messages from
+.Ql news.info
+(including) to
+.Ql news.crit
+(excluding) are logged to the
+.Pa /usr/adm/news
+file.
+.Bd -literal -offset indent
+# Sample syslog.conf
+mail.*;mail.!=info	/usr/adm/mail
+news.info;news.!crit	/usr/adm/news
+.Ed
+.Pp
+You may use it intuitively as an exception specifier.  The above
+mentioned interpretation is simply inverted.  Doing that you may use
+.Bd -literal -offset indent
+mail.none
+.Ed
+or
+.Bd -literal -offset indent
+mail.!*
+.Ed
+or
+.Bd -literal -offset indent
+mail.!debug
+.Ed
+.Pp
+to skip every message that comes with a mail facility.  There is much
+room to play with it. :-)
+.Pp
+The '-' may only be used to prefix a filename if you want to omit
+sync'ing the file after every write to it.
+.Pp
+This may take some acclimatization for those individuals used to the
+pure BSD behavior but testers have indicated that this syntax is
+somewhat more flexible than the BSD behavior.  Note that these changes
+do not affect standard
+.Xr syslog.conf 5
+files.  You must specifically modify the configuration files to obtain
+the new features.
+.Sh REMOTE LOGGING
+The following modifications provide network support to the
+.Nm
+facility.  Network support means that messages can be forwarded from one
+node running
+.Nm
+to another node running
+.Nm
+where they will be actually logged to a disk file.
+.Pp
+This feature is enabled using the
+.Fl r
+option on the command line.  The default behavior to not listen to
+network connections.
+.Pp
+The strategy is to have syslogd listen on a UNIX domain socket for
+locally generated log messages.  This behavior will allow syslogd to
+inter-operate with the syslog found in the standard C library.  At the
+same time syslogd listens on the standard syslog port for messages
+forwarded from other hosts.  To have this work correctly the
+.Xr services 5
+files (typically found in
+.Pa /etc/servces )
+must have the following entry:
+.Bd -literal -offset indent
+syslog          514/udp
+.Ed
+.Pp
+If this entry is missing
+.Nm
+cannot receive remote messages, or send them, because the UDP port cannot
+be determined.  Instead
+.Nm
+will die immediately with an error message.
+.Pp
+To forward messages to to a remote host, replace the file line in the
+.Pa syslog.conf
+file with the name of the hostname to which the messages is to be sent
+prepended with an at ('@') sign.  For remote logging the hostname can
+also be appended with the flag
+.Ql ;RFC5424
+to enable RFC5424 style formatting which includes RFC3339 timestamp and
+hostname information, which is not included in the default BSD
+.Nm .
+.Pp
+For example, to forward
+.Sy ALL
+messages to a remote host use the following
+.Pa syslog.conf
+entry:
+.Bd -literal -offset indent
+# Sample syslogd configuration file to forward all message
+# messages to a remote host using RFC5424 style formatting
+*.*			@hostname;RFC5424
+.Ed
+.Pp
+To forward all
+.Ql kernel
+messages to a remote host the configuration file would be as follows:
+.Bd -literal -offset indent
+# Sample configuration file to forward all kernel
+# messages to a remote host.
+kern.*		@hostname
+.Ed
+.Pp
+If the remote hostname cannot be resolved at startup, because the
+name-server might not be accessible (it may be started after
+.Nm ),
+.Nm
+will retry resolving the name ten times before logging the error.
+Another possibility to avoid this is to place the hostname in
+.Pa /etc/hosts .
+.Pp
+To avoid syslog-loops (messages that were received from a remote host
+are sent back to the same host, or more complicated to a third host that
+sends it back to the first one, and so on),
+.Nm
+by default does not forward remote messages to another remote server.
+If this for some reason is required, use the
+.Fl h
+option on the command line.  However, this option needs to be handled
+with caution since a syslog loop can fill up hard disks quite fast.
+.Pp
+If the remote host is located in the same domain as the host,
+.Nm
+is running on, only the simple hostname will be logged instead of the
+whole FQDN.
+.Pp
+In a local network you may provide a central log server to have all the
+important information kept on one machine.  If the network consists of
+different domains, you may want to use the strip-domain feature
+.Fl s .
+See above.
+.Pp
+Using the
+.Fl l
+option it is possibile to define single hosts as local machines.  This
+also results in logging only their simple hostnames and not the FQDNs.
+.Pp
+The UDP socket used to forward messages to remote hosts or to receive
+messages from them is only opened when it is needed.  In releases
+prior to 1.3-23 it was opened every time but not opened for reading or
+forwarding respectively.
+.Sh OUTPUT TO NAMED PIPES (FIFOs)
+This version of syslogd has support for logging output to named pipes
+(fifos).  A FIFO or named pipe can be used as a destination for log
+messages by prepending a pipy symbol ('|') to the name of the file.
+This is very handy for debugging.  Note, the FIFO must be created with
+the
+.Xr mkfifo 1
+command before
+.Nm
+is started.
+.Pp
+The following configuration file routes debug messages from the kernel
+to a FIFO:
+.Bd -literal -offset indent
+# Sample configuration to route kernel debugging
+# messages ONLY to /usr/adm/debug which is a
+# named pipe.
+kern.=debug			|/usr/adm/debug
+.Ed
+.Sh CONCERNS
+There is probably one important consideration when installing this
+version of syslogd.  This version of syslogd is dependent on proper
+formatting of messages by the syslog function.  The functioning of the
+syslog function in the shared libraries changed somewhere in the region
+of libc.so.4.[2-4].n.  The specific change was to null-terminate the
+message before transmitting it to the
+.Pa /dev/log
+socket.  Proper functioning of this version of
+.Nm
+is dependent on null-termination of the message.
+.Pp
+This problem will typically manifest itself if old statically linked
+binaries are being used on the system.  Binaries using old versions of
+the syslog function will cause empty lines to be logged followed by the
+message with the first character in the message removed.  Relinking
+these binaries to newer versions of the shared libraries will correct
+this problem.
+.Sh SECURITY
+There is the potential for
+.Nm
+to be used as a conduit for a denial of service attack.  Thanks go to
+.An John Morrison Aq Mt jmorriso@rflab.ee.ubc.ca
+for alerting the project of this.  A rogue program(mer) could very
+easily flood
+.Nm
+with syslog messages resulting in the log files consuming all the
+remaining space on the filesystem.  Activating logging over network
+domain sockets will of course expose a system to risks outside of
+programs or individuals on the local machine.
+.Pp
+There are a number of methods of protecting a machine:
+.Bl -enum
+.It
+Implement kernel firewalling to limit which hosts or networks have
+access to the 514/UDP socket.
+.It
+Logging can be directed to an isolated or non-root filesystem which,
+if filled, will not impair the machine.
+.It
+The ext2 filesystem can be used which can be configured to limit a
+certain percentage of a filesystem to usage by root only.
+.Sy NOTE:
+this requires
+.Nm
+to be run as a non-root process.  Also, this prevents usage of remote
+logging since
+.Nm
+will be unable to bind to the 514/UDP socket.
+.It
+Disabling inet domain sockets will limit risk to the local machine.
+.El
+.Sh DEBUGGING
+When debug mode (
+.Fl d )
+is enabled
+.Nm
+is very verbose, writing most of what it does on stdout.  Whenever
+the configuration file is reread and re-parsed you'll see a tabular,
+corresponding to the internal data structure.  This tabular consists of
+four fields:
+.Pp
+.Bl -tag -compact -width arguments
+.It number
+This field contains a serial number starting by zero.  This number
+represents the position in the internal data structure (i.e. the array).
+If one number is left out then there might be an error in the
+corresponding line in
+.Pa /etc/syslog.conf .
+.It pattern
+This field is tricky and represents the internal structure exactly.
+Every column stands for a facility, refer to
+.Xr syslog 3 .
+As you can see, there are still some facilities left free for former
+use, only the left most are used.  Every field in a column represents
+the priorities, refer to
+.Xr syslog 3 .
+.It action
+This field describes the particular action that takes place whenever a
+message is received that matches the pattern.  Refer to the
+.Xr syslog.conf 5
+manpage for all possible actions.
+.It arguments
+This field shows additional arguments to the actions in the last field.
+For file-logging this is the filename for the logfile; for user-logging
+this is a list of users; for remote logging this is the hostname of the
+machine to log to; for console-logging this is the used console; for
+tty-logging this is the specified tty; wall has no additional arguments.
+.El
+.Sh SIGNALS
+.Nm
+supports the following signals:
+.Pp
+.Bl -tag -width "TERM, QUIT" -compact
+.It HUP
+This lets
+.Nm
+perform a re-initialization.  All open files are closed, the
+configuration file (see above) is reread and the
+.Xr syslog 3
+facility is started again.
+.It TERM
+This tells 
+.Nm
+to exit gracefully.  Flushing any log files to disk.
+.It INT, QUIT
+In debug mode these are ignored.  In normal operation they act as
+SIGTERM.
+.It USR1
+In debug mode this switches debugging on/off.  In normal operation
+it is ignored.
+.El
+.Pp
+For convenience the PID is, by default, stored in
+.Pa /var/run/syslogd.pid .
+Example usage:
+.Bd -literal -offset indent
+kill -SIGNAL `cat /var/run/syslogd.pid`
+.Ed
+.Sh FILES
+.Bl -tag -width TERM -compact
+.It Pa /etc/syslog.conf
+Configuration file for
+.Nm .
+See
+.Xr syslog.conf 5
+for more information.
+.It Pa  /dev/log
+The UNIX domain socket to from where local syslog messages are read.
+.It Pa /var/run/syslogd.pid
+The file containing the process id of 
+.Nm .
+.El
+.Sh BUGS
+As mentioned in the
+.Sx DESCRIPTION ,
+.Nm
+transparently supports the standard C library
+.Xr syslog 3
+API.  If a binary linked to the standard C libraries do not operate
+correctly, this should be reported as a bug to this project.  See below
+for contact details.
+.Pp
+.Nm
+doesn't change the file mode of opened log files at any stage.  If a
+file is created it is world readable.  If you want to avoid this, you
+have to create it and change permissions on your own.  This could be
+done in combination with rotating logfiles using the
+.Xr savelog 8
+program that is shipped in the 
+.Nm smail
+3.x distribution.  Remember that it might be a security hole if
+everybody is able to read
+.Ql auth.*
+messages as these might contain passwords.
+.Sh SEE ALSO
+.Xr syslog.conf 5 ,
+.Xr klogd  8 ,
+.Xr logger 1 ,
+.Xr syslog 2 ,
+.Xr syslog 3 ,
+.Xr services 5 ,
+.Xr savelog 8 .
+.Sh AUTHORS
+The system log daemon
+.Nm
+is originally taken from BSD sources and later updated with new
+funcitonality from
+.Fx
+and
+.Nx .
+.An -nosplit
+.An Greg Wettstein Aq Mt greg@wind.enjellic.com
+performed the initial port to Linux.
+.An Martin Schulze Aq Mt joey@infodrom.org
+fixed some bugs, added several new features and took over maintenance.
+.An Joachim Nilsson Aq Mt troglobit@gmail.com
+later picked up the aging
+.Nm sysklogd
+and gave it a home at GitHub with new features imported from
+.Fx
+and
+.Nx .
