@@ -7,13 +7,11 @@ MSG="kilroy"
 tshark -Qni lo -w ${CAP} port ${PORT} 2>/dev/null &
 #tcpdump -qlni lo -w ${CAP} port ${PORT} 2>/dev/null &
 PID="$!"
-sleep 1
+sleep 2
 
-echo "Hej"
 ../src/logger -u ${SOCK} ${MSG}
 
-echo "Nej"
-sleep 1
+sleep 2
 kill -TERM ${PID}
 wait ${PID}
 
