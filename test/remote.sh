@@ -6,8 +6,8 @@ MSG="kilroy"
 
 /sbin/ifconfig -a
 
-tshark -Qni lo -w ${CAP} port ${PORT} 2>/dev/null &
-#tcpdump -qlni lo -w ${CAP} port ${PORT} 2>/dev/null &
+tshark -Qni lo -w ${CAP} port ${PORT} &
+#tcpdump -qlni lo -w ${CAP} port ${PORT} &
 PID="$!"
 sleep 5
 ps fax  |grep -A3 tshark
