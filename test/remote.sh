@@ -4,10 +4,13 @@ set -ex
 
 MSG="kilroy"
 
+/sbin/ifconfig -a
+
 tshark -Qni lo -w ${CAP} port ${PORT} 2>/dev/null &
 #tcpdump -qlni lo -w ${CAP} port ${PORT} 2>/dev/null &
 PID="$!"
 sleep 5
+ps fax  |grep -A3 tshark
 
 ../src/logger -u ${SOCK} ${MSG}
 
