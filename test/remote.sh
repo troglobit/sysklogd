@@ -1,5 +1,5 @@
 #!/bin/sh
-set -x
+set -ex
 . ./test.rc
 
 MSG="kilroy"
@@ -7,11 +7,11 @@ MSG="kilroy"
 tshark -Qni lo -w ${CAP} port ${PORT} 2>/dev/null &
 #tcpdump -qlni lo -w ${CAP} port ${PORT} 2>/dev/null &
 PID="$!"
-sleep 2
+sleep 5
 
 ../src/logger -u ${SOCK} ${MSG}
 
-sleep 2
+sleep 5
 kill -TERM ${PID}
 wait ${PID}
 
