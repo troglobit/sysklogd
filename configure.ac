@@ -19,6 +19,7 @@
 AC_INIT([sysklogd], [2.0-beta1], [https://github.com/troglobit/sysklogd/issues],,
 	[https://github.com/troglobit/sysklogd])
 AM_INIT_AUTOMAKE([1.11 foreign])
+LT_INIT
 AM_SILENT_RULES([yes])
 
 AC_CONFIG_SRCDIR([src/syslogd.c])
@@ -26,6 +27,7 @@ AC_CONFIG_HEADER([config.h])
 AC_CONFIG_FILES([Makefile
 		 man/Makefile
 		 src/Makefile
+		 src/libsyslog.pc
 		 test/Makefile
 		 klogd.service
 		 syslogd.service])

@@ -1,6 +1,10 @@
 *.o
+*.lo
+.libs/*
 klogd
 logger
 syslogd
 syslog_tst
 tsyslogd
+libsyslog.la
+libsyslog.pc

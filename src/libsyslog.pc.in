@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: @PACKAGE@
+Description: RFC5424 compliant syslogp() API and syslog() replacement from sysklogd
+Version: @VERSION@
+Requires:
+Libs: -L${libdir} -lsyslog
+Cflags: -I${includedir}
+
