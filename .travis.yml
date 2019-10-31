@@ -22,6 +22,6 @@ script:
   - ./configure --prefix=/tmp/sysklogd
   - make clean
   - make -j5
-  - make check
+  - make check || cat test/test-suite.log
   - make install-strip
   - tree /tmp/sysklogd
