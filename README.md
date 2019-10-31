@@ -1,5 +1,5 @@
-Kernel and System Logging Daemons
-=================================
+RFC5424 Compliant System Logging
+================================
 [![License Badge][]][License] [![Travis Status][]][Travis]
 
 Table of Contents
@@ -10,17 +10,26 @@ Table of Contents
 * [Building from GIT](#building-from-git)
 * [Origin & References](#origin--references)
 
-
 Introduction
 ------------
 
-This is the continuation of the original Debian syslog daemon package
-by [Martin Schulze][], it implements two system log daemons:
+This is the continuation of the original Debian/Ubuntu syslog daemon,
+updated with full [RFC3164][] and [RFC5424][] support from NetBSD and
+FreeBSD.  The package includes a library and `syslog.h` header file
+replacement, two system log daemons, and one command line tool.
+
+The `libsyslog` and `syslog/syslog.h`, derived directly from NetBSD,
+expose `syslogp()` and other new features available only in [RFC5424][]:
+
+- https://netbsd.gw.com/cgi-bin/man-cgi?syslog+3+NetBSD-current
 
 The `syslogd` daemon is an enhanced version of the standard Berkeley
-utility program.  It is responsible for providing logging of messages
-received from programs and facilities on the local host as well as from
-remote hosts.
+utility program, updated with DNA from FreeBSD.  It is responsible for
+providing logging of messages received from programs and facilities on
+the local host as well as from remote hosts.  Although compatible with
+standard C-library implementations of the `syslog()` API (GLIBC, musl
+libc, uClibc), `libsyslog` must be used in your application to unlock
+the new [RFC5424][] `syslogp()` API.
 
 The `klogd` daemon listens to kernel message sources and is responsible
 for prioritizing and processing operating system messages.  The `klogd`
@@ -28,16 +37,24 @@ daemon can run as a client of `syslogd` or optionally as a standalone
 program.  `klogd` can now be used to decode EIP addresses if it can
 determine a `System.map` file.
 
-Main differences from the original sysklogd are:
+The included `logger` tool can be used from the command line, or script,
+to send RFC5424 formatted messages using `libsyslog` to `syslogd` for
+local or remote logging.
+
+Main differences from the original sysklogd package are:
 
 - Built-in log-rotation support, with compression by default, useful for
   embedded systems.  No need for cron and a separate logrotate daemon
+- Full [RFC3164][] and [RFC5424][] support
+- Includes timestamp and hostname, RFC3164 style, in remote logging
+- Support for sending RFC5424 style remote syslog messages
+- Includes a `logger` tool with RFC5424 capabilities (`msgid` etc.)
+- Includes a library and system header replacement for logging
 - FreeBSD socket receive buffer size patch
 - Avoid blocking `syslogd` if console is backed up
 - Touch PID file on `SIGHUP`, for integration with [Finit][]
 - GNU configure & build system to ease porting/cross-compiling
 - Support for configuring remote syslog timeout
-- Support for sending RFC5424 style remote syslog messages
 
 
 Build & Install
@@ -86,9 +103,12 @@ Origin & References
 -------------------
 
 This is the continuation of the original sysklogd by [Martin Schulze][].
-Now maintained by [Joachim Nilsson][].  Please file bug reports, or send
-pull requests for bug fixes and proposed extensions at [GitHub][].
+Now maintained and heavilty updated by [Joachim Nilsson][].  Please file
+bug reports, or send pull requests for bug fixes and proposed extensions
+at [GitHub][].
 
+[RFC3164]:          https://tools.ietf.org/html/rfc3164
+[RFC5424]:          https://tools.ietf.org/html/rfc5424
 [Martin Schulze]:   http://www.infodrom.org/projects/sysklogd/
 [Joachim Nilsson]:  http://troglobit.com
 [Finit]:            https://github.com/troglobit/finit
