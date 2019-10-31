@@ -2252,17 +2252,119 @@ void doexit(int signo)
 }
 
 /*
+ * Check active rules for action FWD
+ */
+static int cffwd(void)
+{
+	struct filed *f;
+	int fwd = 0;
+
+	for (f = Files; f; f = f->f_next) {
+		if (f->f_type == F_FORW      ||
+		    f->f_type == F_FORW_SUSP ||
+		    f->f_type == F_FORW_UNKN)
+			fwd++;
+	}
+
+	return fwd;
+}
+
+/*
+ * Read /etc/syslog.conf and any *.conf in /etc/syslog.d/
+ */
+static int cfparse(char *fn)
+{
+	struct filed **nextp = NULL;
+	struct filed *f;
+	FILE *fp;
+	char  cbuf[BUFSIZ];
+	char *cline;
+	char *p;
+
+	fp = fopen(fn, "r");
+	if (!fp) {
+		logit("Cannot open %s: %s\n", fn, strerror(errno));
+
+		/* Create fallback .conf with err+panic sent to console */
+		Files = f = calloc(1, sizeof(*f));
+		if (!f) {
+			logerror("Cannot allocate memory for log target/file");
+			return 1;
+		}
+		cfline("*.err\t" _PATH_CONSOLE, f);
+
+		f->f_next = calloc(1, sizeof(*f)); /* ASP */
+		if (!f->f_next) {
+			logerror("Cannot allocate memory for log target/file");
+			return 1;
+		}
+		f = f->f_next;
+		cfline("*.panic\t*", f);
+
+		Initialized = 1;
+		return 0;
+	}
+
+	/*
+	 *  Foreach line in the conf table, open that file.
+	 */
+	cline = cbuf;
+	while (fgets(cline, sizeof(cbuf) - (cline - cbuf), fp) != NULL) {
+		/*
+		 * check for end-of-section, comments, strip off trailing
+		 * spaces and newline character.
+		 */
+		for (p = cline; isspace(*p); ++p)
+			;
+		if (*p == '\0' || *p == '#')
+			continue;
+
+		memmove(cline, p, strlen(p) + 1);
+		for (p = strchr(cline, '\0'); isspace(*--p);)
+			;
+
+		if (*p == '\\') {
+			if ((p - cbuf) > BUFSIZ - 30) {
+				/* Oops the buffer is full - what now? */
+				cline = cbuf;
+			} else {
+				*p = 0;
+				cline = p;
+				continue;
+			}
+		} else
+			cline = cbuf;
+
+		*++p = '\0';
+
+		f = (struct filed *)calloc(1, sizeof(*f));
+		if (!f) {
+			logerror("Cannot allocate memory for log file");
+			return 1;
+		}
+
+		if (!nextp)
+			Files = f;
+		else
+			*nextp = f;
+		nextp = &f->f_next;
+
+		cfline(cbuf, f);
+	}
+
+	/* close the configuration file */
+	(void)fclose(fp);
+
+	return 0;
+}
+
+/*
  *  INIT -- Initialize syslogd from configuration table
  */
 void init(void)
 {
-	struct filed **nextp = NULL;
 	struct hostent *hent;
 	struct filed *f;
-	unsigned int Forwarding = 0;
-	FILE *cf;
-	char  cbuf[BUFSIZ];
-	char *cline;
 	char *p;
 	int i, lognum;
 
@@ -2337,86 +2439,16 @@ void init(void)
 	/*
 	 * Convert to lower case to recognize the correct domain laterly
 	 */
-	for (p = (char *)LocalDomain; *p; p++)
+	for (p = (char *)LocalDomain; *p; p++) {
 		if (isupper(*p))
 			*p = tolower(*p);
-
-	/* open the configuration file */
-	if ((cf = fopen(ConfFile, "r")) == NULL) {
-		logit("cannot open %s.\n", ConfFile);
-
-		cfline("*.err\t" _PATH_CONSOLE, f);
-
-		*nextp = calloc(1, sizeof(*f));
-		if (!*nextp) {
-			logerror("Cannot allocate memory for log target/file");
-			return;
-		}
-		cfline("*.ERR\t" _PATH_CONSOLE, *nextp);
-
-		(*nextp)->f_next = calloc(1, sizeof(*f)); /* ASP */
-		if (!*nextp) {
-			logerror("Cannot allocate memory for log target/file");
-			return;
-		}
-		cfline("*.PANIC\t*", (*nextp)->f_next);
-
-		Initialized = 1;
-		return;
 	}
 
 	/*
-	 *  Foreach line in the conf table, open that file.
+	 * Read configuration file(s)
 	 */
-	cline = cbuf;
-	while (fgets(cline, sizeof(cbuf) - (cline - cbuf), cf) != NULL) {
-		/*
-		 * check for end-of-section, comments, strip off trailing
-		 * spaces and newline character.
-		 */
-		for (p = cline; isspace(*p); ++p)
-			;
-		if (*p == '\0' || *p == '#')
-			continue;
-
-		memmove(cline, p, strlen(p) + 1);
-		for (p = strchr(cline, '\0'); isspace(*--p);)
-			;
-
-		if (*p == '\\') {
-			if ((p - cbuf) > BUFSIZ - 30) {
-				/* Oops the buffer is full - what now? */
-				cline = cbuf;
-			} else {
-				*p = 0;
-				cline = p;
-				continue;
-			}
-		} else
-			cline = cbuf;
-
-		*++p = '\0';
-
-		f = (struct filed *)calloc(1, sizeof(*f));
-		if (!f) {
-			logerror("Cannot allocate memory for log file");
-			return;
-		}
-
-		if (!nextp)
-			Files = f;
-		else
-			*nextp = f;
-		nextp = &f->f_next;
-
-		cfline(cbuf, f);
-		if (f->f_type == F_FORW || f->f_type == F_FORW_SUSP || f->f_type == F_FORW_UNKN) {
-			Forwarding++;
-		}
-	}
-
-	/* close the configuration file */
-	(void)fclose(cf);
+	if (cfparse(ConfFile))
+		return;
 
 	for (i = 0; i < nfunix; i++) {
 		if (funix[i] != -1)
@@ -2428,7 +2460,7 @@ void init(void)
 			logit("Opened UNIX socket `%s'.\n", funixn[i]);
 	}
 
-	if (Forwarding || AcceptRemote) {
+	if (cffwd() || AcceptRemote) {
 		if (!finet) {
 			finet = create_inet_sockets();
 			if (finet) {
