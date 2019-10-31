@@ -9,12 +9,12 @@ MSG="kilroy"
 tshark -Qni lo -w ${CAP} port ${PORT} &
 #tcpdump -qlni lo -w ${CAP} port ${PORT} &
 PID="$!"
-sleep 5
+sleep 1
 ps fax  |grep -A3 tshark
 
 ../src/logger -u ${SOCK} ${MSG}
 
-sleep 5
+sleep 1
 kill -TERM ${PID}
 wait ${PID}
 
