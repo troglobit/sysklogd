@@ -43,6 +43,7 @@ local or remote logging.
 
 Main differences from the original sysklogd package are:
 
+- Support for `include /etc/syslog.d/*.conf`, see example .conf
 - Built-in log-rotation support, with compression by default, useful for
   embedded systems.  No need for cron and a separate logrotate daemon
 - Full [RFC3164][] and [RFC5424][] support

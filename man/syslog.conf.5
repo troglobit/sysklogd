@@ -34,13 +34,17 @@ rules for logging.  For special features see the
 .Xr syslogd 8
 man page.
 .Pp
-Every rule consists of two fields, a
+Every rule has at least two fields, a
 .Em selector
-field an
-.Em action
-and an optional
+field and an
+.Em action .
+They may also have an optional flag or setting that applies only to
+that rule. E.g,
 .Em logrotate
-field.  The fields are separated by one or more spaces or tabs.  The
+settings or output format flag.  A rule may be divided into several
+lines if the leading line ends with a single backslash ('\\') character.
+.Pp
+The fields are separated by one or more spaces or tabs.  The
 selector field specifies a pattern of facilities and priorities
 belonging to the specified action.  The action details where or what to
 do with the selected input.  The optional logrotate field is only for
@@ -49,16 +53,17 @@ rotated, and later compressed.  The log rotated feature is mostly
 intended for embedded systems that do not want to have cron and a
 separate log rotate daemon.
 .Pp
-Lines starting with a hash mark ('#') and empty lines are ignored.  If
-an error occurs during parsing the whole line is ignored.
-.Pp
-This variant of
-.Nm syslogd
-is able to understand a slightly extended syntax compared to the
-original BSD
-.Nm syslogd .
-One rule may be divided into several lines if the leading line ends
-with a single backslash ('\\') character.
+Comments, lines starting with a hash mark ('#'), and empty lines are
+ignored.  If an error occurs during parsing the whole line is ignored.
+The configuration file can also include other files.  The example
+.Pa /etc/syslog.conf
+has the following at the end:
+.Bd -literal -offset indent
+#
+# Drop your subsystem .conf file in /etc/syslog.d/
+#
+include /etc/syslog.d/*.conf
+.Ed
 .Sh SELECTORS
 The selector field consists of two parts, a
 .Em facility
@@ -446,23 +451,13 @@ machine.
 .Bd -literal -offset indent
 *.*                          @finlandia;RFC5424
 .Ed
-.Sh SYNTAX DIFFERENCES
-.Nm syslogd
-allows for a slightly extended syntax for
-.Nm
-compared to the original BSD
-.Nm syslogd .
-The modifiers '=', '!', and '-' were added to make the syntax more
-flexible and to use it in a more intuitive manner.  Also, the original
-BSD
-.Nm syslogd
-doesn't understand spaces as separators between the selector and the
-action field.
 .Sh FILES
-.Bl -tag -compact -width /etc/syslog.conf
+.Bl -tag -compact -width /etc/syslog.d/*.conf
 .It /etc/syslog.conf
-Configuration file for
+Main configuration file for
 .Xr syslogd 8
+.It /etc/syslog.d/*.conf
+Recommended directory for .conf snippets (per subsystem)
 .El
 .Sh BUGS
 The effects of multiple selectors are sometimes not intuitive.  For
