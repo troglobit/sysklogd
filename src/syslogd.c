@@ -779,6 +779,7 @@ static int *create_inet_sockets(void)
 	socks = malloc((maxs + 1) * sizeof(int));
 	if (!socks) {
 		logerror("couldn't allocate memory for sockets");
+		freeaddrinfo(res);
 		die(0);
 	}
 
@@ -832,13 +833,14 @@ static int *create_inet_sockets(void)
 		(*socks)++;
 		s++;
 	}
-	if (res)
-		freeaddrinfo(res);
+	freeaddrinfo(res);
+
 	if (*socks == 0) {
 		logerror("no valid sockets, suspending inet");
 		free(socks);
 		return NULL;
 	}
+
 	return socks;
 }
 
@@ -2262,6 +2264,9 @@ void die(int signo)
 			(void)unlink(funixn[i]);
 	}
 
+	if (parts)
+		free(parts);
+
 	(void)remove_pid(PidFile);
 	exit(0);
 }
@@ -2337,8 +2342,10 @@ void init(void)
 		case F_PIPE:
 		case F_TTY:
 		case F_CONSOLE:
-			(void)close(f->f_file);
+			if (f->f_file >= 0)
+				(void)close(f->f_file);
 			break;
+
 		case F_FORW:
 		case F_FORW_SUSP:
 			freeaddrinfo(f->f_un.f_forw.f_addr);
