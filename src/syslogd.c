@@ -62,6 +62,7 @@ static char sccsid[] __attribute__((unused)) =
 #include <assert.h>
 #include <ctype.h>
 #include <getopt.h>
+#include <glob.h>
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -156,7 +157,6 @@ char  ctty[]  = _PATH_CONSOLE;
 char **parts;
 
 static int debugging_on = 0;
-static int nlogs = -1;
 static int restart = 0;
 
 #define MAXFUNIX 20
@@ -214,7 +214,7 @@ char *TypeNames[] = {
 	"FORW(UNKNOWN)", "PIPE"
 };
 
-struct filed *Files = NULL;
+static SIMPLEQ_HEAD(files, filed) fhead = SIMPLEQ_HEAD_INITIALIZER(fhead);
 struct filed consfile;
 
 struct code {
@@ -317,7 +317,7 @@ void        die(int sig);
 void        doexit(int sig);
 void        init();
 static int  strtobytes(char *arg);
-void        cfline(char *line, struct filed *f);
+static int  cfparse(FILE *fp, struct files *newf);
 int         decode(char *name, struct code *codetab);
 static void logit(char *, ...);
 void        sighup_handler(int);
@@ -1448,7 +1448,7 @@ static void logmsg(struct buf_msg *buffer)
 			    buffer->msgid == NULL ? "-" : buffer->msgid,
 			    buffer->sd == NULL ? "-" : buffer->sd, buffer->msg);
 
-	for (f = Files; f; f = f->f_next) {
+	SIMPLEQ_FOREACH(f, &fhead, f_link) {
 		/* skip messages that are incorrect priority */
 		if ((f->f_pmask[fac] == TABLE_NOPRI) ||
 		    ((f->f_pmask[fac] & (1 << prilev)) == 0))
@@ -2162,7 +2162,7 @@ void domark(int signo)
 		}
 	}
 
-	for (f = Files; f; f = f->f_next) {
+	SIMPLEQ_FOREACH(f, &fhead, f_link) {
 		if (f->f_prevcount && now >= REPEATTIME(f)) {
 			logit("flush %s: repeated %d times, %d sec.\n",
 			      TypeNames[f->f_type], f->f_prevcount,
@@ -2202,17 +2202,15 @@ void logerror(const char *type)
 
 void die(int signo)
 {
-	struct filed *f;
-	int lognum;
-	int i;
+	struct filed *f, *next;
 	int was_initialized = Initialized;
+	int i;
 
 	Initialized = 0; /* Don't log SIGCHLDs in case we
 			    receive one during exiting */
 
-	for (lognum = 0; lognum <= nlogs; lognum++) {
-		f = &Files[lognum];
-		/* flush any pending output */
+	/* flush any pending output */
+	SIMPLEQ_FOREACH(f, &fhead, f_link) {
 		if (f->f_prevcount)
 			fprintlog(f, NULL);
 	}
@@ -2223,10 +2221,34 @@ void die(int signo)
 		flog(LOG_SYSLOG | LOG_INFO, "exiting on signal %d", signo);
 	}
 
+	/*
+	 * Close all open log files.
+	 */
+	SIMPLEQ_FOREACH_SAFE(f, &fhead, f_link, next) {
+		switch (f->f_type) {
+		case F_FILE:
+		case F_TTY:
+		case F_CONSOLE:
+		case F_PIPE:
+			if (f->f_file >= 0)
+				(void)close(f->f_file);
+			break;
+
+		case F_FORW:
+			if (f->f_un.f_forw.f_addr)
+				freeaddrinfo(f->f_un.f_forw.f_addr);
+			break;
+		}
+
+		free(f);
+	}
+
 	/* Close the UNIX sockets. */
-	for (i = 0; i < nfunix; i++)
+	for (i = 0; i < nfunix; i++) {
 		if (funix[i] != -1)
 			close(funix[i]);
+	}
+
 	/* Close the inet sockets. */
 	if (InetInuse && finet) {
 		for (i = 0; i < *finet; i++)
@@ -2235,9 +2257,10 @@ void die(int signo)
 	}
 
 	/* Clean-up files. */
-	for (i = 0; i < nfunix; i++)
+	for (i = 0; i < nfunix; i++) {
 		if (funixn[i] && funix[i] != -1)
 			(void)unlink(funixn[i]);
+	}
 
 	(void)remove_pid(PidFile);
 	exit(0);
@@ -2259,7 +2282,7 @@ static int cffwd(void)
 	struct filed *f;
 	int fwd = 0;
 
-	for (f = Files; f; f = f->f_next) {
+	SIMPLEQ_FOREACH(f, &fhead, f_link) {
 		if (f->f_type == F_FORW      ||
 		    f->f_type == F_FORW_SUSP ||
 		    f->f_type == F_FORW_UNKN)
@@ -2269,93 +2292,20 @@ static int cffwd(void)
 	return fwd;
 }
 
-/*
- * Read /etc/syslog.conf and any *.conf in /etc/syslog.d/
- */
-static int cfparse(char *fn)
+/* Create fallback .conf with err+panic sent to console */
+static FILE *cftemp(void)
 {
-	struct filed **nextp = NULL;
-	struct filed *f;
 	FILE *fp;
-	char  cbuf[BUFSIZ];
-	char *cline;
-	char *p;
 
-	fp = fopen(fn, "r");
-	if (!fp) {
-		logit("Cannot open %s: %s\n", fn, strerror(errno));
+	fp = tmpfile();
+	if (!fp)
+		return NULL;
 
-		/* Create fallback .conf with err+panic sent to console */
-		Files = f = calloc(1, sizeof(*f));
-		if (!f) {
-			logerror("Cannot allocate memory for log target/file");
-			return 1;
-		}
-		cfline("*.err\t" _PATH_CONSOLE, f);
+	fprintf(fp, "*.err\t%s\n", _PATH_CONSOLE);
+	fprintf(fp, "*.panic\t*\n");
 
-		f->f_next = calloc(1, sizeof(*f)); /* ASP */
-		if (!f->f_next) {
-			logerror("Cannot allocate memory for log target/file");
-			return 1;
-		}
-		f = f->f_next;
-		cfline("*.panic\t*", f);
-
-		Initialized = 1;
-		return 0;
-	}
-
-	/*
-	 *  Foreach line in the conf table, open that file.
-	 */
-	cline = cbuf;
-	while (fgets(cline, sizeof(cbuf) - (cline - cbuf), fp) != NULL) {
-		/*
-		 * check for end-of-section, comments, strip off trailing
-		 * spaces and newline character.
-		 */
-		for (p = cline; isspace(*p); ++p)
-			;
-		if (*p == '\0' || *p == '#')
-			continue;
-
-		memmove(cline, p, strlen(p) + 1);
-		for (p = strchr(cline, '\0'); isspace(*--p);)
-			;
-
-		if (*p == '\\') {
-			if ((p - cbuf) > BUFSIZ - 30) {
-				/* Oops the buffer is full - what now? */
-				cline = cbuf;
-			} else {
-				*p = 0;
-				cline = p;
-				continue;
-			}
-		} else
-			cline = cbuf;
-
-		*++p = '\0';
-
-		f = (struct filed *)calloc(1, sizeof(*f));
-		if (!f) {
-			logerror("Cannot allocate memory for log file");
-			return 1;
-		}
-
-		if (!nextp)
-			Files = f;
-		else
-			*nextp = f;
-		nextp = &f->f_next;
-
-		cfline(cbuf, f);
-	}
-
-	/* close the configuration file */
-	(void)fclose(fp);
-
-	return 0;
+	rewind(fp);
+	return fp;
 }
 
 /*
@@ -2364,49 +2314,37 @@ static int cfparse(char *fn)
 void init(void)
 {
 	struct hostent *hent;
-	struct filed *f;
+	struct files newf = SIMPLEQ_HEAD_INITIALIZER(newf);
+	struct filed *f, *next;
+	FILE *fp;
 	char *p;
-	int i, lognum;
+	int i;
 
 	/*
 	 *  Close all open log files and free log descriptor array.
 	 */
 	logit("Called init.\n");
 	Initialized = 0;
-	if (nlogs > -1) {
-		logit("Initializing log structures.\n");
 
-		for (lognum = 0; lognum <= nlogs; lognum++) {
-			f = &Files[lognum];
+	logit("Initializing log structures.\n");
+	SIMPLEQ_FOREACH(f, &fhead, f_link) {
+		/* flush any pending output */
+		if (f->f_prevcount)
+			fprintlog(f, NULL);
 
-			/* flush any pending output */
-			if (f->f_prevcount)
-				fprintlog(f, NULL);
-
-			switch (f->f_type) {
-			case F_FILE:
-			case F_PIPE:
-			case F_TTY:
-			case F_CONSOLE:
-				(void)close(f->f_file);
-				break;
-			case F_FORW:
-			case F_FORW_SUSP:
-				freeaddrinfo(f->f_un.f_forw.f_addr);
-				break;
-			}
+		switch (f->f_type) {
+		case F_FILE:
+		case F_PIPE:
+		case F_TTY:
+		case F_CONSOLE:
+			(void)close(f->f_file);
+			break;
+		case F_FORW:
+		case F_FORW_SUSP:
+			freeaddrinfo(f->f_un.f_forw.f_addr);
+			break;
 		}
-
-		/*
-		 * This is needed especially when HUPing syslogd as the
-		 * structure would grow infinitively.  -Joey
-		 */
-		nlogs = -1;
-		free((void *)Files);
-		Files = NULL;
 	}
-
-	f = NULL;
 
 	/* Get hostname */
 	(void)gethostname(LocalHostName, sizeof(LocalHostName));
@@ -2447,8 +2385,45 @@ void init(void)
 	/*
 	 * Read configuration file(s)
 	 */
-	if (cfparse(ConfFile))
+	fp = fopen(ConfFile, "r");
+	if (!fp) {
+		logit("Cannot open %s: %s\n", ConfFile, strerror(errno));
+
+		fp = cftemp();
+		if (!fp) {
+			logit("Cannot even create a tempfile: %s", strerror(errno));
+			return;
+		}
+	}
+
+	if (cfparse(fp, &newf)) {
+		fclose(fp);
 		return;
+	}
+	fclose(fp);
+
+	/*
+	 * Close all open log files.
+	 */
+	SIMPLEQ_FOREACH_SAFE(f, &fhead, f_link, next) {
+		switch (f->f_type) {
+		case F_FILE:
+		case F_TTY:
+		case F_CONSOLE:
+		case F_PIPE:
+			if (f->f_file >= 0)
+				(void)close(f->f_file);
+			break;
+
+		case F_FORW:
+			if (f->f_un.f_forw.f_addr)
+				freeaddrinfo(f->f_un.f_forw.f_addr);
+			break;
+		}
+
+		free(f);
+	}
+	fhead = newf;
 
 	for (i = 0; i < nfunix; i++) {
 		if (funix[i] != -1)
@@ -2482,7 +2457,7 @@ void init(void)
 	Initialized = 1;
 
 	if (Debug) {
-		for (f = Files; f; f = f->f_next) {
+		SIMPLEQ_FOREACH(f, &fhead, f_link) {
 			if (f->f_type != F_UNUSED) {
 				for (i = 0; i <= LOG_NFACILITIES; i++)
 					if (f->f_pmask[i] == TABLE_NOPRI)
@@ -2528,9 +2503,10 @@ void init(void)
 /*
  * Crack a configuration file line
  */
-void cfline(char *line, struct filed *f)
+static struct filed *cfline(char *line)
 {
 	struct addrinfo hints, *ai;
+	struct filed *f;
 	char buf[MAXLINE];
 	char xbuf[MAXLINE + 24];
 	char *p, *q, *bp;
@@ -2540,14 +2516,13 @@ void cfline(char *line, struct filed *f)
 
 	logit("cfline(%s)\n", line);
 
-	errno = 0; /* keep strerror() stuff out of logerror messages */
-
-	/* clear out file entry */
-	memset((char *)f, 0, sizeof(*f));
-	for (i = 0; i <= LOG_NFACILITIES; i++) {
-		f->f_pmask[i] = TABLE_NOPRI;
-		f->f_flags = 0;
+	f = calloc(1, sizeof(*f));
+	if (!f) {
+		logerror("Cannot allocate memory for log file");
+		return NULL;
 	}
+
+	errno = 0; /* keep strerror() stuff out of logerror messages */
 
 	/* default rotate from command line */
 	f->f_rotatecount = RotateCnt;
@@ -2589,7 +2564,9 @@ void cfline(char *line, struct filed *f)
 		if (pri < 0) {
 			(void)snprintf(xbuf, sizeof(xbuf), "unknown priority name \"%s\"", buf);
 			logerror(xbuf);
-			return;
+			free(f);
+
+			return NULL;
 		}
 
 		/* scan facilities */
@@ -2628,10 +2605,11 @@ void cfline(char *line, struct filed *f)
 			} else {
 				i = decode(buf, FacNames);
 				if (i < 0) {
-
 					(void)snprintf(xbuf, sizeof(xbuf), "unknown facility name \"%s\"", buf);
 					logerror(xbuf);
-					return;
+					free(f);
+
+					return NULL;
 				}
 
 				if (pri == INTERNAL_NOPRI) {
@@ -2787,6 +2765,92 @@ void cfline(char *line, struct filed *f)
 		f->f_type = F_USERS;
 		break;
 	}
+
+	return f;
+}
+
+/*
+ * Parse .conf file and append to list
+ */
+static int cfparse(FILE *fp, struct files *newf)
+{
+	struct filed *f;
+	char  cbuf[BUFSIZ];
+	char *cline;
+	char *p;
+
+	if (!fp)
+		return 1;
+
+	/*
+	 *  Foreach line in the conf table, open that file.
+	 */
+	cline = cbuf;
+	while (fgets(cline, sizeof(cbuf) - (cline - cbuf), fp) != NULL) {
+		/*
+		 * check for end-of-section, comments, strip off trailing
+		 * spaces and newline character.
+		 */
+		for (p = cline; isspace(*p); ++p)
+			;
+		if (*p == '\0' || *p == '#')
+			continue;
+
+		memmove(cline, p, strlen(p) + 1);
+		for (p = strchr(cline, '\0'); isspace(*--p);)
+			;
+
+		if (*p == '\\') {
+			if ((p - cbuf) > BUFSIZ - 30) {
+				/* Oops the buffer is full - what now? */
+				cline = cbuf;
+			} else {
+				*p = 0;
+				cline = p;
+				continue;
+			}
+		} else
+			cline = cbuf;
+
+		*++p = '\0';
+
+		if (!strncmp(cbuf, "include", 7)) {
+			glob_t gl;
+
+			p = &cbuf[7];
+			while (*p && isspace(*p))
+				p++;
+
+			logit("Searching for %s ...\n", p);
+			if (glob(p, GLOB_NOSORT, NULL, &gl))
+				logit("No files match %s\n", p);
+
+			for (size_t i = 0; i < gl.gl_pathc; i++) {
+				FILE *fpi;
+
+				logit("Opening %s ...\n", gl.gl_pathv[i]);
+				fpi = fopen(gl.gl_pathv[i], "r");
+				if (!fpi) {
+					logit("Failed opening %s: %s\n",
+					      gl.gl_pathv[i], strerror(errno));
+					continue;
+				}
+
+				logit("Parsing %s ...", gl.gl_pathv[i]);
+				cfparse(fpi, newf);
+				fclose(fpi);
+			}
+			continue;
+		}
+
+		f = cfline(cbuf);
+		if (!f)
+			continue;
+
+		SIMPLEQ_INSERT_TAIL(newf, f, f_link);
+	}
+
+	return 0;
 }
 
 /*

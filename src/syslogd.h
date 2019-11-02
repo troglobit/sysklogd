@@ -32,6 +32,7 @@
 #ifndef SYSKLOGD_SYSLOGD_H_
 #define SYSKLOGD_SYSLOGD_H_
 
+#include "queue.h"
 #include "syslog.h"
 
 #ifdef UT_NAMESIZE
@@ -86,9 +87,8 @@ struct buf_msg {
  * We require f_file to be valid if f_type is F_FILE, F_CONSOLE, F_TTY
  * or if f_type is F_PIPE and f_pid > 0.
  */
-
 struct filed {
-	struct filed *f_next;                  /* next in linked list */
+	SIMPLEQ_ENTRY(filed) f_link;
 
 	short	 f_type;                       /* entry type, see below */
 	short	 f_file;                       /* file descriptor */

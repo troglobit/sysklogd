@@ -24,7 +24,7 @@ lib_LTLIBRARIES  = libsyslog.la
 AM_CFLAGS        = -W -Wall -Wextra
 AM_CFLAGS       += -Wno-unused-result -Wno-unused-parameter -fno-strict-aliasing
 
-syslogd_SOURCES  = syslogd.c syslog.h pidfile.c pidfile.h
+syslogd_SOURCES  = syslogd.c syslog.h pidfile.c pidfile.h queue.h
 syslogd_CPPFLAGS = -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_DEFAULT_SOURCE
 syslogd_LDADD    = $(LIBS) $(LIBOBJS)
 
