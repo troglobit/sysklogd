@@ -65,6 +65,10 @@ size_t strlcpy(char *dst, const char *src, size_t siz);
 size_t strlcat(char *dst, const char *src, size_t siz);
 #endif
 
+#ifndef pidfile
+int pidfile(const char *basename);
+#endif
+
 static inline char *getprogname(void)
 {
 	extern char *__progname;

@@ -23,6 +23,7 @@
  */
 
 #include "config.h"
+#include "compat.h"
 
 #include <errno.h>
 #include <getopt.h>
@@ -35,9 +36,6 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/stat.h>
-#ifndef TESTING
-#include "pidfile.h"
-#endif
 
 #define __LIBRARY__
 #include <linux/unistd.h>
@@ -47,9 +45,7 @@
 #define LOG_BUFFER_SIZE 4096
 #define LOG_LINE_LENGTH 1000
 
-#ifndef TESTING
 static char *PidFile = _PATH_VARRUN "klogd.pid";
-#endif
 
 static int kmsg;
 static int change_state      = 0;
@@ -81,7 +77,6 @@ extern void        stop_logging(int sig);
 extern void        stop_daemon(int sig);
 extern void        reload_daemon(int sig);
 static void        Terminate(void);
-static void        SignalDaemon(int);
 static void        ReloadSymbols(void);
 static void        ChangeLogging(void);
 static enum LOGSRC GetKernelLogSrc(void);
@@ -115,12 +110,10 @@ static void CloseLogSrc(void)
 /*
  * Signal handler to terminate the parent process.
  */
-#ifndef TESTING
 void doexit(int signo)
 {
 	exit(0);
 }
-#endif
 
 void restart(int signo)
 {
@@ -153,24 +146,12 @@ static void Terminate(void)
 	CloseLogSrc();
 	Syslog(LOG_INFO, "Kernel log daemon terminating.");
 	sleep(1);
+
 	if (output_file != NULL)
 		fclose(output_file);
 	closelog();
-#ifndef TESTING
-	(void)remove_pid(PidFile);
-#endif
+
 	exit(1);
-}
-
-static void SignalDaemon(int signo)
-{
-#ifndef TESTING
-	int pid = check_pid(PidFile);
-
-	kill(pid, signo);
-#else
-	kill(getpid(), signo);
-#endif
 }
 
 static void ReloadSymbols(void)
@@ -257,7 +238,6 @@ static enum LOGSRC GetKernelLogSrc(void)
 		return kernel;
 	}
 
-#ifndef TESTING
 	if ((kmsg = open(_PATH_KLOG, O_RDONLY)) < 0) {
 		fprintf(stderr, "klogd: Cannot open proc file system, "
 		                "%d - %s.\n",
@@ -265,12 +245,10 @@ static enum LOGSRC GetKernelLogSrc(void)
 		ksyslog(7, NULL, 0);
 		exit(1);
 	}
-#else
-	kmsg = fileno(stdin);
-#endif
 
 	Syslog(LOG_INFO, "klogd v%s, log source = %s started.",
 	       VERSION, _PATH_KLOG);
+
 	return proc;
 }
 
@@ -333,18 +311,12 @@ extern void Syslog(int priority, char *fmt, ...)
 		}
 		syslog(priority, fmt, argl);
 		va_end(ap);
-#ifdef TESTING
-		putchar('\n');
-#endif
 		return;
 	}
 
 	va_start(ap, fmt);
 	vsyslog(priority, fmt, ap);
 	va_end(ap);
-#ifdef TESTING
-	printf("\n");
-#endif
 }
 
 /*
@@ -648,6 +620,8 @@ int usage(int code)
 	        "  -v        Show program version and exit\n"
 	        "  -x        Omit EIP translation, i.e. do not read System.map file\n"
 	        "\n"
+		"SIGUSR1 reloads kernel module symbols, SIGUSR2 reloads all kernel symbols.\n"
+	        "\n"
 	        "Bug report address: %s\n",
 	        PACKAGE_BUGREPORT);
 	exit(code);
@@ -659,14 +633,10 @@ int main(int argc, char *argv[])
 	char *output = NULL;
 	int use_output = 0;
 	int ch;
-#ifndef TESTING
 	pid_t ppid = getpid();
 
-	chdir("/");
-#endif
-
 	/* Parse the command-line. */
-	while ((ch = getopt(argc, argv, "c:df:iIk:nopsvx2?")) != EOF) {
+	while ((ch = getopt(argc, argv, "c:df:k:nopsvx2?")) != EOF) {
 		switch (ch) {
 		case '2': /* Print lines with symbols twice. */
 			symbols_twice = 1;
@@ -684,14 +654,6 @@ int main(int argc, char *argv[])
 			output = optarg;
 			use_output++;
 			break;
-
-		case 'i': /* Reload module symbols. */
-			SignalDaemon(SIGUSR1);
-			return 0;
-
-		case 'I':
-			SignalDaemon(SIGUSR2);
-			return 0;
 
 		case 'k': /* Kernel symbol file. */
 			symfile = optarg;
@@ -743,7 +705,6 @@ int main(int argc, char *argv[])
 		console_log_level = *log_level - '0';
 	}
 
-#ifndef TESTING
 	/*
 	 * The following code allows klogd to auto-background itself.
 	 * What happens is that the program forks and the parent quits.
@@ -756,48 +717,40 @@ int main(int argc, char *argv[])
 	 * such process running.
 	 */
 	if ((!one_shot) && (!no_fork)) {
-		if (!check_pid(PidFile)) {
-			signal(SIGTERM, doexit);
-			if (fork() == 0) {
-				int num_fds = getdtablesize();
-				int fl;
+		signal(SIGTERM, doexit);
+		if (fork() == 0) {
+			int num_fds = getdtablesize();
+			int fl;
 
-				signal(SIGTERM, SIG_DFL);
+			signal(SIGTERM, SIG_DFL);
 
-				/* This is the child closing its file descriptors. */
-				for (fl = 0; fl <= num_fds; ++fl) {
-					if (fileno(stdout) == fl && use_output)
-						if (strcmp(output, "-") == 0)
-							continue;
-					close(fl);
-				}
-
-				setsid();
-			} else {
-				/*
-				 * Parent process
-				 */
-				sleep(300);
-				/*
-				 * Not reached unless something major went wrong.
-				 */
-				exit(1);
+			/* This is the child closing its file descriptors. */
+			for (fl = 0; fl <= num_fds; ++fl) {
+				if (fileno(stdout) == fl && use_output)
+					if (strcmp(output, "-") == 0)
+						continue;
+				close(fl);
 			}
+
+			chdir("/");
+			setsid();
 		} else {
-			fputs("klogd: Already running.\n", stderr);
+			/*
+			 * Parent process
+			 */
+			sleep(300);
+			/*
+			 * Not reached unless something major went wrong.
+			 */
 			exit(1);
-		}
+			}
 	}
 
-	/* tuck my process id away */
-	if (!check_pid(PidFile)) {
-		if (!write_pid(PidFile))
-			Terminate();
-	} else {
-		fputs("klogd: Already running.\n", stderr);
+	if (pidfile(PidFile)) {
+		Syslog(LOG_ERR, "Failed creating PID file %s: %s",
+		       PidFile, strerror(errno));
 		Terminate();
 	}
-#endif
 
 	/* Signal setups. */
 	for (ch = 1; ch < NSIG; ++ch)

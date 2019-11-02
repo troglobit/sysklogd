@@ -31,14 +31,6 @@ Enable debugging mode.  This will generate potentially LOTS of output to
 stderr.
 .It Fl f Ar FILE
 Log messages to the specified filename rather than to the syslog facility.
-.It Fl i | Fl I
-Signal the currently executing klogd daemon.  Both of these switches control
-the loading/reloading of symbol information.  The
-.Fl i
-switch signals the daemon to reload the kernel module symbols.  The
-.Fl I
-switch signals for a reload of both the static kernel symbols and the
-kernel module symbols.
 .It Fl n
 Avoid auto-backgrounding.  This is needed especially if
 .Nm
@@ -251,22 +243,23 @@ Proper and accurate resolution of addresses in kernel modules requires
 that
 .Nm
 be informed whenever the kernel module status changes.  The
-.Fl i
+.Ar SIGUSR1
 and
-.Fl I
-switches can be used to signal the currently executing daemon that
-symbol information be reloaded.  Of most importance to proper resolution
-of module symbols is the
-.Fl i
-switch.  Each time a kernel module is loaded or removed from the kernel
-the following command should be executed:
+.Ar SIGUSR2
+signals can be used to signal the currently executing
+.Nm
+that symbol information should be reloaded.  Of most importance to
+proper resolution of module symbols is
+.Ar SIGUSR1 .
+Each time a kernel module is loaded or removed from the kernel the
+following command should be executed:
 .Bd -literal -offset indent
-klogd -i
+kill -USR1 `cat /run/klogd.pid`
 .Ed
 .Pp
 The
 .Fl p
-switch can also be used to insure that module symbol information is up
+switch can also be used to ensure that module symbol information is up
 to date.  This switch instructs
 .Nm
 to reload the module symbol information whenever a protection fault

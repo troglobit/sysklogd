@@ -40,7 +40,7 @@ AC_HEADER_STDC
 PKG_PROG_PKG_CONFIG
 
 # Check for usually missing API's, which we can replace
-AC_REPLACE_FUNCS([strlcpy strlcat])
+AC_REPLACE_FUNCS([pidfile strlcpy strlcat utimensat])
 AC_CONFIG_LIBOBJ_DIR([lib])
 
 # Command line options

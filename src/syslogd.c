@@ -96,7 +96,6 @@ static char sccsid[] __attribute__((unused)) =
 #include <syscall.h>
 #include <paths.h>
 
-#include "pidfile.h"
 #include "syslogd.h"
 #include "compat.h"
 
@@ -448,52 +447,39 @@ int main(int argc, char *argv[])
 		usage(1);
 
 	if ((!Foreground) && (!Debug)) {
-		logit("Checking pidfile.\n");
-		if (!check_pid(PidFile)) {
-			signal(SIGTERM, doexit);
-			chdir("/");
+		signal(SIGTERM, doexit);
+		chdir("/");
 
-			if (fork()) {
-				/*
-				 * Parent process
-				 */
-				sleep(300);
-				/*
-				 * Not reached unless something major went wrong.  5
-				 * minutes should be a fair amount of time to wait.
-				 * Please note that this procedure is important since
-				 * the father must not exit before syslogd isn't
-				 * initialized or the klogd won't be able to flush its
-				 * logs.  -Joey
-				 */
-				exit(1);
-			}
-			signal(SIGTERM, SIG_DFL);
-			num_fds = getdtablesize();
-			for (i = 0; i < num_fds; i++)
-				(void)close(i);
-			untty();
-		} else {
-			fputs("syslogd: Already running.\n", stderr);
+		if (fork()) {
+			/*
+			 * Parent process
+			 */
+			sleep(300);
+			/*
+			 * Not reached unless something major went wrong.  5
+			 * minutes should be a fair amount of time to wait.
+			 * Please note that this procedure is important since
+			 * the father must not exit before syslogd isn't
+			 * initialized or the klogd won't be able to flush its
+			 * logs.  -Joey
+			 */
 			exit(1);
 		}
+
+		signal(SIGTERM, SIG_DFL);
+		num_fds = getdtablesize();
+		for (i = 0; i < num_fds; i++)
+			(void)close(i);
+		untty();
 	} else {
 		debugging_on = 1;
 		setlinebuf(stdout);
 	}
 
-	/* tuck my process id away */
 	if (!Debug) {
-		logit("Writing pidfile.\n");
-		if (!check_pid(PidFile)) {
-			if (!write_pid(PidFile)) {
-				logit("Can't write pid.\n");
-				if (getpid() != ppid)
-					kill(ppid, SIGTERM);
-				exit(1);
-			}
-		} else {
-			logit("Pidfile (and pid) already exist.\n");
+		if (pidfile(PidFile)) {
+			logit("Failed creating PID file %s: %s",
+			      PidFile, strerror(errno));
 			if (getpid() != ppid)
 				kill(ppid, SIGTERM);
 			exit(1);
@@ -593,13 +579,8 @@ int main(int argc, char *argv[])
 			logit("\nReceived SIGHUP, reloading syslogd.\n");
 			init();
 
-			if (check_pid(PidFile)) {
-				if (touch_pid(PidFile))
-					logerror("Not possible to touch pidfile");
-			} else {
-				if (!write_pid(PidFile))
-					logerror("Failed to write pidfile");
-			}
+			if (pidfile(PidFile))
+				flog(LOG_SYSLOG | LOG_ERR, "Failed writing %s", PidFile);
 			continue;
 		}
 
@@ -2267,7 +2248,6 @@ void die(int signo)
 	if (parts)
 		free(parts);
 
-	(void)remove_pid(PidFile);
 	exit(0);
 }
 
