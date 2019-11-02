@@ -3,5 +3,6 @@ LOG=/tmp/${NM}.log
 PID=/tmp/${NM}.pid
 CAP=/tmp/${NM}.pcapng
 CONF=/tmp/${NM}.conf
+CONFD=/tmp/${NM}.d
 SOCK=/tmp/${NM}.sock
 PORT=5514
