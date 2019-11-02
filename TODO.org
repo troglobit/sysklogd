@@ -1,0 +1,20 @@
+#+STARTUP: showall
+* sysklogd v2.0
+
+** DONE Separate libsylog.{a,so} and syslog/syslog.h with NetBSD API
+** DONE Add syslogp() and vsyslogp() to libsyslog
+** DONE Add support for =/etc/syslog.d/*.conf= to syslogd
+** DONE Test support of  =/etc/syslog.d/*.conf= to syslogd
+** Test SIGHUP of syslogd
+** Check for memory/descriptor leaks, valgrind
+** Custom facilities!
+** Fix option parsing in syslog.conf, e.g. ;RFC5424 and log rotation
+** Test with/without openlog()
+** Test custom facilities
+** Test setlogmask()
+** Test levels?
+** Test v1 API, syslogp()
+** DONE Add RFC5424 parsing of incoming msgs to syslogd
+** DONE Local `stdout | stdin` unit testing
+** DONE Rewrite man pages do mandoc format
+
