@@ -2,10 +2,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * ksym.h - Definitions for symbol table utilities.
+ *
  * Copyright (c) 1995, 1996  Dr. G.W. Wettstein <greg@wind.rmcc.com>
  * Copyright (c) 1996 Enjellic Systems Development
- *
- * This file is part of the sysklogd package, a kernel and system log daemon.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,10 +16,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this file; see the file COPYING.  If not, write to the
- * Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston,
- * MA 02110-1301, USA.
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
 #ifndef SYSKLOGD_KSYMS_H_
