@@ -1,5 +1,7 @@
 NM=syslog-test
 LOG=/tmp/${NM}.log
+LOGV1=/tmp/${NM}-v1.log
+LOGCONS=/tmp/${NM}-cons.log
 PID=/tmp/${NM}.pid
 CAP=/tmp/${NM}.pcapng
 CONF=/tmp/${NM}.conf

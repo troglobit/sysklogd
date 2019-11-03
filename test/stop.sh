@@ -7,7 +7,10 @@ if [ -e ${PID} ]; then
 fi
 
 rm -f ${LOG}
+rm -f ${LOGV1}
+rm -f ${LOGCONS}
 rm -f ${PID}
 rm -f ${CAP}
 rm -f ${SOCK}
 rm -f ${CONF}
+rm -rf ${CONFD}
