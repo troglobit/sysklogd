@@ -18,8 +18,8 @@
 
 AC_INIT([sysklogd], [2.0-beta1], [https://github.com/troglobit/sysklogd/issues],,
 	[https://github.com/troglobit/sysklogd])
-AM_INIT_AUTOMAKE([1.11 foreign])
-LT_INIT
+AM_INIT_AUTOMAKE([1.11 foreign subdir-objects])
+LT_INIT([pic-only])
 AM_SILENT_RULES([yes])
 
 AC_CONFIG_SRCDIR([src/syslogd.c])

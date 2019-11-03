@@ -15,7 +15,6 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program; if not, write to the Free Software
 #   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-AUTOMAKE_OPTIONS = subdir-objects
 
 bin_PROGRAMS     = logger
 sbin_PROGRAMS    = syslogd klogd
@@ -46,4 +45,5 @@ pkgconfig_DATA        = libsyslog.pc
 pkginclude_HEADERS    = syslog.h
 libsyslog_la_SOURCES  = syslog.c syslog.h
 libsyslog_la_CPPFLAGS = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
+libsyslog_la_LIBADD   = $(LTLIBOBJS)
 libsyslog_la_LDFLAGS  = $(AM_LDFLAGS) -version-info 0:0:0
