@@ -28,11 +28,13 @@ addons:
     build_command: "make"
     branch_pattern: dev
 
+# Build test programs as regular user, or clang build may fail
 script:
   - ./autogen.sh
   - ./configure --prefix=/tmp/sysklogd --disable-silent-rules
   - make clean
-  - make
+  - make all
+  - make -C test programs
   - sudo make check || (which clang; cat test/test-suite.log; false)
   - make install-strip
   - tree /tmp/sysklogd

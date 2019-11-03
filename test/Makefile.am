@@ -15,3 +15,4 @@ TESTS           += remote.sh
 TESTS           += api.sh
 TESTS           += stop.sh
 
+programs: $(check_PROGRAMS)
