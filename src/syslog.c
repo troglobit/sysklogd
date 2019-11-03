@@ -490,7 +490,11 @@ connectlog_r(struct syslog_data *data)
 #endif
 		.sun_path = _PATH_LOG,
 	};
+	char *path;
 
+	path = getenv("SYSLOG_UNIX_PATH");
+	if (!data->log_sockpath && path)
+		data->log_sockpath = path;
 	if (data->log_sockpath && !access(data->log_sockpath, W_OK))
 		strlcpy(sun.sun_path, data->log_sockpath, sizeof(sun.sun_path));
 
