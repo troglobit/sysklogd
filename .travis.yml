@@ -30,9 +30,9 @@ addons:
 
 script:
   - ./autogen.sh
-  - ./configure --prefix=/tmp/sysklogd
+  - ./configure --prefix=/tmp/sysklogd --disable-silent-rules
   - make clean
   - make
-  - sudo make check || (cat test/test-suite.log; false)
+  - sudo make check || (which clang; cat test/test-suite.log; false)
   - make install-strip
   - tree /tmp/sysklogd
