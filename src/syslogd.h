@@ -43,13 +43,6 @@
 #define MAXUNAMES      20     /* maximum number of user names */
 #define MAXFNAME       200    /* max file pathname length */
 
-#define INTERNAL_NOPRI 0x10   /* the "no priority" priority */
-#define TABLE_NOPRI    0      /* Value to indicate no priority in f_pmask */
-#define TABLE_ALLPRI   0xFF   /* Value to indicate all priorities in f_pmask */
-#define LOG_MARK       LOG_MAKEPRI(LOG_NFACILITIES, 0) /* mark "facility" */
-
-#define MAX_PRI        191    /* Maximum Priority per RFC 3164 */
-
 /* Traditional syslog timestamp format. */
 #define	RFC3164_DATELEN	15
 #define	RFC3164_DATEFMT	"%b %e %H:%M:%S"

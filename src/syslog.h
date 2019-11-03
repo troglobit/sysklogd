@@ -76,8 +76,10 @@
 #define	LOG_MAKEPRI(fac, pri)	(((fac) << 3) | (pri))
 
 #ifdef SYSLOG_NAMES
+#define INTERNAL_INVPRI 0x00    /* Value to indicate no priority in f_pmask */
 #define	INTERNAL_NOPRI	0x10	/* the "no priority" priority */
 				/* mark "facility" */
+#define INTERNAL_ALLPRI 0xFF   /* Value to indicate all priorities in f_pmask */
 #define	INTERNAL_MARK	LOG_MAKEPRI(LOG_NFACILITIES, 0)
 typedef struct _code {
 	const char	*c_name;
@@ -97,6 +99,7 @@ CODE prioritynames[] = {
 	{ "panic",	LOG_EMERG },		/* DEPRECATED */
 	{ "warn",	LOG_WARNING },		/* DEPRECATED */
 	{ "warning",	LOG_WARNING },
+	{ "*",		INTERNAL_ALLPRI },	/* INTERNAL */
 	{ NULL,		-1 }
 };
 #endif /* SYSLOG_NAMES */
@@ -114,8 +117,10 @@ CODE prioritynames[] = {
 #define	LOG_CRON	(9<<3)	/* clock daemon */
 #define	LOG_AUTHPRIV	(10<<3)	/* security/authorization messages (private) */
 #define	LOG_FTP		(11<<3)	/* ftp daemon */
-
-	/* other codes through 15 reserved for system use */
+#define	LOG_NTP		(12<<3)	/* NTP subsystem */
+#define	LOG_SECURITY	(13<<3)	/* Log audit, for audit trails */
+#define	LOG_CONSOLE	(14<<3)	/* Log alert */
+#define	LOG_CRON_SOL	(15<<3)	/* clock daemon (Solaris) */
 #define	LOG_LOCAL0	(16<<3)	/* reserved for local use */
 #define	LOG_LOCAL1	(17<<3)	/* reserved for local use */
 #define	LOG_LOCAL2	(18<<3)	/* reserved for local use */
@@ -134,7 +139,9 @@ CODE prioritynames[] = {
 CODE facilitynames[] = {
 	{ "auth",	LOG_AUTH },
 	{ "authpriv",	LOG_AUTHPRIV },
+	{ "console",	LOG_CONSOLE },
 	{ "cron",	LOG_CRON },
+	{ "cron_sol",	LOG_CRON_SOL },		/* Solaris cron */
 	{ "daemon",	LOG_DAEMON },
 	{ "ftp",	LOG_FTP },
 	{ "kern",	LOG_KERN },
@@ -142,7 +149,8 @@ CODE facilitynames[] = {
 	{ "mail",	LOG_MAIL },
 	{ "mark",	INTERNAL_MARK },	/* INTERNAL */
 	{ "news",	LOG_NEWS },
-	{ "security",	LOG_AUTH },		/* DEPRECATED */
+	{ "ntp",	LOG_NTP },
+	{ "security",	LOG_SECURITY },
 	{ "syslog",	LOG_SYSLOG },
 	{ "user",	LOG_USER },
 	{ "uucp",	LOG_UUCP },

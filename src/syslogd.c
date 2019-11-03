@@ -73,7 +73,6 @@ static char sccsid[] __attribute__((unused)) =
 #include <unistd.h>
 #include <utmp.h>
 
-#define SYSLOG_NAMES
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -96,6 +95,7 @@ static char sccsid[] __attribute__((unused)) =
 #include <syscall.h>
 #include <paths.h>
 
+#define SYSLOG_NAMES
 #include "syslogd.h"
 #include "compat.h"
 
@@ -216,56 +216,6 @@ char *TypeNames[] = {
 static SIMPLEQ_HEAD(files, filed) fhead = SIMPLEQ_HEAD_INITIALIZER(fhead);
 struct filed consfile;
 
-struct code {
-	char *c_name;
-	int   c_val;
-};
-
-struct code PriNames[] = {
-	{ "alert",    LOG_ALERT      },
-	{ "crit",     LOG_CRIT       },
-	{ "debug",    LOG_DEBUG      },
-	{ "emerg",    LOG_EMERG      },
-	{ "err",      LOG_ERR        },
-	{ "error",    LOG_ERR        },  /* DEPRECATED */
-	{ "info",     LOG_INFO       },
-	{ "none",     INTERNAL_NOPRI },  /* INTERNAL */
-	{ "notice",   LOG_NOTICE     },
-	{ "panic",    LOG_EMERG      },  /* DEPRECATED */
-	{ "warn",     LOG_WARNING    }, /* DEPRECATED */
-	{ "warning",  LOG_WARNING    },
-	{ "*",        TABLE_ALLPRI   },
-	{ NULL,       -1             }
-};
-
-struct code FacNames[] = {
-	{ "auth",     LOG_AUTH       },
-	{ "authpriv", LOG_AUTHPRIV   },
-	{ "cron",     LOG_CRON       },
-	{ "daemon",   LOG_DAEMON     },
-	{ "kern",     LOG_KERN       },
-	{ "lpr",      LOG_LPR        },
-	{ "mail",     LOG_MAIL       },
-	{ "mark",     LOG_MARK       },  /* INTERNAL */
-	{ "news",     LOG_NEWS       },
-	{ "security", LOG_AUTH       },  /* DEPRECATED */
-	{ "syslog",   LOG_SYSLOG     },
-	{ "user",     LOG_USER       },
-	{ "uucp",     LOG_UUCP       },
-#if defined(LOG_FTP)
-	{ "ftp",      LOG_FTP        },
-#endif
-	{ "local0",   LOG_LOCAL0     },
-	{ "local1",   LOG_LOCAL1     },
-	{ "local2",   LOG_LOCAL2     },
-	{ "local3",   LOG_LOCAL3     },
-	{ "local4",   LOG_LOCAL4     },
-	{ "local5",   LOG_LOCAL5     },
-	{ "local6",   LOG_LOCAL6     },
-	{ "local7",   LOG_LOCAL7     },
-	{ NULL,       -1             },
-};
-
 static int	  Debug;		/* debug flag */
 static int	  Foreground = 0;	/* don't fork - don't run in daemon mode */
 static char	  LocalHostName[MAXHOSTNAMELEN + 1]; /* our hostname */
@@ -317,7 +267,7 @@ void        doexit(int sig);
 void        init();
 static int  strtobytes(char *arg);
 static int  cfparse(FILE *fp, struct files *newf);
-int         decode(char *name, struct code *codetab);
+int         decode(char *name, struct _code *codetab);
 static void logit(char *, ...);
 void        sighup_handler(int);
 static int  create_unix_socket(const char *path);
@@ -1433,7 +1383,7 @@ static void logmsg(struct buf_msg *buffer)
 
 	SIMPLEQ_FOREACH(f, &fhead, f_link) {
 		/* skip messages that are incorrect priority */
-		if ((f->f_pmask[fac] == TABLE_NOPRI) ||
+		if ((f->f_pmask[fac] == INTERNAL_INVPRI) ||
 		    ((f->f_pmask[fac] & (1 << prilev)) == 0))
 			continue;
 
@@ -2126,7 +2076,7 @@ static void flog(int pri, char *fmt, ...)
 	buffer.proc_id  = proc_id;
 	buffer.pri = pri;
 	buffer.msg = buf;
-	if (pri & LOG_MARK)
+	if (pri & INTERNAL_MARK)
 		buffer.flags = MARK;
 
 	logmsg(&buffer);
@@ -2140,7 +2090,7 @@ void domark(int signo)
 		now = time(0);
 		MarkSeq += LastAlarm;
 		if (MarkSeq >= MarkInterval) {
-			flog(LOG_MARK | LOG_INFO, "-- MARK --");
+			flog(INTERNAL_MARK | LOG_INFO, "-- MARK --");
 			MarkSeq -= MarkInterval;
 		}
 	}
@@ -2447,7 +2397,7 @@ void init(void)
 		SIMPLEQ_FOREACH(f, &fhead, f_link) {
 			if (f->f_type != F_UNUSED) {
 				for (i = 0; i <= LOG_NFACILITIES; i++)
-					if (f->f_pmask[i] == TABLE_NOPRI)
+					if (f->f_pmask[i] == INTERNAL_INVPRI)
 						printf(" X ");
 					else
 						printf("%2X ", f->f_pmask[i]);
@@ -2542,10 +2492,10 @@ static struct filed *cfline(char *line)
 		}
 		if (*buf == '=') {
 			singlpri = 1;
-			pri = decode(&buf[1], PriNames);
+			pri = decode(&buf[1], prioritynames);
 		} else {
 			singlpri = 0;
-			pri = decode(buf, PriNames);
+			pri = decode(buf, prioritynames);
 		}
 
 		if (pri < 0) {
@@ -2565,20 +2515,20 @@ static struct filed *cfline(char *line)
 				for (i = 0; i <= LOG_NFACILITIES; i++) {
 					if (pri == INTERNAL_NOPRI) {
 						if (ignorepri)
-							f->f_pmask[i] = TABLE_ALLPRI;
+							f->f_pmask[i] = INTERNAL_ALLPRI;
 						else
-							f->f_pmask[i] = TABLE_NOPRI;
+							f->f_pmask[i] = INTERNAL_INVPRI;
 					} else if (singlpri) {
 						if (ignorepri)
 							f->f_pmask[i] &= ~(1 << pri);
 						else
 							f->f_pmask[i] |= (1 << pri);
 					} else {
-						if (pri == TABLE_ALLPRI) {
+						if (pri == INTERNAL_ALLPRI) {
 							if (ignorepri)
-								f->f_pmask[i] = TABLE_NOPRI;
+								f->f_pmask[i] = INTERNAL_INVPRI;
 							else
-								f->f_pmask[i] = TABLE_ALLPRI;
+								f->f_pmask[i] = INTERNAL_ALLPRI;
 						} else {
 							if (ignorepri)
 								for (i2 = 0; i2 <= pri; ++i2)
@@ -2590,7 +2540,7 @@ static struct filed *cfline(char *line)
 					}
 				}
 			} else {
-				i = decode(buf, FacNames);
+				i = decode(buf, facilitynames);
 				if (i < 0) {
 					(void)snprintf(xbuf, sizeof(xbuf), "unknown facility name \"%s\"", buf);
 					logerror(xbuf);
@@ -2601,20 +2551,20 @@ static struct filed *cfline(char *line)
 
 				if (pri == INTERNAL_NOPRI) {
 					if (ignorepri)
-						f->f_pmask[i >> 3] = TABLE_ALLPRI;
+						f->f_pmask[i >> 3] = INTERNAL_ALLPRI;
 					else
-						f->f_pmask[i >> 3] = TABLE_NOPRI;
+						f->f_pmask[i >> 3] = INTERNAL_INVPRI;
 				} else if (singlpri) {
 					if (ignorepri)
 						f->f_pmask[i >> 3] &= ~(1 << pri);
 					else
 						f->f_pmask[i >> 3] |= (1 << pri);
 				} else {
-					if (pri == TABLE_ALLPRI) {
+					if (pri == INTERNAL_ALLPRI) {
 						if (ignorepri)
-							f->f_pmask[i >> 3] = TABLE_NOPRI;
+							f->f_pmask[i >> 3] = INTERNAL_INVPRI;
 						else
-							f->f_pmask[i >> 3] = TABLE_ALLPRI;
+							f->f_pmask[i >> 3] = INTERNAL_ALLPRI;
 					} else {
 						if (ignorepri)
 							for (i2 = 0; i2 <= pri; ++i2)
@@ -2843,26 +2793,31 @@ static int cfparse(FILE *fp, struct files *newf)
 /*
  *  Decode a symbolic name to a numeric value
  */
-int decode(char *name, struct code *codetab)
+int decode(char *name, struct _code *codetab)
 {
-	struct code *c;
-	char *       p;
-	char         buf[80];
+	struct _code *c;
+	char *p;
+	char buf[80];
 
 	logit("symbolic name: %s", name);
 	if (isdigit(*name)) {
 		logit("\n");
 		return atoi(name);
 	}
-	(void)strncpy(buf, name, 79);
-	for (p = buf; *p; p++)
+
+	strlcpy(buf, name, sizeof(buf));
+	for (p = buf; *p; p++) {
 		if (isupper(*p))
 			*p = tolower(*p);
-	for (c = codetab; c->c_name; c++)
+	}
+
+	for (c = codetab; c->c_name; c++) {
 		if (!strcmp(buf, c->c_name)) {
 			logit(" ==> %d\n", c->c_val);
 			return c->c_val;
 		}
+	}
+
 	return -1;
 }
 
