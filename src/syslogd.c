@@ -2455,6 +2455,16 @@ static void cfopts(char *ptr, struct filed *f)
 {
 	char *opt;
 
+	/* First locate any whitespace between action and option */
+	ptr = strpbrk(ptr, "\t ;");
+	if (!ptr)
+		return;
+
+	/* Insert NUL character after action */
+	if (*ptr != ';')
+		*ptr++ = 0;
+
+	/* Parse options */
 	opt = strtok(ptr, ";");
 	while (opt) {
 		if (cfopt(&opt, "RFC5424"))
@@ -2629,7 +2639,7 @@ static struct filed *cfline(char *line)
 		cfopts(p, f);
 
 		(void)strcpy(f->f_un.f_forw.f_hname, ++p);
-		logit("forwarding host: %s\n", p); /*ASP*/
+		logit("forwarding host: '%s'\n", p); /*ASP*/
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = family;
 		hints.ai_socktype = SOCK_DGRAM;
@@ -2655,7 +2665,7 @@ static struct filed *cfline(char *line)
 		cfopts(p, f);
 
 		(void)strcpy(f->f_un.f_fname, p);
-		logit("filename: %s\n", p); /*ASP*/
+		logit("filename: '%s'\n", p); /*ASP*/
 		if (syncfile)
 			f->f_flags |= SYNC_FILE;
 		if (*p == '|') {
