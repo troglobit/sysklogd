@@ -25,3 +25,5 @@ EOF
 echo "$!" > ${PID}
 
 sleep 1
+kill -USR1 `cat ${PID}`
+sleep 1
