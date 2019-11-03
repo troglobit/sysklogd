@@ -9,7 +9,7 @@
 ** DONE Test support of  =/etc/syslog.d/*.conf= to syslogd
 ** Test SIGHUP of syslogd
 ** DONE Custom facilities!
-** Fix option parsing in syslog.conf, e.g. ;RFC5424 and log rotation
+** DONE Fix option parsing in syslog.conf, e.g. ;RFC5424 and log rotation
 ** Test with/without openlog()
 ** Test custom facilities
 ** Test setlogmask()

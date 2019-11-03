@@ -193,22 +193,28 @@ version and exit.
 .Sh CONFIGURATION FILE SYNTAX DIFFERENCES
 .Nm
 uses a slightly different syntax for its configuration file than the
-original BSD sources.  Originally all messages of a specific priority
-and above were forwarded to the log file.
+original BSD sources.  First, rules may now also have a third field
+.Cm ;OPTION .
+Several options are supported, comma separated, that control formatting
+and log rotation, for more on this see
+.Xr syslog.conf 5 .
+Second, originally all messages of a specific priority and above were
+forwarded to the log file.
 .Pp
-For example the following line caused ALL output from daemons using
-the daemon facilities (debug is the lowest priority, so every higher
-will also match) to go into 
-.Pa /usr/adm/daemons :
+For example the following line send all output from daemons using the
+daemon facilities (debug is the lowest priority, so every higher will
+also match) to go into
+.Pa /var/log/daemons :
 .Bd -literal -offset indent
 # Sample syslog.conf
-daemon.debug		/usr/adm/daemons
+daemon.debug		/var/log/daemons
 .Ed
 .Pp
-Under the new scheme this behavior remains the same.  The difference is
-the addition of four new specifiers, the asterisk ('*') wildcard, the
-equation sign ('='), the exclamation mark ('!'), and the minus sign
-('-').
+With
+.Nm
+this behavior remains the same.  The difference is the addition of four
+additional specifiers, the asterisk ('*') wildcard, the equation sign
+('='), the exclamation mark ('!'), and the minus sign ('-').
 .Pp
 The '*' specifies that all messages for the specified facility are to be
 directed to the destination.  Note that this behavior is degenerate with
@@ -220,13 +226,14 @@ class.  This allows, for example, routing only debug messages to a
 particular logging source.
 .Pp
 For example, the following line in
-.Pa syslog.conf
+.Pa /etc/syslog.conf
 directs debug messages from all sources to the
-.Pa /usr/adm/debug
-file.
+.Pa /var/log/debug
+file in RFC5424 format, with log rotation every 512 kiB, saving only 20
+files in total (including the non-rotated file):
 .Bd -literal -offset indent
 # Sample syslog.conf
-*.=debug		/usr/adm/debug
+*.=debug		-/var/log/debug	;RFC5424,rotate=512k:20
 .Ed
 .Pp
 .\" The '!' as the first character of a priority inverts the above
@@ -241,22 +248,24 @@ log all messages of facility
 except those with priority
 .Ql info
 to the
-.Pa /usr/adm/mail 
+.Pa /var/log/mail 
 file.  All messages from
 .Ql news.info
 (including) to
 .Ql news.crit
 (excluding) are logged to the
-.Pa /usr/adm/news
+.Pa /var/log/news
 file.
 .Bd -literal -offset indent
 # Sample syslog.conf
-mail.*;mail.!=info	/usr/adm/mail
-news.info;news.!crit	/usr/adm/news
+mail.*;mail.!=info	/var/log/mail
+news.info;news.!crit	/var/log/news
 .Ed
 .Pp
 You may use it intuitively as an exception specifier.  The above
-mentioned interpretation is simply inverted.  Doing that you may use
+mentioned interpretation is simply inverted.  For example, to skip
+every message with facility
+.Ar mail :
 .Bd -literal -offset indent
 mail.none
 .Ed
@@ -269,19 +278,8 @@ or
 mail.!debug
 .Ed
 .Pp
-to skip every message that comes with a mail facility.  There is much
-room to play with it. :-)
-.Pp
 The '-' may only be used to prefix a filename if you want to omit
 sync'ing the file after every write to it.
-.Pp
-This may take some acclimatization for those individuals used to the
-pure BSD behavior but testers have indicated that this syntax is
-somewhat more flexible than the BSD behavior.  Note that these changes
-do not affect standard
-.Xr syslog.conf 5
-files.  You must specifically modify the configuration files to obtain
-the new features.
 .Sh REMOTE LOGGING
 The following modifications provide network support to the
 .Nm
@@ -335,7 +333,7 @@ entry:
 .Bd -literal -offset indent
 # Sample syslogd configuration file to forward all message
 # messages to a remote host using RFC5424 style formatting
-*.*			@hostname;RFC5424
+*.*		@hostname;RFC5424
 .Ed
 .Pp
 To forward all
@@ -400,9 +398,9 @@ The following configuration file routes debug messages from the kernel
 to a FIFO:
 .Bd -literal -offset indent
 # Sample configuration to route kernel debugging
-# messages ONLY to /usr/adm/debug which is a
+# messages ONLY to /var/log/debug which is a
 # named pipe.
-kern.=debug			|/usr/adm/debug
+kern.=debug	|/var/log/debug
 .Ed
 .Sh CONCERNS
 There is probably one important consideration when installing this

@@ -305,12 +305,12 @@ five files in total are kept, including the non-rotated file.
 This stores all messages of priority
 .Ql crit
 in the file
-.Pa /var/adm/critical ,
+.Pa /var/log/critical ,
 with the exception of any kernel messages.
 .Bd -literal -offset indent
 # Store critical stuff in critical
 #
-*.=crit;kern.none            /var/adm/critical
+*.=crit;kern.none            /var/log/critical
 .Ed
 .Ss Kernel
 This is an example of the 2nd selector overwriting part of the first
@@ -325,19 +325,18 @@ and
 .Ql warning
 to get logged.
 .Bd -literal -offset indent
-# Kernel messages are stored in the kernel file,
-# critical messages and higher ones also go
-# to another host and to the console
+# Kernel messages are stored in the kernel file, critical messages and
+# higher ones also go to another host and to the console
 #
-kern.*                       /var/adm/kernel
-kern.crit                    @finlandia;RFC5424
+kern.*                       /var/log/kernel
+kern.crit                    @finlandia           ;RFC5424
 kern.crit                    /dev/console
-kern.info;kern.!err          /var/adm/kernel-info
+kern.info;kern.!err          /var/log/kernel.info
 .Ed
 .Pp
 The first rule directs any message that has the kernel facility to the
 file
-.Pa /var/adm/kernel .
+.Pa /var/log/kernel .
 Recall that only the kernel itself can log to this facility.
 .Pp
 The second statement directs all kernel messages of priority
@@ -361,7 +360,7 @@ to save all kernel messages that come with priorities from
 up to
 .Ql warning
 in the file
-.Pa /var/adm/kernel-info .
+.Pa /var/log/kernel.info .
 .Ss Redirecting to a TTY
 This directs all messages that use 
 .Ql mail.info
@@ -384,11 +383,11 @@ This pattern matches all messages that come with the
 facility, except for the
 .Ql info
 priority.  These will be stored in the file
-.Pa /var/adm/mail .
+.Pa /var/log/mail .
 .Bd -literal -offset indent
 # Write all mail related logs to a file
 #
-mail.*;mail.!=info           /var/adm/mail
+mail.*;mail.!=info           /var/log/mail
 .Ed
 .Ss Single Priority from Two Facilities
 This will extract all messages that come either with
@@ -396,11 +395,11 @@ This will extract all messages that come either with
 or with
 .Ql news.info
 and store them in the file
-.Pa /var/adm/info .
+.Pa /var/log/info .
 .Bd -literal -offset indent
 # Log all mail.info and news.info messages to info
 #
-mail,news.=info              /var/adm/info
+mail,news.=info              /var/log/info
 .Ed
 .Ss Advanced Filtering, part 1
 This logs all messages that come with either the
@@ -456,8 +455,8 @@ and 'joey', if they're logged in.
 *.alert                      root,joey
 .Ed
 .Ss Log Rotation
-This logs all messages except kernel messages to the file
-.Pa /log/messages
+This example logs all messages except kernel messages to the file
+.Pa /var/log/messages
 without syncing ('-') the file after each log message.  When the file
 reaches 100 kiB it is rotated.  In total are only 10 rotated files,
 including the main file itself and compressed files kept.  The size
