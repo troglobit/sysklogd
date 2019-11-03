@@ -15,11 +15,12 @@ Introduction
 
 This is the continuation of the original Debian/Ubuntu syslog daemon,
 updated with full [RFC3164][] and [RFC5424][] support from NetBSD and
-FreeBSD.  The package includes a library and `syslog.h` header file
-replacement, two system log daemons, and one command line tool.
+FreeBSD.  The package includes the `libsyslog.{a,so}` library and a
+`syslog.h` header file replacement, two system log daemons, `syslogd`
+and `klogd`, and one command line tool called `logger`.
 
-The `libsyslog` and `syslog/syslog.h`, derived directly from NetBSD,
-expose `syslogp()` and other new features available only in [RFC5424][]:
+`libsyslog` and `syslog/syslog.h`, derived directly from NetBSD, expose
+`syslogp()` and other new features available only in [RFC5424][]:
 
 - https://netbsd.gw.com/cgi-bin/man-cgi?syslog+3+NetBSD-current
 
