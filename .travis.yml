@@ -29,11 +29,10 @@ addons:
     branch_pattern: dev
 
 script:
-  - (automake --version; autoconf --version)
   - ./autogen.sh
   - ./configure --prefix=/tmp/sysklogd
   - make clean
-  - make -j5
+  - make
   - sudo make check || (cat test/test-suite.log; false)
   - make install-strip
   - tree /tmp/sysklogd
