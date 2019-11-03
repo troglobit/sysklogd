@@ -2261,28 +2261,6 @@ void init(void)
 	logit("Called init.\n");
 	Initialized = 0;
 
-	logit("Initializing log structures.\n");
-	SIMPLEQ_FOREACH(f, &fhead, f_link) {
-		/* flush any pending output */
-		if (f->f_prevcount)
-			fprintlog(f, NULL);
-
-		switch (f->f_type) {
-		case F_FILE:
-		case F_PIPE:
-		case F_TTY:
-		case F_CONSOLE:
-			if (f->f_file >= 0)
-				(void)close(f->f_file);
-			break;
-
-		case F_FORW:
-		case F_FORW_SUSP:
-			freeaddrinfo(f->f_un.f_forw.f_addr);
-			break;
-		}
-	}
-
 	/* Get hostname */
 	(void)gethostname(LocalHostName, sizeof(LocalHostName));
 	LocalDomain = emptystring;
