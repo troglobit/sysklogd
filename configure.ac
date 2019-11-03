@@ -22,6 +22,7 @@ AM_INIT_AUTOMAKE([1.11 foreign subdir-objects])
 LT_INIT([pic-only])
 AM_SILENT_RULES([yes])
 
+AC_CONFIG_MACRO_DIRS([m4])
 AC_CONFIG_SRCDIR([src/syslogd.c])
 AC_CONFIG_HEADER([config.h])
 AC_CONFIG_FILES([Makefile
