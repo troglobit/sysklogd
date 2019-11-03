@@ -12,6 +12,7 @@ addons:
       - tshark
 
 script:
+  - (automake --version; autoconf --version)
   - ./autogen.sh
   - ./configure --prefix=/tmp/sysklogd
   - make clean
