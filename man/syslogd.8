@@ -26,9 +26,23 @@
 .Sh DESCRIPTION
 .Nm
 support RFC3164 and RFC5424 style log messages for both local and remote
-logging using Internet and UNIX domain sockets.  The companion daemon,
+logging using Internet and UNIX domain sockets.  Differences in style is
+shown below.  The companion daemon,
 .Xr klogd 8 ,
 is used for trapping kernel messages and events.
+.Pp
+.Bl -tag -compact -width "RFC3164:"
+.It RFC3164:
+.Cm Aug 24 05:14:15 192.0.2.1 myproc[8710]: Kilroy was here.
+.It RFC5424:
+.Cm 2003-08-24T05:14:15.000003-07:00 192.0.2.1 myproc 8710 - - Kilroy was here.
+.El
+.Pp
+Note, for remote logging the messages are prefixed with
+.Cm <PRI>
+or
+.Cm <PRI>1 ,
+respectively.
 .Pp
 .Nm
 is derived from BSD sources, today
