@@ -1,9 +1,12 @@
 ```
-                   .--.  .--.              .--.
- .-----.--.--.-----|  |--|  :-----.-----.--|  |
- |__ --|  |  |__ --|    <|  |  _  |  _  |  _  |    RFC3164 :: syslogd for Linux
- |_____|___  |_____|__|__|__|_____|___  |_____|    RFC5424 :: w/NetBSD syslogp()
-       |_____|                    |_____|
+                  .--.  .--.              .--.
+.-----.--.--.-----|  |--|  :-----.-----.--|  |
+|__ --|  |  |__ --|    <|  |  _  |  _  |  _  |    RFC3164 :: syslogd for Linux
+|_____|___  |_____|__|__|__|_____|___  |_____|    RFC5424 :: w/NetBSD syslogp()
+      |_____|                    |_____|
+
+Aug 24 05:14:15 192.0.2.1 myproc[8710]: Kilroy was here.
+2019-11-04T00:50:15.001234+01:00 troglobit myproc 8710 - - Kilroy was here.
 ```
 [![License Badge][]][License] [![Travis Status][]][Travis] [![Coverity Status][]][Coverity Scan]
 
