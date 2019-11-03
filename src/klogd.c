@@ -788,22 +788,20 @@ int main(int argc, char *argv[])
 		Terminate();
 	}
 
-	/* Determine where kernel logging information is to come from. */
 #if defined(KLOGD_DELAY)
 	sleep(KLOGD_DELAY);
 #endif
+
+	/* Determine where kernel logging information is to come from. */
 	logsrc = GetKernelLogSrc();
 	if (symbol_lookup) {
 		InitKsyms(symfile);
 		InitMsyms();
 	}
 
-#ifndef TESTING
 	if (getpid() != ppid)
 		kill(ppid, SIGTERM);
-#endif
 
-	/* The main loop. */
 	while (1) {
 		if (change_state)
 			ChangeLogging();

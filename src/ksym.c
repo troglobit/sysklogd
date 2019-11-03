@@ -284,10 +284,8 @@ static int CheckVersion(char *version)
 	int major;
 	int minor;
 	int patch;
-#ifndef TESTING
 	struct utsname utsname;
 	int kvnum;
-#endif
 
 	/* Early return if there is no hope. */
 	if (strncmp(version, prefix, strlen(prefix)) == 0 /* ELF */ ||
@@ -315,7 +313,6 @@ static int CheckVersion(char *version)
 		        patch);
 	sprintf(vstring, "%d.%d.%d", major, minor, patch);
 
-#ifndef TESTING
 	/*
 	 * We should now have the version string in the vstring variable in
 	 * the same format that it is stored in by the kernel.  We now
@@ -344,8 +341,7 @@ static int CheckVersion(char *version)
 	if (vnum != kvnum)
 		return -1;
 
-		/* Success. */
-#endif
+	/* Success. */
 	return 1;
 }
 
