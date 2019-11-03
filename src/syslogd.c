@@ -2437,6 +2437,59 @@ void init(void)
 	logit("syslogd: restarted.\n");
 }
 
+static void cfrot(char *ptr, struct filed *f)
+{
+	char *c;
+	int sz = 0, cnt = 0;
+
+	c = strchr(ptr, ':');
+	if (c) {
+		*c++ = 0;
+		cnt = atoi(c);
+	}
+
+	sz = strtobytes(ptr);
+	if (sz > 0 && cnt > 0) {
+		logit("Set rotate size %d bytes, %d rotations\n", sz, cnt);
+		f->f_rotatecount = cnt;
+		f->f_rotatesz = sz;
+	}
+}
+
+static int cfopt(char **ptr, const char *opt)
+{
+	size_t len;
+
+	len = strlen(opt);
+	if (!strncasecmp(*ptr, opt, len)) {
+		logit("Found %s\n", opt);
+		*ptr += len;
+		return 1;
+	}
+
+	return 0;
+}
+
+/*
+ * Option processing
+ */
+static void cfopts(char *ptr, struct filed *f)
+{
+	char *opt;
+
+	opt = strtok(ptr, ";");
+	while (opt) {
+		if (cfopt(&opt, "RFC5424"))
+			f->f_flags |= RFC5424;
+		else if (cfopt(&opt, "RFC3164"))
+			f->f_flags &= ~RFC5424;
+		else if (cfopt(&opt, "rotate="))
+			cfrot(opt, f);
+
+		opt = strtok(NULL, ",");
+	}
+}
+
 /*
  * Crack a configuration file line
  */
@@ -2595,16 +2648,8 @@ static struct filed *cfline(char *line)
 	logit("leading char in action: %c\n", *p);
 	switch (*p) {
 	case '@':
-		bp = p;
-		while ((q = strchr(bp, ';'))) {
-			*q++ = 0;
-			if (q) {
-				if (!strncmp(q, "RFC5424", 7))
-					f->f_flags |= RFC5424;
-				/* More flags can be added here */
-			}
-			bp = q;
-		}
+		cfopts(p, f);
+
 		(void)strcpy(f->f_un.f_forw.f_hname, ++p);
 		logit("forwarding host: %s\n", p); /*ASP*/
 		memset(&hints, 0, sizeof(hints));
@@ -2629,29 +2674,7 @@ static struct filed *cfline(char *line)
 
 	case '|':
 	case '/':
-		/* Look for optional per-file rotate BYTES:COUNT */
-		for (q = p; *q && !isspace(*q); q++)
-			;
-		if (isspace(*q)) {
-			char *c;
-			int sz = 0, cnt = 0;
-
-			*q++ = 0;
-			while (*q && isspace(*q))
-				q++;
-
-			c = strchr(q, ':');
-			if (c) {
-				*c++ = 0;
-				cnt = atoi(c);
-			}
-
-			sz = strtobytes(q);
-			if (sz > 0 && cnt > 0) {
-				f->f_rotatecount = cnt;
-				f->f_rotatesz = sz;
-			}
-		}
+		cfopts(p, f);
 
 		(void)strcpy(f->f_un.f_fname, p);
 		logit("filename: %s\n", p); /*ASP*/

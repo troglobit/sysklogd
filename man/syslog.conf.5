@@ -38,20 +38,38 @@ Every rule has at least two fields, a
 .Em selector
 field and an
 .Em action .
-They may also have an optional flag or setting that applies only to
-that rule. E.g,
-.Em logrotate
-settings or output format flag.  A rule may be divided into several
-lines if the leading line ends with a single backslash ('\\') character.
+They may also have an
+.Em option
+field for a setting that applies only to that rule.  Fields are
+separated by one or more spaces or tabs.  A rule may be divided into
+several lines if the leading line ends with a single backslash ('\\')
+character.
+.Bd -literal -offset indent
+RULE     := SELECTOR  ACTION  [;OPTION]
+SELECTOR := [SELECTOR;]facility[,facility].[!=]severity
+ACTION   := /path/to/file
+         |= |/path/to/named/pipe
+	 |= @remote[.host.tld]
+OPTION   := [OPTION,]
+	 |= RFC3164
+	 |= RFC5424
+         |= rotate=SIZE:COUNT
+.Ed
 .Pp
-The fields are separated by one or more spaces or tabs.  The
-selector field specifies a pattern of facilities and priorities
-belonging to the specified action.  The action details where or what to
-do with the selected input.  The optional logrotate field is only for
-files and details the max SIZE:COUNT a file can reach before it is
-rotated, and later compressed.  The log rotated feature is mostly
-intended for embedded systems that do not want to have cron and a
-separate log rotate daemon.
+The
+.Em selector
+field specifies a pattern of facilities and priorities belonging to the
+specified action.  The
+.Em action
+details where or what to do with the selected input.  The
+.Em option
+field currently supports log formattaing and log rotation.  The default
+log format is the traditional RFC3164 (included here for completeness),
+RFC5424 has a new format with RFC3339 time stamps, msgid, structured
+data, and more.  The log rotation, which is only relevant for files,
+details the max SIZE:COUNT a file can reach before it is rotated, and
+later compressed.  This feature is mostly intended for embedded systems
+that do not want to have cron or a separate log rotate daemon.
 .Pp
 Comments, lines starting with a hash mark ('#'), and empty lines are
 ignored.  If an error occurs during parsing the whole line is ignored.
@@ -272,6 +290,17 @@ that something strange is happening with the system.  To specify this
 feature use an asterisk ('*').
 .Sh EXAMPLES
 This section lists some examples, partially from actual site setups.
+.Ss Catch Everything
+This example matches all facilities and priorities and stores everything
+in the file
+.Pa /var/log/syslog
+in RFC5424 format.  Every time the file reaches 10 MiB it is rotated and
+five files in total are kept, including the non-rotated file.
+.Bd -literal -offset indent
+# Match all log messages, store in RC5424 format and rotate every 10 MiB
+#
+*.*                          /var/log/critical    ;rotate=10M:5,RFC5424
+.Ed
 .Ss Critical
 This stores all messages of priority
 .Ql crit
@@ -437,10 +466,10 @@ argument takes the same modifiers as the
 command line option,
 .Fl R .
 .Bd -literal -offset indent
-# Log all messages, including kernel, to messages file
-# rotated every 100 kB and keep up to 10 aged out and
-# compressed files.
-*.*;kern.none               -/log/messages   100k:10
+# Log all messages, including kernel, to messages file rotated
+# every 100 kB and keep up to 10 aged out and compressed files
+#
+*.*;kern.none               -/var/log/messages    ;rotate=100k:10
 .Ed
 .Ss Logging to Remote Syslog Server
 This rule redirects all messages to a remote host called
@@ -449,7 +478,7 @@ with RFC5424 style formatting.  This is useful especially in a cluster
 of machines where all syslog messages will be stored on only one
 machine.
 .Bd -literal -offset indent
-*.*                          @finlandia;RFC5424
+*.*                          @finlandia           ;RFC5424
 .Ed
 .Sh FILES
 .Bl -tag -compact -width /etc/syslog.d/*.conf
