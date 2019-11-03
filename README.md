@@ -1,6 +1,9 @@
 <div align="right">
-[![License Badge][]][License]<br />[![Travis Status][]][Travis]<br />[![Coverity Status][]][Coverity Scan]
+[![License Badge][]][License]
+[![Travis Status][]][Travis]
+[![Coverity Status][]][Coverity Scan]
 </div>
+
 ```
                     __    __                __
  .-----.--.--.-----|  |--|  .-----.-----.--|  |
@@ -8,6 +11,7 @@
  |_____|___  |_____|__|__|__|_____|___  |_____|
        |_____|                    |_____|
 ```
+
 Table of Contents
 -----------------
 
