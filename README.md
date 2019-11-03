@@ -1,16 +1,11 @@
-<div align="right">
-[![License Badge][]][License]
-[![Travis Status][]][Travis]
-[![Coverity Status][]][Coverity Scan]
-</div>
-
 ```
                     __    __                __
  .-----.--.--.-----|  |--|  .-----.-----.--|  |
- |__ --|  |  |__ --|    <|  |  _  |  _  |  _  |
- |_____|___  |_____|__|__|__|_____|___  |_____|
+ |__ --|  |  |__ --|    <|  |  _  |  _  |  _  |    RFC3164 :: syslogd for Linux
+ |_____|___  |_____|__|__|__|_____|___  |_____|    RFC5424 :: w/NetBSD syslogp()
        |_____|                    |_____|
 ```
+[![License Badge][]][License] [![Travis Status][]][Travis] [![Coverity Status][]][Coverity Scan]
 
 Table of Contents
 -----------------
