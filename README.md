@@ -1,7 +1,13 @@
-RFC5424 Compliant System Logging
-================================
-[![License Badge][]][License] [![Travis Status][]][Travis] [![Coverity Status][]][Coverity Scan]
-
+<div align="right">
+[![License Badge][]][License]<br />[![Travis Status][]][Travis]<br />[![Coverity Status][]][Coverity Scan]
+</div>
+```
+                    __    __                __
+ .-----.--.--.-----|  |--|  .-----.-----.--|  |
+ |__ --|  |  |__ --|    <|  |  _  |  _  |  _  |
+ |_____|___  |_____|__|__|__|_____|___  |_____|
+       |_____|                    |_____|
+```
 Table of Contents
 -----------------
 
