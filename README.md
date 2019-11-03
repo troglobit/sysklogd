@@ -1,6 +1,6 @@
 RFC5424 Compliant System Logging
 ================================
-[![License Badge][]][License] [![Travis Status][]][Travis]
+[![License Badge][]][License] [![Travis Status][]][Travis] [![Coverity Status][]][Coverity Scan]
 
 Table of Contents
 -----------------
@@ -120,3 +120,5 @@ at [GitHub][].
 [License Badge]:    https://img.shields.io/badge/License-GPL%20v2-blue.svg
 [Travis]:           https://travis-ci.org/troglobit/sysklogd
 [Travis Status]:    https://travis-ci.org/troglobit/sysklogd.png?branch=master
+[Coverity Scan]:    https://scan.coverity.com/projects/19540
+[Coverity Status]:  https://scan.coverity.com/projects/19540/badge.svg
