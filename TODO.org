@@ -1,8 +1,9 @@
 #+STARTUP: showall
 * sysklogd v2.0
 
+** Add example application, test building and running it from Travis-CI
 ** TODO Check for memory/descriptor leaks, valgrind/Coverity
-** TODO Drop strlcpy() from libsyslog, make built-in?
+** DONE Drop strlcpy() from libsyslog, make built-in? (marked as weak alias)
 ** DONE Document, and add examle of, how to use libsyslog
 ** DONE Separate libsylog.{a,so} and syslog/syslog.h with NetBSD API
 ** DONE Add syslogp() and vsyslogp() to libsyslog
