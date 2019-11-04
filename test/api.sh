@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
-. ./test.rc
+. ${srcdir}/test.rc
 
 export MSG="no-openlog-apitest"
 

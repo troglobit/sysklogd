@@ -1,5 +1,5 @@
 #!/bin/sh
-. ./test.rc
+. ${srcdir}/test.rc
 
 if [ x"${srcdir}" = x ]; then
     srcdir=.

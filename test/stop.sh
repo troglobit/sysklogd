@@ -1,5 +1,5 @@
 #!/bin/sh
-. ./test.rc
+. ${srcdir}/test.rc
 
 if [ -e ${PID} ]; then
     echo "Killing `cat ${PID}` ..."

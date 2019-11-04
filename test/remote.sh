@@ -1,6 +1,6 @@
 #!/bin/sh
 set -ex
-. ./test.rc
+. ${srcdir}/test.rc
 
 MSG="kilroy"
 

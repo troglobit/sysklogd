@@ -1,5 +1,5 @@
 #!/bin/sh
-. ./test.rc
+. ${srcdir}/test.rc
 
 MSG="foobar"
 
