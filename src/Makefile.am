@@ -26,11 +26,11 @@ AM_CFLAGS            += -Wno-unused-result -Wno-unused-parameter -fno-strict-ali
 AM_CPPFLAGS           = -DSYSCONFDIR=\"@sysconfdir@\" -DLOCALSTATEDIR=\"@localstatedir@\"
 AM_CPPFLAGS          += -D_BSD_SOURCE -D_DEFAULT_SOURCE
 
-syslogd_SOURCES       = syslogd.c syslog.h queue.h
+syslogd_SOURCES       = syslogd.c syslogd.h syslog.h queue.h compat.h
 syslogd_CPPFLAGS      = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
 syslogd_LDADD         = $(LIBS) $(LIBOBJS)
 
-klogd_SOURCES         = klogd.c klogd.h syslog.h ksym.c ksyms.h ksym_mod.c module.h
+klogd_SOURCES         = klogd.c klogd.h syslog.h compat.h ksym.c ksyms.h ksym_mod.c module.h
 klogd_CPPFLAGS        = $(AM_CPPFLAGS) -DALLOW_KERNEL_LOGGING
 klogd_LDADD           = $(LIBS) $(LIBOBJS)
 klogd_LDADD          += libsyslog.la
@@ -48,7 +48,7 @@ pkgconfigdir          = $(libdir)/pkgconfig
 pkgincludedir         = $(includedir)/syslog
 pkgconfig_DATA        = libsyslog.pc
 pkginclude_HEADERS    = syslog.h
-libsyslog_la_SOURCES  = syslog.c syslog.h
+libsyslog_la_SOURCES  = syslog.c syslog.h compat.h
 libsyslog_la_CPPFLAGS = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
 libsyslog_la_LDFLAGS  = $(AM_LDFLAGS) -version-info 0:0:0
 libsyslog_la_LIBADD   = libcompat.la
