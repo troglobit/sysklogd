@@ -44,6 +44,9 @@ PKG_PROG_PKG_CONFIG
 AC_REPLACE_FUNCS([pidfile strlcpy strlcat utimensat])
 AC_CONFIG_LIBOBJ_DIR([lib])
 
+# Check for other library functions
+AC_CHECK_FUNCS([getprogname strtobytes])
+
 # Command line options
 AC_ARG_WITH(suspend-time,
         AS_HELP_STRING([--with-suspend-time=SEC], [Retry timeout for remote syslogd servers, default: 180]),

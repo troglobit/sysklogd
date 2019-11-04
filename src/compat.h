@@ -30,6 +30,7 @@
 #ifndef SYSKLOGD_COMPAT_H_
 #define SYSKLOGD_COMPAT_H_
 
+#include <config.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,33 +49,38 @@
 /* Pthread wrapper for BSD LWP mutexes */
 typedef pthread_mutex_t    mutex_t;
 
+#ifndef mutex_lock
 #define MUTEX_INITIALIZER  PTHREAD_MUTEX_INITIALIZER
 #define mutex_lock(m)      pthread_mutex_lock(m)
 #define mutex_unlock(m)    pthread_mutex_unlock(m)
+#endif
 
 /* BSD have sa_len, Linux/GNU doesn't */
 #if defined(_AIX) || (defined(BSD) && (BSD >= 199006)) /* sa_len was added with 4.3-Reno */
 #define HAVE_SA_LEN
 #endif
 
-#ifndef strlcpy
+#ifndef HAVE_STRLCPY
 size_t strlcpy(char *dst, const char *src, size_t siz);
 #endif
 
-#ifndef strlcat
+#ifndef HAVE_STRLCAT
 size_t strlcat(char *dst, const char *src, size_t siz);
 #endif
 
-#ifndef pidfile
+#ifndef HAVE_PIDFILE
 int pidfile(const char *basename);
 #endif
 
+#ifndef HAVE_GETPROGNAME
 static inline char *getprogname(void)
 {
 	extern char *__progname;
 	return __progname;
 }
+#endif
 
+#ifndef HAVE_STRTOBYTES
 static inline int strtobytes(char *arg)
 {
 	int mod = 0, bytes;
@@ -103,6 +109,7 @@ static inline int strtobytes(char *arg)
 
 	return bytes;
 }
+#endif
 
 static inline void parse_rotation(char *optarg, off_t *size, int *num)
 {
