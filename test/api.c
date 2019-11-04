@@ -37,9 +37,9 @@ int main(int argc, char *argv[])
 		openlog(ident, LOG_NOWAIT, facility);
 
 	if (v1)
-		syslogp(severity, "MSGID", NULL, msg);
+		syslogp(severity, "MSGID", NULL, "%s", msg);
 	else
-		syslog(severity, msg);
+		syslog(severity, "%s", msg);
 
 	if (ident)
 		closelog();
