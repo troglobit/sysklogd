@@ -14,6 +14,7 @@ Table of Contents
 -----------------
 
 * [Introduction](#introduction)
+* [Using -lsyslog](#using--lsyslog)
 * [Build & Install](#build--install)
 * [Building from GIT](#building-from-git)
 * [Origin & References](#origin--references)
@@ -65,6 +66,41 @@ Main differences from the original sysklogd package are:
 - Touch PID file on `SIGHUP`, for integration with [Finit][]
 - GNU configure & build system to ease porting/cross-compiling
 - Support for configuring remote syslog timeout
+
+
+Using -lsyslog
+--------------
+
+libsyslog is by default installed as a library with a header file:
+
+```C
+#include <syslog/syslog.h>
+```
+
+The output from the `pkg-config` tool holds no surprises:
+
+```sh
+$ pkg-config --libs --static --cflags libsyslog
+-I/usr/local/include -L/usr/local/lib -lsyslog
+```
+
+The prefix path `/usr/local/` shown here is only the default.  Use the
+`configure` script to select a different prefix when installing libsyslog.
+
+For GNU autotools based projects, use the following in `configure.ac`:
+
+```sh
+# Check for required libraries
+PKG_CHECK_MODULES([syslog], [libsyslog >= 2.0])
+```
+
+and in your `Makefile.am`:
+
+```sh
+proggy_CFLAGS = $(syslog_CFLAGS)
+proggy_LDADD  = $(syslog_LIBS)
+```
+
 
 
 Build & Install
