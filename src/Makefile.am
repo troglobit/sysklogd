@@ -16,28 +16,28 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-bin_PROGRAMS     = logger
-sbin_PROGRAMS    = syslogd klogd
-lib_LTLIBRARIES  = libsyslog.la
+bin_PROGRAMS           = logger
+sbin_PROGRAMS         = syslogd klogd
+lib_LTLIBRARIES       = libsyslog.la
 
-AM_CFLAGS        = -W -Wall -Wextra
-AM_CFLAGS       += -Wno-unused-result -Wno-unused-parameter -fno-strict-aliasing
-AM_CPPFLAGS      = -DSYSCONFDIR=\"@sysconfdir@\" -DLOCALSTATEDIR=\"@localstatedir@\"
-AM_CPPFLAGS     += -D_BSD_SOURCE -D_DEFAULT_SOURCE
+AM_CFLAGS             = -W -Wall -Wextra
+AM_CFLAGS            += -Wno-unused-result -Wno-unused-parameter -fno-strict-aliasing
+AM_CPPFLAGS           = -DSYSCONFDIR=\"@sysconfdir@\" -DLOCALSTATEDIR=\"@localstatedir@\"
+AM_CPPFLAGS          += -D_BSD_SOURCE -D_DEFAULT_SOURCE
 
-syslogd_SOURCES  = syslogd.c syslog.h queue.h
-syslogd_CPPFLAGS = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
-syslogd_LDADD    = $(LIBS) $(LIBOBJS)
+syslogd_SOURCES       = syslogd.c syslog.h queue.h
+syslogd_CPPFLAGS      = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
+syslogd_LDADD         = $(LIBS) $(LIBOBJS)
 
-klogd_SOURCES    = klogd.c klogd.h syslog.h ksym.c ksyms.h ksym_mod.c module.h
-klogd_CPPFLAGS   = $(AM_CPPFLAGS) -DALLOW_KERNEL_LOGGING
-klogd_LDADD      = $(LIBS) $(LIBOBJS)
-klogd_LDADD     += libsyslog.la
+klogd_SOURCES         = klogd.c klogd.h syslog.h ksym.c ksyms.h ksym_mod.c module.h
+klogd_CPPFLAGS        = $(AM_CPPFLAGS) -DALLOW_KERNEL_LOGGING
+klogd_LDADD           = $(LIBS) $(LIBOBJS)
+klogd_LDADD          += libsyslog.la
 
-logger_SOURCES   = logger.c syslog.h
-logger_CPPFLAGS  = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
-logger_LDADD     = $(LIBS) $(LIBOBJS)
-logger_LDADD    += libsyslog.la
+logger_SOURCES        = logger.c syslog.h
+logger_CPPFLAGS       = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
+logger_LDADD          = $(LIBS) $(LIBOBJS)
+logger_LDADD         += libsyslog.la
 
 pkgconfigdir          = $(libdir)/pkgconfig
 pkgincludedir         = $(includedir)/syslog
