@@ -16,6 +16,10 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <config.h>
+#include <compat.h>
+#ifndef HAVE_STRLCPY
+
 #include <sys/types.h>
 #include <string.h>
 
@@ -25,7 +29,7 @@
  * Returns strlen(src); if retval >= dsize, truncation occurred.
  */
 size_t
-strlcpy(char *dst, const char *src, size_t dsize)
+__strlcpy(char *dst, const char *src, size_t dsize)
 {
 	const char *osrc = src;
 	size_t nleft = dsize;
@@ -48,3 +52,7 @@ strlcpy(char *dst, const char *src, size_t dsize)
 
 	return(src - osrc - 1);	/* count does not include NUL */
 }
+
+weak_alias(__strlcpy, strlcpy);
+
+#endif /* HAVE_STRLCPY */

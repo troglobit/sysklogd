@@ -46,6 +46,17 @@
  */
 #define __UNCONST(a)	((void *)(unsigned long)(const void *)(a))
 
+/*
+ * The functions strlcat() and strlcpy() may be available in either
+ * the C library or another library the user links their application
+ * with.  So we must declare them as "weak" symbols in libsyslog.
+ */
+#ifndef weak_alias
+# define  weak_alias(name, aliasname) _weak_alias (name, aliasname)
+# define _weak_alias(name, aliasname) \
+  extern __typeof (name) aliasname __attribute__ ((weak, alias (#name)))
+#endif
+
 /* Pthread wrapper for BSD LWP mutexes */
 typedef pthread_mutex_t    mutex_t;
 

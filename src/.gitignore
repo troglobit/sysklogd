@@ -6,5 +6,6 @@ logger
 syslogd
 syslog_tst
 tsyslogd
+libcompat.la
 libsyslog.la
 libsyslog.pc
