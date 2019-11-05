@@ -1362,8 +1362,8 @@ static void logmsg(struct buf_msg *buffer)
 	/* log the message to the particular outputs */
 	if (!Initialized) {
 		f = &consfile;
-		f->f_file = open(ctty, O_WRONLY | O_NOCTTY);
 
+		f->f_file = open(ctty, O_WRONLY | O_NOCTTY);
 		if (f->f_file >= 0) {
 			untty();
 			fprintlog(f, buffer);
@@ -1507,7 +1507,15 @@ void logrotate(struct filed *f)
 			sprintf(newFile, "%s.0", f->f_un.f_fname);
 			(void)rename(f->f_un.f_fname, newFile);
 			close(f->f_file);
+
 			f->f_file = open(f->f_un.f_fname, O_WRONLY | O_APPEND | O_CREAT | O_NONBLOCK | O_NOCTTY, 0644);
+			if (f->f_file < 0) {
+				f->f_type = F_UNUSED;
+				logerror("Failed re-opening log file after rotation");
+				errno = 0;
+				logerror(f->f_un.f_fname);
+				return;
+			}
 		}
 		ftruncate(f->f_file, 0);
 	}
