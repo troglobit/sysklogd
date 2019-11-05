@@ -16,7 +16,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-SUBDIRS        = man src test
+SUBDIRS        = example man src test
 doc_DATA       = README.md ChangeLog.md syslog.conf
 EXTRA_DIST     = README.md ChangeLog.md syslog.conf
 

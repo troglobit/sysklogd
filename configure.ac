@@ -26,6 +26,7 @@ AC_CONFIG_MACRO_DIRS([m4])
 AC_CONFIG_SRCDIR([src/syslogd.c])
 AC_CONFIG_HEADER([config.h])
 AC_CONFIG_FILES([Makefile
+		 example/Makefile
 		 man/Makefile
 		 src/Makefile
 		 src/libsyslog.pc
