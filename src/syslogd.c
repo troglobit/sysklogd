@@ -1880,7 +1880,7 @@ void wallmsg(struct filed *f, struct iovec *iov, int iovcnt)
 	static int reenter = 0;
 	struct utmp *uptr;
 	struct utmp  ut;
-	char p[sizeof(_PATH_DEV) + UNAMESZ];
+	char p[sizeof(_PATH_DEV) + UNAMESZ + 1];
 	char greetings[200];
 	int ttyf, len, i;
 
@@ -1932,8 +1932,7 @@ void wallmsg(struct filed *f, struct iovec *iov, int iovcnt)
 			}
 
 			/* compute the device name */
-			strcpy(p, _PATH_DEV);
-			strncat(p, ut.ut_line, UNAMESZ);
+			snprintf(p, sizeof(p), "%s%s", _PATH_DEV, ut.ut_line);
 
 			if (f->f_type == F_WALL) {
 				iov[0].iov_base = greetings;
