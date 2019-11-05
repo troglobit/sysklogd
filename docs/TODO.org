@@ -3,7 +3,7 @@
 
 ** sysklogd v2.0
 
-*** TODO Add example application, test building and running it from Travis-CI
+*** DONE Add example application, test building and running it from Travis-CI
 *** TODO Check for memory/descriptor leaks, valgrind/Coverity
 *** DONE Drop strlcpy() from libsyslog, make built-in? (marked as weak alias)
 *** DONE Document, and add examle of, how to use libsyslog
