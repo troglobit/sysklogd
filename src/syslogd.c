@@ -1495,7 +1495,7 @@ void logrotate(struct filed *f)
 
 			/* newFile == "f.0" now */
 			sprintf(newFile, "%s.0", f->f_un.f_fname);
-			rename(f->f_un.f_fname, newFile);
+			(void)rename(f->f_un.f_fname, newFile);
 			close(f->f_file);
 			f->f_file = open(f->f_un.f_fname, O_WRONLY | O_APPEND | O_CREAT | O_NONBLOCK | O_NOCTTY, 0644);
 		}
