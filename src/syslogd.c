@@ -653,7 +653,8 @@ static void increase_rcvbuf(int fd)
 
 	if (len < RCVBUF_MINSIZE) {
 		len = RCVBUF_MINSIZE;
-		setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &len, sizeof(len));
+		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &len, sizeof(len)))
+			logerror("Failed increasing size of socket receive buffer");
 	}
 }
 
