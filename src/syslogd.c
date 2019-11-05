@@ -1461,7 +1461,9 @@ void logrotate(struct filed *f)
 	if (!f->f_rotatesz)
 		return;
 
-	fstat(f->f_file, &statf);
+	if (fstat(f->f_file, &statf))
+		return;
+
 	/* bug (mostly harmless): can wrap around if file > 4gb */
 	if (S_ISREG(statf.st_mode) && statf.st_size > f->f_rotatesz) {
 		if (f->f_rotatecount > 0) { /* always 0..999 */
