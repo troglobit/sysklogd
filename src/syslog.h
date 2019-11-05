@@ -34,8 +34,6 @@
 #ifndef _SYS_SYSLOG_H_ /* From NetBSD, for co-existance with C-library header */
 #define _SYS_SYSLOG_H_
 
-#include "config.h"
-
 #include <features.h>
 #include <stdarg.h>
 
