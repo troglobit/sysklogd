@@ -38,11 +38,11 @@
 #include <stdarg.h>
 
 /*
- * Default on *BSD is /var/run/log, but on Linux systems with
- * systemd/journald this is reserved and may already exist as
- * a directory.  For compatibility with GLIBC syslog API, for
- * those who opt not to use this replacement API, we use the
- * default/traditional Linux path /dev/log.
+ * Default on *BSD is /var/run/log, but on Linux systems with systemd
+ * (journald) this is reserved and may already exist as a directory.
+ * For compatibility with GLIBC syslog API, for those who opt not to
+ * use this replacement API, we use the default/traditional Linux path
+ * /dev/log in the sysklogd project.
  */
 #ifndef __linux__
 #define	_PATH_LOG	"/var/run/log"
