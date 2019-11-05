@@ -437,10 +437,10 @@ int main(int argc, char *argv[])
 	}
 
 	consfile.f_type = F_CONSOLE;
-	(void)strcpy(consfile.f_un.f_fname, ctty);
+	strlcpy(consfile.f_un.f_fname, ctty, sizeof(consfile.f_un.f_fname));
 
 	/* Initialization is done by init() */
-	(void)strcpy(LocalHostName, emptystring);
+	strlcpy(LocalHostName, emptystring, sizeof(LocalHostName));
 	LocalDomain = emptystring;
 
 	(void)signal(SIGTERM, die);
@@ -670,7 +670,7 @@ static int create_unix_socket(const char *path)
 
 	memset(&sunx, 0, sizeof(sunx));
 	sunx.sun_family = AF_UNIX;
-	(void)strncpy(sunx.sun_path, path, sizeof(sunx.sun_path));
+	strlcpy(sunx.sun_path, path, sizeof(sunx.sun_path));
 	fd = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (fd < 0 || bind(fd, (struct sockaddr *)&sunx, sizeof(sunx.sun_family) + strlen(sunx.sun_path)) < 0 ||
 	    chmod(path, 0666) < 0) {
@@ -1444,9 +1444,8 @@ static void logmsg(struct buf_msg *buffer)
 			f->f_prevpri = buffer->pri;
 			f->f_repeatcount = 0;
 			f->f_lasttime = buffer->timestamp;
-			(void)strncpy(f->f_prevhost, buffer->hostname,
-			              sizeof(f->f_prevhost));
-			(void)strcpy(f->f_prevline, saved);
+			strlcpy(f->f_prevhost, buffer->hostname, sizeof(f->f_prevhost));
+			strlcpy(f->f_prevline, saved, sizeof(f->f_prevline));
 			f->f_prevlen = savedlen;
 			fprintlog(f, buffer);
 		}
@@ -2637,7 +2636,7 @@ static struct filed *cfline(char *line)
 	case '@':
 		cfopts(p, f);
 
-		(void)strcpy(f->f_un.f_forw.f_hname, ++p);
+		strlcpy(f->f_un.f_forw.f_hname, ++p, sizeof(f->f_un.f_forw.f_hname));
 		logit("forwarding host: '%s'\n", p); /*ASP*/
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = family;
@@ -2663,7 +2662,7 @@ static struct filed *cfline(char *line)
 	case '/':
 		cfopts(p, f);
 
-		(void)strcpy(f->f_un.f_fname, p);
+		strlcpy(f->f_un.f_fname, p, sizeof(f->f_un.f_fname));
 		logit("filename: '%s'\n", p); /*ASP*/
 		if (syncfile)
 			f->f_flags |= SYNC_FILE;
@@ -2696,19 +2695,15 @@ static struct filed *cfline(char *line)
 		break;
 
 	default:
-		logit("users: %s\n", p); /* ASP */
-		for (i = 0; i < MAXUNAMES && *p; i++) {
-			for (q = p; *q && *q != ',';)
-				q++;
-			(void)strncpy(f->f_un.f_uname[i], p, UNAMESZ);
-			if ((q - p) > UNAMESZ)
-				f->f_un.f_uname[i][UNAMESZ] = '\0';
-			else
-				f->f_un.f_uname[i][q - p] = '\0';
-			while (*q == ',' || *q == ' ')
-				q++;
-			p = q;
+		logit("users: ");
+		i = 0;
+		q = strtok(p, ",");
+		while (q && i < MAXUNAMES) {
+			logit("%s ", q);
+			strlcpy(f->f_un.f_uname[i++], q, sizeof(f->f_un.f_uname[0]));
+			q = strtok(NULL, ",");
 		}
+		logit("\n");
 		f->f_type = F_USERS;
 		break;
 	}
