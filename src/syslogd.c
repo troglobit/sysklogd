@@ -659,31 +659,39 @@ static void increase_rcvbuf(int fd)
 
 static int create_unix_socket(const char *path)
 {
-	struct sockaddr_un sunx;
+	struct sockaddr_un sun;
 	char line[MAXLINE + 1];
-	int fd;
+	int sd = -1;
 
 	if (path[0] == '\0')
 		return -1;
 
 	(void)unlink(path);
 
-	memset(&sunx, 0, sizeof(sunx));
-	sunx.sun_family = AF_UNIX;
-	strlcpy(sunx.sun_path, path, sizeof(sunx.sun_path));
-	fd = socket(AF_UNIX, SOCK_DGRAM, 0);
-	if (fd < 0 || bind(fd, (struct sockaddr *)&sunx, sizeof(sunx.sun_family) + strlen(sunx.sun_path)) < 0 ||
-	    chmod(path, 0666) < 0) {
-		(void)snprintf(line, sizeof(line), "cannot create %s", path);
-		logerror(line);
-		logit("cannot create %s (%d).\n", path, errno);
-		close(fd);
-		return -1;
-	}
+	sd = socket(AF_UNIX, SOCK_DGRAM, 0);
+	if (sd < 0)
+		goto err;
 
-	increase_rcvbuf(fd);
+	memset(&sun, 0, sizeof(sun));
+	sun.sun_family = AF_UNIX;
+	strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
+	if (bind(sd, (struct sockaddr *)&sun, sizeof(sun.sun_family) + strlen(sun.sun_path)))
+		goto err;
 
-	return fd;
+	if (chmod(path, 0666) < 0)
+		goto err;
+
+	increase_rcvbuf(sd);
+
+	return sd;
+err:
+	snprintf(line, sizeof(line), "cannot create %s", path);
+	logerror(line);
+	logit("cannot create %s (%d).\n", path, errno);
+	if (sd != -1)
+		close(sd);
+
+	return -1;
 }
 
 static int *create_inet_sockets(void)
