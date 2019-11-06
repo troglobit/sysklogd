@@ -36,7 +36,7 @@ script:
   - make all
   - make -C test programs
   - sudo make check || (which clang; cat test/test-suite.log; false)
-  - (cat test/test-suite.log; cat test/api.log)
+  - (cat test/test-suite.log; cat test/start.log; cat test/api.log)
   - make install-strip
   - mkdir -p /tmp/example; cp -a example/example.* /tmp/example/
   - (cd /tmp/example; PKG_CONFIG_LIBDIR=/tmp/sysklogd/lib/pkgconfig make -f example.mk)
