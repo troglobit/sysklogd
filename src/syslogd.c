@@ -605,21 +605,28 @@ err:
 	return -1;
 }
 
-static int *create_inet_sockets(void)
+static int nslookup(char *host, char *service, struct addrinfo **ai)
 {
-	struct addrinfo hints, *res, *r;
-	int error, maxs, *s, *socks;
-	int on = 1, sockflags;
+	struct addrinfo hints;
 
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_flags = AI_PASSIVE;
-	hints.ai_family = family;
+	hints.ai_flags    = !host ? AI_PASSIVE : 0;
+	hints.ai_family   = family;
 	hints.ai_socktype = SOCK_DGRAM;
-	error = getaddrinfo(NULL, service, &hints, &res);
-	if (error) {
+
+	return getaddrinfo(host, service, &hints, ai);
+}
+
+static int *create_inet_sockets(void)
+{
+	struct addrinfo *res, *r;
+	int err, maxs, *s, *socks;
+	int on = 1, sockflags;
+
+	err = nslookup(NULL, service, &res);
+	if (err) {
 		flog(LOG_SYSLOG | LOG_ERR, "network logging disabled (%s/udp "
-		     " service unknown): %s", service, gai_strerror(error));
-		logerror("see syslogd(8) for details of whether and how to enable it.");
+		     " service unknown): %s", service, gai_strerror(err));
 		return NULL;
 	}
 
@@ -1538,7 +1545,7 @@ static int fmt5424(struct buf_msg *buffer, char *fmt, struct iovec *iov, size_t 
 
 void fprintlog(struct filed *f, struct buf_msg *buffer)
 {
-	struct addrinfo hints, *ai;
+	struct addrinfo *ai;
 	struct buf_msg repeat;
 	struct logtime zero = { 0 };
 	struct iovec iov[20];
@@ -1626,23 +1633,25 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 		logit(" %s\n", f->f_un.f_forw.f_hname);
 		fwd_suspend = time(NULL) - f->f_time;
 		if (fwd_suspend >= INET_SUSPEND_TIME) {
-			char *host;
+			char *host = f->f_un.f_forw.f_hname;;
 
-			logit("Forwarding suspension to unknown over, retrying\n");
-			memset(&hints, 0, sizeof(hints));
-			hints.ai_family = family;
-			hints.ai_socktype = SOCK_DGRAM;
-			host = f->f_un.f_forw.f_hname;
-			err = getaddrinfo(host, service, &hints, &ai);
+			logit("Forwarding suspension to %s over, retrying\n", host);
+			err = nslookup(host, service, &ai);
 			if (err) {
 				logit("Failure resolving %s:%s: %s\n", host, service, gai_strerror(err));
 				logit("Retries: %d\n", f->f_prevcount);
 				if (--f->f_prevcount < 0) {
+					flog(LOG_SYSLOG | LOG_WARNING, "Still cannot find %s, "
+					     "giving up: %s", host, gai_strerror(err));
 					logit("Giving up.\n");
 					f->f_type = F_UNUSED;
-				} else
+				} else {
+					flog(LOG_SYSLOG | LOG_WARNING, "Still cannot find %s, "
+					     "will try again later: %s", host, gai_strerror(err));
 					logit("Left retries: %d\n", f->f_prevcount);
+				}
 			} else {
+				flog(LOG_SYSLOG | LOG_NOTICE, "Found %s, resuming operation.", host);
 				logit("%s found, resuming.\n", host);
 				f->f_un.f_forw.f_addr = ai;
 				f->f_prevcount = 0;
@@ -2436,14 +2445,15 @@ static void cfopts(char *ptr, struct filed *f)
  */
 static struct filed *cfline(char *line)
 {
-	struct addrinfo hints, *ai;
+	struct addrinfo *ai;
 	struct filed *f;
 	char buf[MAXLINE];
 	char xbuf[MAXLINE + 24];
 	char *p, *q, *bp;
 	int ignorepri = 0;
 	int singlpri = 0;
-	int syncfile, pri, i, i2;
+	int syncfile, pri;
+	int err, i, i2;
 
 	logit("cfline(%s)\n", line);
 
@@ -2593,15 +2603,15 @@ static struct filed *cfline(char *line)
 
 		strlcpy(f->f_un.f_forw.f_hname, ++p, sizeof(f->f_un.f_forw.f_hname));
 		logit("forwarding host: '%s'\n", p); /*ASP*/
-		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = family;
-		hints.ai_socktype = SOCK_DGRAM;
-		if (getaddrinfo(p, service, &hints, &ai)) {
+
+		err = nslookup(p, service, &ai);
+		if (err) {
+			flog(LOG_SYSLOG | LOG_WARNING, "Cannot find %s, "
+			     "will try again later: %s", p, gai_strerror(err));
 			/*
-			 * The host might be unknown due to an
-			 * inaccessible nameserver (perhaps on the
-			 * same host). We try to get the ip number
-			 * later, like FORW_SUSP.
+			 * The host might be unknown due to an inaccessible
+			 * nameserver (perhaps on the same host). We try to
+			 * get the ip number later, like FORW_SUSP.
 			 */
 			f->f_type = F_FORW_UNKN;
 			f->f_prevcount = INET_RETRY_MAX;
