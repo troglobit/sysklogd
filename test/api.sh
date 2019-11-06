@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -ex
 . ${srcdir}/test.rc
 
 export MSG="no-openlog-apitest"
@@ -30,5 +30,6 @@ kill -HUP `cat ${PID}`
 sleep 2
 
 ./api -i troglobit -p
-grep "troglobit - MSGID - ${MSG}" ${LOGV1}
+grep "troglobit - MSGID - ${MSG}" ${LOGV1} || (echo "== ${LOGV1}"; tail -10  ${LOGV1}; echo "== ${LOG}"; tail -10  ${LOG})
+
 
