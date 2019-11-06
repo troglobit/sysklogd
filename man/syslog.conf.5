@@ -63,13 +63,30 @@ specified action.  The
 .Em action
 details where or what to do with the selected input.  The
 .Em option
-field currently supports log formattaing and log rotation.  The default
-log format is the traditional RFC3164 (included here for completeness),
-RFC5424 has a new format with RFC3339 time stamps, msgid, structured
-data, and more.  The log rotation, which is only relevant for files,
-details the max SIZE:COUNT a file can reach before it is rotated, and
-later compressed.  This feature is mostly intended for embedded systems
-that do not want to have cron or a separate log rotate daemon.
+field, which must start with the semi-colon option delimiter (';'),
+currently supports log formattaing and log rotation.  The default log
+format is the traditional RFC3164 (included here for completeness),
+.Sy except
+for remote syslog targets where the BSD format (without both timestamp
+and hostname) is the default.  The user must excplicitly set RFC3164 on
+a remote logging target.  RFC5424 is the newest format with RFC3339 time
+stamps, msgid, structured data, and more.  The BSD format cannot be set,
+it is only the default for remote targets for compatibility reasons.
+.Pp
+.Bl -tag -compact -width "RFC3164:"
+.It BSD:
+.Cm myproc[8710]: Kilroy was here.
+.It RFC3164:
+.Cm Aug 24 05:14:15 192.0.2.1 myproc[8710]: Kilroy was here.
+.It RFC5424:
+.Cm 2003-08-24T05:14:15.000003-07:00 192.0.2.1 myproc 8710 - - Kilroy was here.
+.El
+.Pp
+The log rotation, which is only relevant for files, details the max
+.Ar SIZE:COUNT
+a file can reach before it is rotated, and later compressed.  This
+feature is mostly intended for embedded systems that do not want to have
+cron or a separate log rotate daemon.
 .Pp
 Comments, lines starting with a hash mark ('#'), and empty lines are
 ignored.  If an error occurs during parsing the whole line is ignored.
