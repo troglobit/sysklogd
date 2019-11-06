@@ -2394,7 +2394,6 @@ static int cfopt(char **ptr, const char *opt)
 
 	len = strlen(opt);
 	if (!strncasecmp(*ptr, opt, len)) {
-		logit("Found %s\n", opt);
 		*ptr += len;
 		return 1;
 	}
@@ -2687,11 +2686,8 @@ static struct filed *cfline(char *line)
 
 	default:
 		/* All other targets default to RFC3164 */
-		if (f->f_flags & (RFC3164 | RFC5424)) {
-			logit("%s has %s format logging enabled\n",
-			      (f->f_flags & RFC3164) ? "RFC3164" : "RFC5424");
+		if (f->f_flags & (RFC3164 | RFC5424))
 			break;
-		}
 
 		f->f_flags = RFC3164;
 		break;
