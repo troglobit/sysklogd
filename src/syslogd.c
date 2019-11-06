@@ -1448,23 +1448,28 @@ void logrotate(struct filed *f)
 			   bm->pri, bm->flags, bm->hostname, bm->app_name,     \
 			   bm->proc_id, bm->msgid, bm->sd, bm->msg)
 
-static int fmt3164(struct buf_msg *buffer, struct iovec *iov, size_t iovmax)
+static int fmt3164(struct buf_msg *buffer, char *fmt, struct iovec *iov, size_t iovmax)
 {
 	int i = 0;
 
 	fmtlogit(buffer);
-	strftime(buffer->timebuf, sizeof(buffer->timebuf), RFC3164_DATEFMT,
-		 &buffer->timestamp.tm);
 
 	snprintf(buffer->pribuf, sizeof(buffer->pribuf), "<%d>", buffer->pri);
 	pushiov(iov, i, buffer->pribuf);
 	pushsp(iov, i);
 
-	pushiov(iov, i, buffer->timebuf);
-	pushsp(iov, i);
+	/*
+	 * sysklogd < 2.0 had the traditional BSD format for remote syslog
+	 * which did not include the timestamp or the hostname.
+	 */
+	if (fmt) {
+		strftime(buffer->timebuf, sizeof(buffer->timebuf), fmt, &buffer->timestamp.tm);
+		pushiov(iov, i, buffer->timebuf);
+		pushsp(iov, i);
 
-	pushiov(iov, i, buffer->hostname ? buffer->hostname : buffer->recvhost);
-	pushsp(iov, i);
+		pushiov(iov, i, buffer->hostname ? buffer->hostname : buffer->recvhost);
+		pushsp(iov, i);
+	}
 
 	if (buffer->app_name) {
 		pushiov(iov, i, buffer->app_name);
@@ -1481,14 +1486,14 @@ static int fmt3164(struct buf_msg *buffer, struct iovec *iov, size_t iovmax)
 	return i;
 }
 
-static int fmt5424(struct buf_msg *buffer, struct iovec *iov, size_t iovmax)
+/* <PRI>1 2003-08-24T05:14:15.000003-07:00 hostname app-name procid msgid sd msg */
+static int fmt5424(struct buf_msg *buffer, char *fmt, struct iovec *iov, size_t iovmax)
 {
 	suseconds_t usec;
 	int i = 0;
 
 	fmtlogit(buffer);
-	strftime(buffer->timebuf, sizeof(buffer->timebuf), "%FT%T.______%z",
-		 &buffer->timestamp.tm);
+	strftime(buffer->timebuf, sizeof(buffer->timebuf), fmt, &buffer->timestamp.tm);
 
 	/* Add colon to the time zone offset, which %z doesn't do */
 	buffer->timebuf[32] = '\0';
@@ -1576,9 +1581,11 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 	}
 
 	if (f->f_flags & RFC5424)
-		iovcnt = fmt5424(buffer, iov, NELEMS(iov));
+		iovcnt = fmt5424(buffer, RFC5424_DATEFMT, iov, NELEMS(iov));
+	else if (f->f_flags & RFC3164)
+		iovcnt = fmt3164(buffer, RFC3164_DATEFMT, iov, NELEMS(iov));
 	else
-		iovcnt = fmt3164(buffer, iov, NELEMS(iov));
+		iovcnt = fmt3164(buffer, BSDFMT_DATEFMT, iov, NELEMS(iov));
 
 	/* Save actual message for future repeats */
 //	if (iovcnt > 0)
@@ -2400,19 +2407,25 @@ static void cfopts(char *ptr, struct filed *f)
 	if (!ptr)
 		return;
 
-	/* Insert NUL character after action */
+	/* Insert NUL character to terminate file/host names */
 	if (*ptr != ';')
 		*ptr++ = 0;
 
-	/* Parse options */
 	opt = strtok(ptr, ";");
+	if (!opt)
+		return;
+
 	while (opt) {
-		if (cfopt(&opt, "RFC5424"))
-			f->f_flags |= RFC5424;
-		else if (cfopt(&opt, "RFC3164"))
+		if (cfopt(&opt, "RFC5424")) {
+			f->f_flags |=  RFC5424;
+			f->f_flags &= ~RFC3164;
+		} else if (cfopt(&opt, "RFC3164")) {
 			f->f_flags &= ~RFC5424;
-		else if (cfopt(&opt, "rotate="))
+			f->f_flags |=  RFC3164;
+		} else if (cfopt(&opt, "rotate="))
 			cfrot(opt, f);
+		else
+			cfrot(ptr, f); /* Compat v1.6 syntax */
 
 		opt = strtok(NULL, ",");
 	}
@@ -2649,6 +2662,30 @@ static struct filed *cfline(char *line)
 		f->f_type = F_USERS;
 		break;
 	}
+
+	/* Set default log format, unless format was already specified */
+	switch (f->f_type) {
+	case F_FORW:
+	case F_FORW_UNKN:
+		/* Remote syslog defaults to BSD style, i.e. no timestamp or hostname */
+		break;
+
+	default:
+		/* All other targets default to RFC3164 */
+		if (f->f_flags & (RFC3164 | RFC5424)) {
+			logit("%s has %s format logging enabled\n",
+			      (f->f_flags & RFC3164) ? "RFC3164" : "RFC5424");
+			break;
+		}
+
+		f->f_flags = RFC3164;
+		break;
+	}
+
+	if (f->f_flags & (RFC3164 | RFC5424))
+		logit("%s format enabled\n", (f->f_flags & RFC3164) ? "RFC3164" : "RFC5424");
+	else
+		logit("BSD format enabled\n");
 
 	return f;
 }

@@ -112,10 +112,18 @@
 #define SYNC_FILE 0x002  /* do fsync on file after printing */
 #define ADDDATE   0x004  /* add a date to the message */
 #define MARK      0x008  /* this message is a mark */
-#define RFC5424   0x010  /* format log message according to RFC 5424 */
+#define RFC3164   0x010  /* format log message according to RFC 3164 */
+#define RFC5424   0x020  /* format log message according to RFC 5424 */
+
+/* Syslog timestamp formats. */
+#define	BSDFMT_DATELEN	0
+#define	BSDFMT_DATEFMT	NULL
 
 #define	RFC3164_DATELEN	15
 #define	RFC3164_DATEFMT	"%b %e %H:%M:%S"
+
+#define	RFC5424_DATELEN	32
+#define	RFC5424_DATEFMT	"%FT%T.______%z"
 
 /*
  * Helper macros for "message repeated" messages
