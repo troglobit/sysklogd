@@ -59,6 +59,7 @@ Main differences from the original sysklogd package are:
 - Full [RFC3164][] and [RFC5424][] support
 - Includes timestamp and hostname, RFC3164 style, in remote logging
 - Support for sending RFC5424 style remote syslog messages
+- Support for sending messages to a custom port on a remote server
 - Includes a `logger` tool with RFC5424 capabilities (`msgid` etc.)
 - Includes a library and system header replacement for logging
 - FreeBSD socket receive buffer size patch

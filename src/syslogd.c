@@ -1612,7 +1612,7 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 			f->f_type = F_FORW;
 			goto f_forw;
 		} else {
-			logit(" %s\n", f->f_un.f_forw.f_hname);
+			logit(" %s:%s\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
 			logit("Forwarding suspension not over, time left: %d.\n",
 			      INET_SUSPEND_TIME - fwd_suspend);
 		}
@@ -1627,15 +1627,16 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 	 * is started after syslogd. 
 	 */
 	case F_FORW_UNKN:
-		logit(" %s\n", f->f_un.f_forw.f_hname);
+		logit(" %s:%s\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
 		fwd_suspend = time(NULL) - f->f_time;
 		if (fwd_suspend >= INET_SUSPEND_TIME) {
-			char *host = f->f_un.f_forw.f_hname;;
+			char *host = f->f_un.f_forw.f_hname;
+			char *serv = f->f_un.f_forw.f_serv;
 
-			logit("Forwarding suspension to %s over, retrying\n", host);
-			err = nslookup(host, service, &ai);
+			logit("Forwarding suspension to %s:%s over, retrying\n", host, serv);
+			err = nslookup(host, serv, &ai);
 			if (err) {
-				logit("Failure resolving %s:%s: %s\n", host, service, gai_strerror(err));
+				logit("Failure resolving %s:%s: %s\n", host, serv, gai_strerror(err));
 				logit("Retries: %d\n", f->f_prevcount);
 				if (--f->f_prevcount < 0) {
 					flog(LOG_SYSLOG | LOG_WARN, "Still cannot find %s, "
@@ -1667,7 +1668,7 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 		 * sent the message, we don't send it anyway)  -Joey
 		 */
 	f_forw:
-		logit(" %s\n", f->f_un.f_forw.f_hname);
+		logit(" %s:%s\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
 		if (strcmp(buffer->hostname, LocalHostName) && NoHops)
 			logit("Not sending message to remote.\n");
 		else if (finet) {
@@ -2598,10 +2599,17 @@ static struct filed *cfline(char *line)
 	case '@':
 		cfopts(p, f);
 
-		strlcpy(f->f_un.f_forw.f_hname, ++p, sizeof(f->f_un.f_forw.f_hname));
-		logit("forwarding host: '%s'\n", p); /*ASP*/
+		bp = strchr(++p, ':');
+		if (bp)
+			*bp++ = 0;
+		else
+			bp = service;
 
-		err = nslookup(p, service, &ai);
+		strlcpy(f->f_un.f_forw.f_hname, p, sizeof(f->f_un.f_forw.f_hname));
+		strlcpy(f->f_un.f_forw.f_serv, bp, sizeof(f->f_un.f_forw.f_serv));
+		logit("forwarding host: '%s:%s'\n", p, bp);
+
+		err = nslookup(p, bp, &ai);
 		if (err) {
 			flog(LOG_SYSLOG | LOG_WARN, "Cannot find %s, "
 			     "will try again later: %s", p, gai_strerror(err));

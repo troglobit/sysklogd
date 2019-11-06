@@ -49,7 +49,7 @@ RULE     := SELECTOR  ACTION  [;OPTION]
 SELECTOR := [SELECTOR;]facility[,facility].[!=]severity
 ACTION   := /path/to/file
          |= |/path/to/named/pipe
-	 |= @remote[.host.tld]
+	 |= @remote[.host.tld][:PORT]
 OPTION   := [OPTION,]
 	 |= RFC3164
 	 |= RFC5424
@@ -276,7 +276,9 @@ Full remote logging support is available in
 .Nm syslogd ,
 i.e. to send messages to a remote syslog server, and and to receive
 messages from remote hosts.  To forward messages to another host,
-prepend the hostname with the at sign ('@').
+prepend the hostname with the at sign ('@').  If a port number is added
+after a colon (':') then that port will be used as the destination port
+rather than the usual syslog port.
 .Pp
 This feature makes it possible to collect all syslog messages in a
 network on a central host.  This reduces administration needs and
@@ -488,13 +490,15 @@ command line option,
 *.*;kern.none               -/var/log/messages    ;rotate=100k:10
 .Ed
 .Ss Logging to Remote Syslog Server
-This rule redirects all messages to a remote host called
-.Ql finlandia
-with RFC5424 style formatting.  This is useful especially in a cluster
-of machines where all syslog messages will be stored on only one
-machine.
+This rule redirects all messages to one remote host called
+.Ql finlandia ,
+with RFC5424 style formatting, and another remote host called
+.Ql sibelius ,
+but on a non-standard port and with RFC3164 formatting (i.e.,
+including timestamp and hostname).
 .Bd -literal -offset indent
 *.*                          @finlandia           ;RFC5424
+*.*                          @sibelius:5514       ;RFC3164
 .Ed
 .Sh FILES
 .Bl -tag -compact -width /etc/syslog.d/*.conf

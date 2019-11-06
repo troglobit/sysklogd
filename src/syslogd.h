@@ -191,6 +191,7 @@ struct filed {
 		char f_uname[MAXUNAMES][UNAMESZ + 1];
 		struct {
 			char f_hname[MAXHOSTNAMELEN + 1];
+			char f_serv[20];
 			struct addrinfo *f_addr;
 		} f_forw; /* forwarding address */
 		char f_fname[MAXFNAME];

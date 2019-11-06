@@ -3,7 +3,7 @@
 
 ** sysklogd v2.0
 
-*** TODO Add support for @host:port, i.e. custom remote port to send to
+*** DONE Add support for @host:port, i.e. custom remote port to send to
 *** DONE Add example application, test building and running it from Travis-CI
 *** DONE Check for memory/descriptor leaks, valgrind/Coverity
 
