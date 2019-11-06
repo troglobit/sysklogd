@@ -2814,6 +2814,7 @@ static int cfparse(FILE *fp, struct files *newf)
 				cfparse(fpi, newf);
 				fclose(fpi);
 			}
+			globfree(&gl);
 			continue;
 		}
 
