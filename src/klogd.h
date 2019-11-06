@@ -24,8 +24,8 @@
 #define SYSKLOGD_KLOGD_H_
 
 #include <stdio.h>
-#include <syslog.h>
 #include <string.h>
+#include "syslog.h"
 
 extern int   InitKsyms(char *);
 extern int   InitMsyms(void);

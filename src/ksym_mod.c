@@ -242,7 +242,7 @@ struct Module *AddModule(const char *module)
 	if (num_modules == 0) {
 		sym_array_modules = (struct Module *)malloc(sizeof(struct Module));
 		if (sym_array_modules == NULL) {
-			Syslog(LOG_WARNING, "Cannot allocate Module array.\n");
+			Syslog(LOG_WARN, "Cannot allocate Module array.\n");
 			return NULL;
 		}
 		mp = sym_array_modules;
@@ -250,7 +250,7 @@ struct Module *AddModule(const char *module)
 		/* Allocate space for the module. */
 		mp = realloc(sym_array_modules, (num_modules + 1) * sizeof(struct Module));
 		if (mp == NULL) {
-			Syslog(LOG_WARNING, "Cannot allocate Module array.\n");
+			Syslog(LOG_WARN, "Cannot allocate Module array.\n");
 			return NULL;
 		}
 

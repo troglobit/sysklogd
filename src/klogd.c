@@ -218,8 +218,7 @@ static enum LOGSRC GetKernelLogSrc(void)
 		 * issue an error message and simply shut-off console
 		 * logging completely.
 		 */
-		Syslog(LOG_WARNING, "Cannot set console log level - disabling "
-		                    "console output.");
+		Syslog(LOG_WARN, "Cannot set console log level - disabling console output.");
 	}
 
 	/*
@@ -230,15 +229,12 @@ static enum LOGSRC GetKernelLogSrc(void)
 	    ((stat(_PATH_KLOG, &sb) < 0) && (errno == ENOENT))) {
 		/* Initialize kernel logging. */
 		ksyslog(1, NULL, 0);
-		Syslog(LOG_INFO, "klogd v%s, log source = ksyslog "
-		                 "started.",
-		       PACKAGE_VERSION);
+		Syslog(LOG_INFO, "klogd v%s, log source = ksyslog started.", PACKAGE_VERSION);
 		return kernel;
 	}
 
 	if ((kmsg = open(_PATH_KLOG, O_RDONLY)) < 0) {
-		fprintf(stderr, "klogd: Cannot open proc file system, "
-		                "%d - %s.\n",
+		fprintf(stderr, "klogd: Cannot open proc file system, %d - %s.\n",
 		        errno, strerror(errno));
 		ksyslog(7, NULL, 0);
 		exit(1);
@@ -293,7 +289,7 @@ extern void Syslog(int priority, char *fmt, ...)
 				priority = LOG_ERR;
 				break;
 			case '4':
-				priority = LOG_WARNING;
+				priority = LOG_WARN;
 				break;
 			case '5':
 				priority = LOG_NOTICE;
@@ -565,8 +561,7 @@ static void LogKernelLine(void)
 		if (errno == EINTR)
 			return;
 
-		fprintf(stderr,
-			"klogd: Error return from sys_sycall: %d - %s\n",
+		fprintf(stderr, "klogd: Error return from sys_sycall: %d - %s\n",
 		        errno, strerror(errno));
 		return;
 	}
@@ -695,9 +690,7 @@ int main(int argc, char *argv[])
 	if (log_level != NULL) {
 		if ((strlen(log_level) > 1) ||
 		    (strchr("12345678", *log_level) == NULL)) {
-			fprintf(stderr, "klogd: Invalid console logging "
-			                "level <%s> specified.\n",
-			        log_level);
+			fprintf(stderr, "klogd: Invalid console logging level <%s>.\n", log_level);
 			return 1;
 		}
 		console_log_level = *log_level - '0';

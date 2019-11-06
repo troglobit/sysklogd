@@ -99,7 +99,7 @@ int InitKsyms(char *mapfile)
 	 */
 	if (mapfile == NULL) {
 		if ((mapfile = FindSymbolFile()) == NULL) {
-			Syslog(LOG_WARNING, "Cannot find a map file.");
+			Syslog(LOG_WARN, "Cannot find a map file.");
 			if (debugging)
 				fputs("Cannot find a map file.\n", stderr);
 			return 0;
@@ -107,7 +107,7 @@ int InitKsyms(char *mapfile)
 	}
 
 	if ((sym_file = fopen(mapfile, "r")) == NULL) {
-		Syslog(LOG_WARNING, "Cannot open map file: %s.", mapfile);
+		Syslog(LOG_WARN, "Cannot open map file: %s.", mapfile);
 		if (debugging)
 			fprintf(stderr, "Cannot open map file: %s.\n", mapfile);
 		return 0;
@@ -144,12 +144,12 @@ int InitKsyms(char *mapfile)
 	Syslog(LOG_INFO, "Loaded %d symbols from %s.", num_syms, mapfile);
 	switch (version) {
 	case -1:
-		Syslog(LOG_WARNING, "Symbols do not match kernel version.");
+		Syslog(LOG_WARN, "Symbols do not match kernel version.");
 		num_syms = 0;
 		break;
 
 	case 0:
-		Syslog(LOG_WARNING, "Cannot verify that symbols match "
+		Syslog(LOG_WARN, "Cannot verify that symbols match "
 		                    "kernel version.");
 		break;
 
@@ -599,7 +599,7 @@ char *ExpandKadds(char *line, char *el)
 	 */
 	if (i_am_paranoid &&
 	    (strstr(line, "Oops:") != NULL) && !InitMsyms())
-		Syslog(LOG_WARNING, "Cannot load kernel module symbols.\n");
+		Syslog(LOG_WARN, "Cannot load kernel module symbols.\n");
 
 	/*
 	 * Early return if there do not appear to be any kernel

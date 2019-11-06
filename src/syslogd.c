@@ -1641,12 +1641,12 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 				logit("Failure resolving %s:%s: %s\n", host, service, gai_strerror(err));
 				logit("Retries: %d\n", f->f_prevcount);
 				if (--f->f_prevcount < 0) {
-					flog(LOG_SYSLOG | LOG_WARNING, "Still cannot find %s, "
+					flog(LOG_SYSLOG | LOG_WARN, "Still cannot find %s, "
 					     "giving up: %s", host, gai_strerror(err));
 					logit("Giving up.\n");
 					f->f_type = F_UNUSED;
 				} else {
-					flog(LOG_SYSLOG | LOG_WARNING, "Still cannot find %s, "
+					flog(LOG_SYSLOG | LOG_WARN, "Still cannot find %s, "
 					     "will try again later: %s", host, gai_strerror(err));
 					logit("Left retries: %d\n", f->f_prevcount);
 				}
@@ -2606,7 +2606,7 @@ static struct filed *cfline(char *line)
 
 		err = nslookup(p, service, &ai);
 		if (err) {
-			flog(LOG_SYSLOG | LOG_WARNING, "Cannot find %s, "
+			flog(LOG_SYSLOG | LOG_WARN, "Cannot find %s, "
 			     "will try again later: %s", p, gai_strerror(err));
 			/*
 			 * The host might be unknown due to an inaccessible
