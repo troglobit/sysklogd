@@ -1960,16 +1960,17 @@ void wallmsg(struct filed *f, struct iovec *iov, int iovcnt)
 			if (setjmp(ttybuf) == 0) {
 				(void)signal(SIGALRM, endtty);
 				(void)alarm(15);
+
 				/* open the terminal */
 				ttyf = open(p, O_WRONLY | O_NOCTTY);
 				if (ttyf >= 0) {
-					struct stat statb;
+					struct stat st;
+					int rc;
 
-					if (fstat(ttyf, &statb) == 0 &&
-					    (statb.st_mode & S_IWRITE))
+					rc = fstat(ttyf, &st);
+					if (rc == 0 && (st.st_mode & S_IWRITE))
 						(void)writev(ttyf, iov, iovcnt);
 					close(ttyf);
-					ttyf = -1;
 				}
 			}
 			(void)alarm(0);
