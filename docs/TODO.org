@@ -3,8 +3,12 @@
 
 ** sysklogd v2.0
 
+*** TODO Add support for @host:port, i.e. custom remote port to send to
 *** DONE Add example application, test building and running it from Travis-CI
-*** TODO Check for memory/descriptor leaks, valgrind/Coverity
+*** DONE Check for memory/descriptor leaks, valgrind/Coverity
+
+Most interesting so far is the -fsanitize=address option to GCC/clang :)
+
 *** DONE Drop strlcpy() from libsyslog, make built-in? (marked as weak alias)
 *** DONE Document, and add examle of, how to use libsyslog
 *** DONE Separate libsylog.{a,so} and syslog/syslog.h with NetBSD API
