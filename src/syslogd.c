@@ -99,56 +99,6 @@ static char sccsid[] __attribute__((unused)) =
 #include "syslogd.h"
 #include "compat.h"
 
-/*
- * Linux uses EIO instead of EBADFD (mrn 12 May 96)
- */
-#ifdef linux
-#define EHANGUP EIO
-#else
-#define EHANGUP EBADFD
-#endif
-
-#ifndef UTMP_FILE
-#ifdef UTMP_FILENAME
-#define UTMP_FILE UTMP_FILENAME
-#else
-#ifdef _PATH_UTMP
-#define UTMP_FILE _PATH_UTMP
-#else
-#define UTMP_FILE "/etc/utmp"
-#endif
-#endif
-#endif
-
-#ifndef _PATH_LOGCONF
-#define _PATH_LOGCONF  "/etc/syslog.conf"
-#endif
-
-#if defined(SYSLOGD_PIDNAME)
-#undef _PATH_LOGPID
-#define _PATH_LOGPID _PATH_VARRUN SYSLOGD_PIDNAME
-#else
-#ifndef _PATH_LOGPID
-#define _PATH_LOGPID _PATH_VARRUN "syslogd.pid"
-#endif
-#endif
-
-#ifndef _PATH_DEV
-#define _PATH_DEV      "/dev/"
-#endif
-
-#ifndef _PATH_CONSOLE
-#define _PATH_CONSOLE  "/dev/console"
-#endif
-
-#ifndef _PATH_TTY
-#define _PATH_TTY      "/dev/tty"
-#endif
-
-#ifndef _PATH_LOG
-#define _PATH_LOG      "/dev/log"
-#endif
-
 char *ConfFile = _PATH_LOGCONF;
 char *PidFile  = _PATH_LOGPID;
 char  ctty[]  = _PATH_CONSOLE;
@@ -167,51 +117,11 @@ int   funix[MAXFUNIX] = {
 };
 
 /*
- * Flags to logmsg().
- */
-
-#define IGN_CONS  0x001  /* don't print on console */
-#define SYNC_FILE 0x002  /* do fsync on file after printing */
-#define ADDDATE   0x004  /* add a date to the message */
-#define MARK      0x008  /* this message is a mark */
-#define RFC5424   0x010  /* format log message according to RFC 5424 */
-
-/*
  * Intervals at which we flush out "message repeated" messages,
  * in seconds after previous message is logged.  After each flush,
  * we move to the next interval until we reach the largest.
  */
 static int repeatinterval[] = { 30, 120, 600 };	/* # of secs before flush */
-#define MAXREPEAT ((sizeof(repeatinterval) / sizeof(repeatinterval[0])) - 1)
-#define REPEATTIME(f) ((f)->f_time + repeatinterval[(f)->f_repeatcount])
-#define BACKOFF(f)                                      \
-	{                                               \
-		if (++(f)->f_repeatcount > MAXREPEAT)   \
-			(f)->f_repeatcount = MAXREPEAT; \
-	}
-#ifndef INET_SUSPEND_TIME
-#define INET_SUSPEND_TIME 180 /* equal to 3 minutes */
-#endif
-#define INET_RETRY_MAX    10  /* maximum of retries for getaddrinfo() */
-
-#define LIST_DELIMITER    ':' /* delimiter between two hosts */
-
-/* values for f_type */
-#define F_UNUSED          0   /* unused entry */
-#define F_FILE            1   /* regular file */
-#define F_TTY             2   /* terminal */
-#define F_CONSOLE         3   /* console terminal */
-#define F_FORW            4   /* remote machine */
-#define F_USERS           5   /* list of users */
-#define F_WALL            6   /* everyone logged on */
-#define F_FORW_SUSP       7   /* suspended host forwarding */
-#define F_FORW_UNKN       8   /* unknown host forwarding */
-#define F_PIPE            9   /* named pipe */
-char *TypeNames[] = {
-	"UNUSED",        "FILE",  "TTY",  "CONSOLE",
-	"FORW",          "USERS", "WALL", "FORW(SUSPENDED)",
-	"FORW(UNKNOWN)", "PIPE"
-};
 
 static SIMPLEQ_HEAD(files, filed) fhead = SIMPLEQ_HEAD_INITIALIZER(fhead);
 struct filed consfile;
