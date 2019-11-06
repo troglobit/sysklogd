@@ -31,7 +31,7 @@ addons:
 # Build test programs as regular user, or clang build may fail
 script:
   - ./autogen.sh
-  - ./configure --prefix=/tmp/sysklogd --disable-silent-rules CFLAGS="-g -Og -fsanitize=address" LDFLAGS="-fsanitize=address"
+  - ./configure --prefix=/tmp/sysklogd --disable-silent-rules CFLAGS="-fsanitize=address" LDFLAGS="-fsanitize=address"
   - make clean
   - make all
   - make -C test programs
