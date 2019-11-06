@@ -1563,8 +1563,7 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 		repeat.pri = f->f_prevpri;
 		repeat.timestamp = f->f_lasttime;
 		if (f->f_prevcount > 1) {
-			snprintf(repbuf, sizeof(repbuf),
-				 "last message repeated %d times",
+			snprintf(repbuf, sizeof(repbuf), "last message repeated %d times",
 				 f->f_prevcount);
 			repeat.msg = repbuf;
 		} else {
@@ -1609,14 +1608,12 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 	case F_FORW_SUSP:
 		fwd_suspend = time(NULL) - f->f_time;
 		if (fwd_suspend >= INET_SUSPEND_TIME) {
-			logit("\nForwarding suspension over, "
-			      "retrying FORW ");
+			logit("\nForwarding suspension over, retrying FORW ");
 			f->f_type = F_FORW;
 			goto f_forw;
 		} else {
 			logit(" %s\n", f->f_un.f_forw.f_hname);
-			logit("Forwarding suspension not over, time "
-			      "left: %d.\n",
+			logit("Forwarding suspension not over, time left: %d.\n",
 			      INET_SUSPEND_TIME - fwd_suspend);
 		}
 		break;
