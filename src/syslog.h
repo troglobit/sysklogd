@@ -222,22 +222,29 @@ struct syslog_data {
 }
 
 __BEGIN_DECLS
-void	closelog(void);
-void	openlog(const char *, int, int);
-int	setlogmask(int);
-void	syslog(int, const char *, ...);
-void	vsyslog(int, const char *, va_list);
-void	closelog_r(struct syslog_data *);
-void	openlog_r(const char *, int, int, struct syslog_data *);
-int	setlogmask_r(int, struct syslog_data *);
-void	syslog_r(int, struct syslog_data *, const char *, ...);
-void	vsyslog_r(int, struct syslog_data *, const char *, va_list);
-void	syslogp_r(int, struct syslog_data *, const char *, const char *,
-    const char *, ...);
-void	vsyslogp_r(int, struct syslog_data *, const char *, const char *,
-    const char *, va_list);
-void	syslogp(int, const char *, const char *, const char *, ...);
-void	vsyslogp(int, const char *, const char *, const char *, va_list);
+void	openlog    (const char *, int, int);
+void	closelog   (void);
+
+int	setlogmask (int);
+
+void	syslog     (int, const char *, ...);
+void	vsyslog    (int, const char *, va_list);
+
+void	syslogp    (int, const char *, const char *, const char *, ...);
+void	vsyslogp   (int, const char *, const char *, const char *, va_list);
+
+void	openlog_r  (const char *, int, int, struct syslog_data *);
+void	closelog_r (struct syslog_data *);
+
+int	setlogmask_r (int, struct syslog_data *);
+
+void	syslog_r   (int, struct syslog_data *, const char *, ...);
+void	vsyslog_r  (int, struct syslog_data *, const char *, va_list);
+
+void	syslogp_r  (int, struct syslog_data *, const char *, const char *,
+		    const char *, ...);
+void	vsyslogp_r (int, struct syslog_data *, const char *, const char *,
+		    const char *, va_list);
 __END_DECLS
 
 #else /* !__KERNEL__ */
