@@ -2249,8 +2249,20 @@ static int cffwd(void)
 static FILE *cftemp(void)
 {
 	FILE *fp;
+#ifdef O_TMPFILE
+	mode_t oldmask;
+	int fd;
 
+	oldmask = umask(0077);
+	fd = open(_PATH_TMP, O_TMPFILE | O_RDWR | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
+	umask(oldmask);
+	if (-1 == fd)
+		return NULL;
+
+	fp = fdopen(fd, "w+");
+#else
 	fp = tmpfile();
+#endif
 	if (!fp)
 		return NULL;
 
