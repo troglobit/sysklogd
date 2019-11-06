@@ -30,5 +30,5 @@ kill -HUP `cat ${PID}`
 sleep 2
 
 ./api -i troglobit -p
-grep "troglobit - MSGID - ${MSG}" ${LOGV1} || (echo "== ${LOGV1}"; tail -10  ${LOGV1}; echo "== ${LOG}"; tail -10  ${LOG}; cat ${CONFD}/bar.conf; false)
+grep "troglobit - MSGID - ${MSG}" ${LOGV1} || (echo "== ${LOGV1}"; tail -10  ${LOGV1}; echo "== ${LOG}"; tail -10  ${LOG}; cat ${CONFD}/v1.conf; false)
 
