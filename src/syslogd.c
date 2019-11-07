@@ -1611,7 +1611,7 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 		} else {
 			logit(" %s:%s\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
 			logit("Forwarding suspension not over, time left: %d.\n",
-			      INET_SUSPEND_TIME - fwd_suspend);
+			      (int)(INET_SUSPEND_TIME - fwd_suspend));
 		}
 		break;
 
@@ -1679,7 +1679,7 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 			msg.msg_iovlen = iovcnt;
 
 			for (int i = 0; i < iovcnt; i++) {
-				logit("iov[%d] => %s\n", i, iov[i].iov_base);
+				logit("iov[%d] => %s\n", i, (char *)iov[i].iov_base);
 				len += iov[i].iov_len;
 			}
 
