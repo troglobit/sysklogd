@@ -1938,18 +1938,20 @@ const char *cvthname(struct sockaddr_storage *f, int len)
 {
 	static char hname[NI_MAXHOST];
 	char *p;
-	int error, count;
+	int err, count;
 
-	if ((error = getnameinfo((struct sockaddr *)f, len,
-	                         hname, NI_MAXHOST, NULL, 0, NI_NAMEREQD))) {
-		logit("Host name for your address (%s) unknown: %s\n", gai_strerror(error));
-		if ((error = getnameinfo((struct sockaddr *)f, len,
-		                         hname, NI_MAXHOST, NULL, 0, NI_NUMERICHOST))) {
-			logit("Malformed from address: %s\n", gai_strerror(error));
+	err = getnameinfo((struct sockaddr *)f, len, hname, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
+	if (err) {
+		logit("Host name for your address (%s) unknown: %s\n", hname, gai_strerror(err));
+
+		err = getnameinfo((struct sockaddr *)f, len, hname, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
+		if (err) {
+			logit("Malformed from address: %s\n", gai_strerror(err));
 			return "???";
 		}
 		return hname;
 	}
+
 	/*
 	 * Convert to lower case, just like LocalDomain above
 	 */
