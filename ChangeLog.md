@@ -7,19 +7,41 @@ All relevant changes to the project are documented in this file.
 [v2.0][UNRELEASED]
 ------------------
 
+This release represents a major refresh of the sysklogd project.  The
+venerable syslogd gets an infusion of new blood from NetBSD and FreeBSD
+to fully support RFC3164 and RFC5424.  Also included is a user library
+and a replacement for `syslog.h` to enable new features in RFC5424.
+
 ### Changes
-- Added support for `;RFC5424` flag for sending to remote servers.  This
-  enables sending log messages in its newfangled format, with RFC3339
-  style timestamps, and more
-- Added new tool `logger` from the Finit project, BSD licensed
+- Support for true RFC3164 formatted log messages to remote log servers,
+  including timestamp and hostname.  Use `;RFC3161` rule option
+- Support for RFC5424 from UNIX domain socket, from remote servers and
+  also to remote servers.  Requires new API `syslogp()` to unlock the
+  new features.  Still compatible with GLIBC/musl/uClibc
+- Support for options to `syslog.conf` rules.  E.g. `;RFC5424` to enable
+  sending/writing log messages with RFC3339 style timestamps, and more
+- Support for `include /etc/syslog.d/*.conf` in `syslog.conf`
+- Support for reading from a custom UNIX domain socket path, `-p SOCK`,
+  for unit testing with `logger -u /path/to/sock`
+- Support for sending to a custom port on a remote server, `@host:port`
+- New tool `logger` from the Finit project, BSD licensed
+- New `syslogp()` API from NetBSD, for applications wanting to use
+  RFC5424 features like MsgID or structured data
+- Incompatible changes to command line options for `syslogd` and
+  `klogd`, e.g;
+  - In syslogd: `-b` and `-c` have been replaced with `-R` for global
+    log rotation, `-a` has been replaced with the new `-p` support
+  - In klogd: `-i` and `-I` have been removed
 - Update COPYING file to GPL 2 rev 2, with new FSF address and other minor stuff
 - Update license header in all files:
-  - Sync 3-clause BSD license change with upstream FreeBSD sources
+  - Sync 3-clause BSD license change with upstream NetBSD and FreeBSD sources
   - Sync GPL license header, new FSF address
   - Add SPDX license identifiers to all source files
 
 ### Fixes
 - Fix GCC 8 warnings; "too small destination buffer in `snprintf()`"
+- Major code cleanup and rewrite inspired by both NetBSD and FreeBSD
+  sources, e.g. removed all previous unit `TESTING` #ifdefs
 
 
 [v1.6][] - 2018-09-25
@@ -135,7 +157,6 @@ All relevant changes to the project are documented in this file.
 
 [v1.4.1][] - 2001-03-11
 -----------------------
-
 
 - klogd will set the console log level only if `-c' is given on the
    commandline, not overwriting local settings in `/etc/sysctl.conf'.
