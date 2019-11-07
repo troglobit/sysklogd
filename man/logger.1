@@ -38,6 +38,7 @@
 .Op Fl p Ar PRIO
 .Op Fl r Ar SIZE:NUM
 .Op Fl t Ar TAG
+.Op Fl u Ar SOCK
 .Op Ar MESSAGE
 .Sh DESCRIPTIOMN
 .Nm
@@ -92,6 +93,11 @@ denotes number of rotated files to keep when logging to a file, default:
 Log to stderr as well as the system log.
 .It Fl t Ar TAG
 Log using the specified tag, default: username.
+.It Fl u Ar SOCK
+Log to UNIX domain socket
+.Ar SOCK
+instead of the default
+.Pa /dev/log .
 .It Fl v
 Show program version.
 .It Ar MESSAGE
@@ -113,27 +119,24 @@ logger -t dropbear -p auth.notice "Successful login for user 'admin' from 1.2.3.
 logger -t udhcpc -f /tmp/script.log "New lease 1.2.3.200 obtained for interface eth0"
 .Ed
 .Sh FILES
-.Bl -tag -width /var/run/log -compact
+.Bl -tag -width /dev/log -compact
 .It Ar FILE
-If a log file is enabled, using
+If a custom log file is selected, using
 .Fl f Ar FILE ,
 then this file is opened and written to by
 .Nm .
-With log file rotation,
+When log file rotation is enabled, using
 .Fl r Ar SIZE:NUM ,
-this means
 .Nm
-also creates
+creates
 .Pa FILE.1 FILE.2 FILE.3.gz
 etc.
-.It Pa /var/run/log
-Socket to connect to for communicating with
+.It Pa /dev/log
+Socket used for communicating with
 .Xr syslogd 8 .
-In older implementations
-.Pa /dev/log
-was used.  This means this version of
-.Nm
-is not compatible with older releases, or other (local) syslog servers.
+When built on BSD
+.Pa /var/run/log 
+is used.
 .El
 .Sh SEE ALSO
 .Xr syslogp 3
@@ -151,5 +154,5 @@ and be extended upon in the sysklogd project.
 The
 .Nm
 command is expected to be IEEE Std 1003.2 ("POSIX.2") compatible, with
-extensions for RFC5424 and log file rotation.
-.Sh AVAILABILITY
+extensions for RFC5424 from NetBSD and custom log file and log file
+rotation unique to the sysklogd project.
