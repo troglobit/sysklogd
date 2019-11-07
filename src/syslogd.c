@@ -1655,7 +1655,7 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 			}
 		} else
 			logit("Forwarding suspension not over, time left: %d\n",
-			      INET_SUSPEND_TIME - fwd_suspend);
+			      (int)(INET_SUSPEND_TIME - fwd_suspend));
 		break;
 
 	case F_FORW:
