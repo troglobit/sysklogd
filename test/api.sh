@@ -3,7 +3,7 @@ set -ex
 if [ x"${srcdir}" = x ]; then
     srcdir=.
 fi
-g. ${srcdir}/test.rc
+. ${srcdir}/test.rc
 
 export MSG="no-openlog-apitest"
 
