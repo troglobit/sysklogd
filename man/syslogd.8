@@ -179,15 +179,14 @@ The optional number of files kept include both gzipped files and the
 first rotated (not zipped) file.  The default for this, when omitted,
 is 5.
 .It Fl r
-This option enables the facility to receive message from the network
-using an internet domain socket with the syslog service (see
-.Xr services 5 ).
-The default is to not receive any messages from the network.
-.Pp
-This option is introduced in version 1.3 of the
-.Nm sysklogd
-package.  Please note that the default behavior is the opposite of how
-older versions behave, so you might have to turn this on.
+This option enables support for receiving syslog messages over the
+network using an internet domain socket with the
+.Ql syslog
+(514/udp) service, see
+.Xr services 5 .
+The default is to not listen for incoming network connections.  Use the
+.Fl b
+option to override the default listening port.
 .It Fl s NAME
 Specify domain name(s) to be stripped off before logging.  Multiple
 domains may be specified using the colon (':') separator.  Note, no
