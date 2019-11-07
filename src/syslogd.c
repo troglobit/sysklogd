@@ -449,7 +449,6 @@ int main(int argc, char *argv[])
 		if (nfds < 0) {
 			if (errno != EINTR)
 				logerror("select");
-			logit("Select interrupted.\n");
 			continue;
 		}
 
