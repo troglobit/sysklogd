@@ -14,7 +14,6 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl ?46Adhnrv
-.Op Fl a Ar SOCK
 .Op Fl b Ar :SVC
 .Op Fl f Ar FILE
 .Op Fl l Ar HOST[:HOST]
@@ -94,18 +93,6 @@ tries to send the message to only one address even if the host has
 more than one A or AAAA record.  If this option is specified,
 .Nm
 tries to send the message to all addresses.
-.It Fl a Ar SOCK
-Using this argument you can specify additional sockets from that
-.Nm
-has to listen to.  This is needed if you're going to let some daemon
-run within a
-.Xr chroot 8
-environment.  You can use up to 19 additional sockets.  If your
-environment needs even more, you have to increase the symbol
-.Ql MAXFUNIX
-within the
-.Pa syslogd.c
-source file.
 .It Fl b Ar :service
 Bind to a specific port.  The port can be specified as a service name or
 number.  The default service is
@@ -159,6 +146,16 @@ The default is
 .It Fl p Ar SOCK
 Specify an alternate UNIX domain socket instead of the default
 .Pa /dev/log .
+When a single
+.Fl p
+option is specified, the default pathname is replaced with the specified
+one.  When two or more
+.Fl p
+options are specified, the remaining pathnames are treated as additional
+log sockets.  This might be needed when running applications in
+containers or a
+.Xr chroot 8
+environment.  In total 20 UNIX domain sockets are supported.
 .It Fl R Ar size[:count]
 Enable built-in support for log rotation of files listed in
 .Pa /etc/syslog.conf .

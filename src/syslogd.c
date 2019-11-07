@@ -110,11 +110,9 @@ static int restart = 0;
 
 #define MAXFUNIX 20
 
-int   nfunix = 1;
-char *funixn[MAXFUNIX] = { _PATH_LOG };
-int   funix[MAXFUNIX] = {
-        -1,
-};
+int   nfunix;
+char *funixn[MAXFUNIX];
+int   funix[MAXFUNIX];
 
 /*
  * Intervals at which we flush out "message repeated" messages,
@@ -199,12 +197,12 @@ int main(int argc, char *argv[])
 	int num_fds, maxfds;
 	int i, ch;
 
-	for (i = 1; i < MAXFUNIX; i++) {
-		funixn[i] = "";
+	for (i = 0; i < MAXFUNIX; i++) {
+		funixn[i] = NULL;
 		funix[i] = -1;
 	}
 
-	while ((ch = getopt(argc, argv, "46Aa:b:dhHf:l:m:nP:p:R:rs:v?")) != EOF) {
+	while ((ch = getopt(argc, argv, "46Ab:dhHf:l:m:nP:p:R:rs:v?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -216,13 +214,6 @@ int main(int argc, char *argv[])
 
 		case 'A':
 			send_to_all++;
-			break;
-
-		case 'a':
-			if (nfunix < MAXFUNIX)
-				funixn[nfunix++] = optarg;
-			else
-				fprintf(stderr, "Out of descriptors, ignoring %s\n", optarg);
 			break;
 
 		case 'b':
@@ -269,7 +260,10 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'p': /* path to regular log socket */
-			funixn[0] = optarg;
+			if (nfunix < MAXFUNIX)
+				funixn[nfunix++] = optarg;
+			else
+				fprintf(stderr, "Max log sockets reached, ignoring %s\n", optarg);
 			break;
 
 		case 'R':
@@ -305,6 +299,10 @@ int main(int argc, char *argv[])
 
 	if ((argc -= optind))
 		usage(1);
+
+	/* Default to _PATH_LOG for the UNIX domain socket */
+	if (!nfunix)
+		funixn[nfunix++] = _PATH_LOG;
 
 	if ((!Foreground) && (!Debug)) {
 		signal(SIGTERM, doexit);
@@ -2295,13 +2293,23 @@ void init(void)
 	fhead = newf;
 
 	for (i = 0; i < nfunix; i++) {
-		if (funix[i] != -1)
-			/* Don't close the socket, preserve it instead
-			close(funix[i]);
-			*/
+		/*
+		 * UNIX domain sockets are given on the command line, so
+		 * there's no need to close them if they're already
+		 * open.  Doing so would only cause loss of any already
+		 * buffered messages
+		 */
+		logit("Checking if we should open UNIX socket %s ...", funixn[i]);
+		if (funix[i] != -1) {
+			logit(" nope, already open.\n");
 			continue;
-		if ((funix[i] = create_unix_socket(funixn[i])) != -1)
-			logit("Opened UNIX socket `%s'.\n", funixn[i]);
+		}
+
+		funix[i] = create_unix_socket(funixn[i]);
+		if (funix[i] == -1)
+			logit(" failed, error %d: %s\n", strerror(errno));
+		else
+			logit(" opened successfully\n", funixn[i]);
 	}
 
 	if (cffwd() || AcceptRemote) {
