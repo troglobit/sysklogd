@@ -33,6 +33,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl chinsv
+.Op Fl d Ar SD
 .Op Fl f Ar FILE
 .Op Fl m Ar MSGID
 .Op Fl p Ar PRIO
@@ -60,6 +61,14 @@ if
 .Fn syslog
 fails to send message to
 .Xr syslogd 8 .
+.It Fl d Ar SD
+Log this in the structured data (SD) field of an RFC5424 style log
+message.  See
+.Fl m
+for caveats.  Also, please note that
+.Ar sd
+has to be passed as one argument and will require careful quoting when
+used from the shell.
 .It Fl f Ar FILE
 Log file to write messages to, instead of syslog daemon.
 .Nm

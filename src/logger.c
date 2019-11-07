@@ -183,6 +183,7 @@ static int usage(int code)
 	       "Write MESSAGE (or line-by-line stdin) to syslog, or file (with logrotate).\n"
 	       "\n"
 	       "  -c        Log to console (LOG_CONS) on failure\n"
+	       "  -d SD     Log SD as RFC5424 style 'structured data' in message\n"
 	       "  -i        Log the process ID of the logger process with each line (LOG_PID)\n"
 	       "  -m MSGID  The MSGID used for the message\n"
 	       "  -n        Open log file immediately (LOG_NDELAY)\n"
@@ -213,14 +214,18 @@ int main(int argc, char *argv[])
 	int rotate = 0;
 	off_t size = 200 * 1024;
 	char *ident = NULL, *logfile = NULL;
-	char *msgid = NULL;
+	char *msgid = NULL, *sd = NULL;
 	char *sockpath = NULL;
 	char buf[512] = "";
 
-	while ((c = getopt(argc, argv, "?cf:im:np:r:st:u:v")) != EOF) {
+	while ((c = getopt(argc, argv, "?cd:f:im:np:r:st:u:v")) != EOF) {
 		switch (c) {
 		case 'c':
 			log_opts |= LOG_CONS;
+			break;
+
+		case 'd':
+			sd = optarg;
 			break;
 
 		case 'f':
@@ -308,9 +313,9 @@ int main(int argc, char *argv[])
 
 	if (!buf[0]) {
 		while ((fgets(buf, sizeof(buf), stdin)))
-			syslogp_r(severity, &log, msgid, NULL, "%s", chomp(buf));
+			syslogp_r(severity, &log, msgid, sd, "%s", chomp(buf));
 	} else
-		syslogp_r(severity, &log, msgid, NULL, "%s", buf);
+		syslogp_r(severity, &log, msgid, sd, "%s", buf);
 
 	closelog_r(&log);
 
