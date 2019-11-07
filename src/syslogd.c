@@ -459,7 +459,7 @@ int main(int argc, char *argv[])
 			if ((fd = funix[i]) != -1 && FD_ISSET(fd, &readfds)) {
 				memset(line, 0, sizeof(line));
 				msglen = recv(fd, line, MAXLINE - 2, 0);
-				logit("Message from UNIX socket: #%d\n", fd);
+				logit("Message from UNIX socket #%d: %s\n", fd, line);
 				if (msglen > 0)
 					parsemsg(LocalHostName, line);
 				else if (msglen < 0 && errno != EINTR) {
@@ -1239,8 +1239,9 @@ static void logmsg(struct buf_msg *buffer)
 	char saved[MAXSVLINE];
 	int fac, prilev;
 
-	logit("logmsg: %s, flags %x, from %s, msg %s\n", textpri(buffer->pri),
-	      buffer->flags, buffer->hostname, buffer->msg);
+	logit("logmsg: %s, flags %x, from %s, app-name %s procid %s msgid %s sd %s msg %s\n",
+	      textpri(buffer->pri), buffer->flags, buffer->hostname, buffer->app_name,
+	      buffer->proc_id, buffer->msgid, buffer->sd, buffer->msg);
 
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGHUP);
