@@ -484,11 +484,11 @@ corresponding line in
 .It pattern
 This field is tricky and represents the internal structure exactly.
 Every column stands for a facility, refer to
-.Xr syslog 3 .
+.Xr syslogp 3 .
 As you can see, there are still some facilities left free for former
 use, only the left most are used.  Every field in a column represents
 the priorities, refer to
-.Xr syslog 3 .
+.Xr syslogp 3 .
 .It action
 This field describes the particular action that takes place whenever a
 message is received that matches the pattern.  Refer to the
@@ -551,7 +551,7 @@ As mentioned in the
 .Nm
 transparently supports the standard C library
 .Xr syslog 3
-API.  If a binary linked to the standard C libraries do not operate
+API.  If a binary linked to the standard C libraries does not operate
 correctly, this should be reported as a bug to this project.  See below
 for contact details.
 .Pp
@@ -572,7 +572,7 @@ messages as these might contain passwords.
 .Xr klogd  8 ,
 .Xr logger 1 ,
 .Xr syslog 2 ,
-.Xr syslog 3 ,
+.Xr syslogp 3 ,
 .Xr services 5 ,
 .Xr savelog 8 .
 .Sh AUTHORS
