@@ -1,9 +1,8 @@
 #!/bin/sh
-. ${srcdir}/test.rc
-
 if [ x"${srcdir}" = x ]; then
     srcdir=.
 fi
+. ${srcdir}/test.rc
 
 mkdir -p ${CONFD}
 cat <<EOF > ${CONF}

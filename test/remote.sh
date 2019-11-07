@@ -1,5 +1,8 @@
 #!/bin/sh
 set -ex
+if [ x"${srcdir}" = x ]; then
+    srcdir=.
+fi
 . ${srcdir}/test.rc
 
 MSG="kilroy"

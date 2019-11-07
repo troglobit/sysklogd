@@ -1,6 +1,9 @@
 #!/bin/sh
 set -ex
-. ${srcdir}/test.rc
+if [ x"${srcdir}" = x ]; then
+    srcdir=.
+fi
+g. ${srcdir}/test.rc
 
 export MSG="no-openlog-apitest"
 

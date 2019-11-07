@@ -1,4 +1,7 @@
 #!/bin/sh
+if [ x"${srcdir}" = x ]; then
+    srcdir=.
+fi
 . ${srcdir}/test.rc
 
 if [ -e ${PID} ]; then
