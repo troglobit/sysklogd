@@ -922,6 +922,7 @@ parsemsg_rfc5424(const char *from, int pri, char *msg)
 	FAIL_IF("STRUCTURED-NAME", start == msg);			\
 } while (0)
 	IF_NOT_NILVALUE(buffer.sd) {
+		buffer.sd = msg;
 		/* SD-ELEMENT. */
 		while (*msg == '[') {
 			++msg;
