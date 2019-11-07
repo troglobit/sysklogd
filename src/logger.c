@@ -184,17 +184,18 @@ static int usage(int code)
 	       "\n"
 	       "  -c        Log to console (LOG_CONS) on failure\n"
 	       "  -i        Log the process ID of the logger process with each line (LOG_PID)\n"
+	       "  -m MSGID  The MSGID used for the message\n"
 	       "  -n        Open log file immediately (LOG_NDELAY)\n"
 	       "  -p PRIO   Log message priority (numeric or facility.severity pair)\n"
 	       "  -t TAG    Log using the specified tag (defaults to user name)\n"
 	       "  -s        Log to stderr as well as the system log\n"
 	       "\n"
-	       "  -u SOCK  Log to UNIX domain socket `SOCK` instead of default %s\n"
-	       "  -f FILE  Log file to write messages to, instead of syslog daemon\n"
-	       "  -r S[:R] Enable log file rotation, default: 200 kB \e[4ms\e[0mize, 5 \e[4mr\e[0motations\n"
+	       "  -u SOCK   Log to UNIX domain socket `SOCK` instead of default %s\n"
+	       "  -f FILE   Log file to write messages to, instead of syslog daemon\n"
+	       "  -r S[:R]  Enable log file rotation, default: 200 kB \e[4ms\e[0mize, 5 \e[4mr\e[0motations\n"
 	       "\n"
-	       "  -?       This help text\n"
-	       "  -v       Show program version\n"
+	       "  -?        This help text\n"
+	       "  -v        Show program version\n"
 	       "\n"
 	       "This version of logger is distributed as part of sysklogd.\n"
 	       "Bug report address: %s\n", _PATH_LOG, PACKAGE_BUGREPORT);
@@ -212,10 +213,11 @@ int main(int argc, char *argv[])
 	int rotate = 0;
 	off_t size = 200 * 1024;
 	char *ident = NULL, *logfile = NULL;
+	char *msgid = NULL;
 	char *sockpath = NULL;
 	char buf[512] = "";
 
-	while ((c = getopt(argc, argv, "?cf:inp:r:st:u:v")) != EOF) {
+	while ((c = getopt(argc, argv, "?cf:im:np:r:st:u:v")) != EOF) {
 		switch (c) {
 		case 'c':
 			log_opts |= LOG_CONS;
@@ -227,6 +229,10 @@ int main(int argc, char *argv[])
 
 		case 'i':
 			log_opts |= LOG_PID;
+			break;
+
+		case 'm':
+			msgid = optarg;
 			break;
 
 		case 'n':
@@ -302,9 +308,9 @@ int main(int argc, char *argv[])
 
 	if (!buf[0]) {
 		while ((fgets(buf, sizeof(buf), stdin)))
-			syslog_r(severity, &log, "%s", chomp(buf));
+			syslogp_r(severity, &log, msgid, NULL, "%s", chomp(buf));
 	} else
-		syslog_r(severity, &log, "%s", buf);
+		syslogp_r(severity, &log, msgid, NULL, "%s", buf);
 
 	closelog_r(&log);
 

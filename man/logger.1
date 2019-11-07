@@ -34,6 +34,7 @@
 .Nm
 .Op Fl chinsv
 .Op Fl f Ar FILE
+.Op Fl m Ar MSGID
 .Op Fl p Ar PRIO
 .Op Fl r Ar SIZE:NUM
 .Op Fl t Ar TAG
@@ -68,6 +69,11 @@ as an alias for
 .It Fl i
 Log the process id of the logger process with each line
 .Ql ( LOG_PID ) .
+.It Fl m Ar MSGID
+The MSGID used for the message.  Requires RFC5424 support in
+.Xr syslogd 8
+for receiving the message and also for storing it properly in a log file
+or sending remote in correctly formatted RFC5424 style.
 .It Fl n
 Open log file immediately
 .Ql ( LOG_NDELAY ) .
