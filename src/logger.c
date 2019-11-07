@@ -182,6 +182,7 @@ static int usage(int code)
 	       "\n"
 	       "Write MESSAGE (or line-by-line stdin) to syslog, or file (with logrotate).\n"
 	       "\n"
+	       "  -c       Log to console (LOG_CONS) on failure\n"
 	       "  -p PRIO  Log message priority (numeric or facility.severity pair)\n"
 	       "  -t TAG   Log using the specified tag (defaults to user name)\n"
 	       "  -s       Log to stderr as well as the system log\n"
@@ -212,8 +213,12 @@ int main(int argc, char *argv[])
 	char *sockpath = NULL;
 	char buf[512] = "";
 
-	while ((c = getopt(argc, argv, "?f:p:r:st:u:v")) != EOF) {
+	while ((c = getopt(argc, argv, "?cf:p:r:st:u:v")) != EOF) {
 		switch (c) {
+		case 'c':
+			log_opts |= LOG_CONS;
+			break;
+
 		case 'f':
 			logfile = optarg;
 			break;

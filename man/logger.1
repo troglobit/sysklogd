@@ -32,7 +32,7 @@
 .Nd Send messages to system log, or a log file
 .Sh SYNOPSIS
 .Nm
-.Op Fl hsv
+.Op Fl chsv
 .Op Fl f Ar FILE
 .Op Fl p Ar PRIO
 .Op Fl r Ar SIZE:NUM
@@ -51,6 +51,13 @@ reads input from
 .Sh OPTIONS
 This program follows the usual UNIX command line syntax:
 .Bl -tag -width Ds
+.It Fl c
+Log to console
+.Ql ( LOG_CONS )
+if
+.Fn syslog
+fails to send message to
+.Xr syslogd 8 .
 .It Fl f Ar FILE
 Log file to write messages to, instead of syslog daemon.
 .Nm
