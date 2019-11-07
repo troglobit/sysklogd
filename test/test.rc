@@ -7,6 +7,7 @@ CAP=/tmp/${NM}.pcapng
 CONF=/tmp/${NM}.conf
 CONFD=/tmp/${NM}.d
 SOCK=/tmp/${NM}.sock
+ALTSOCK=/tmp/${NM}-alt.sock
 PORT=5514
 
 export SYSLOG_UNIX_PATH=${SOCK}
