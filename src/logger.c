@@ -182,11 +182,12 @@ static int usage(int code)
 	       "\n"
 	       "Write MESSAGE (or line-by-line stdin) to syslog, or file (with logrotate).\n"
 	       "\n"
-	       "  -c       Log to console (LOG_CONS) on failure\n"
-	       "  -i       Log the process ID of the logger process with each line (LOG_PID)\n"
-	       "  -p PRIO  Log message priority (numeric or facility.severity pair)\n"
-	       "  -t TAG   Log using the specified tag (defaults to user name)\n"
-	       "  -s       Log to stderr as well as the system log\n"
+	       "  -c        Log to console (LOG_CONS) on failure\n"
+	       "  -i        Log the process ID of the logger process with each line (LOG_PID)\n"
+	       "  -n        Open log file immediately (LOG_NDELAY)\n"
+	       "  -p PRIO   Log message priority (numeric or facility.severity pair)\n"
+	       "  -t TAG    Log using the specified tag (defaults to user name)\n"
+	       "  -s        Log to stderr as well as the system log\n"
 	       "\n"
 	       "  -u SOCK  Log to UNIX domain socket `SOCK` instead of default %s\n"
 	       "  -f FILE  Log file to write messages to, instead of syslog daemon\n"
@@ -207,14 +208,14 @@ int main(int argc, char *argv[])
 	int c, num = 5;
 	int facility = LOG_USER;
 	int severity = LOG_INFO;
-	int log_opts = LOG_NDELAY;
+	int log_opts = 0;
 	int rotate = 0;
 	off_t size = 200 * 1024;
 	char *ident = NULL, *logfile = NULL;
 	char *sockpath = NULL;
 	char buf[512] = "";
 
-	while ((c = getopt(argc, argv, "?cf:ip:r:st:u:v")) != EOF) {
+	while ((c = getopt(argc, argv, "?cf:inp:r:st:u:v")) != EOF) {
 		switch (c) {
 		case 'c':
 			log_opts |= LOG_CONS;
@@ -226,6 +227,10 @@ int main(int argc, char *argv[])
 
 		case 'i':
 			log_opts |= LOG_PID;
+			break;
+
+		case 'n':
+			log_opts |= LOG_NDELAY;
 			break;
 
 		case 'p':
