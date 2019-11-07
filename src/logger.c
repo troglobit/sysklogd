@@ -186,6 +186,7 @@ static int usage(int code)
 	       "  -t TAG   Log using the specified tag (defaults to user name)\n"
 	       "  -s       Log to stderr as well as the system log\n"
 	       "\n"
+	       "  -u SOCK  Log to UNIX domain socket `SOCK` instead of default %s\n"
 	       "  -f FILE  Log file to write messages to, instead of syslog daemon\n"
 	       "  -r S[:R] Enable log file rotation, default: 200 kB \e[4ms\e[0mize, 5 \e[4mr\e[0motations\n"
 	       "\n"
@@ -193,7 +194,7 @@ static int usage(int code)
 	       "  -v       Show program version\n"
 	       "\n"
 	       "This version of logger is distributed as part of sysklogd.\n"
-	       "Bug report address: %s\n", PACKAGE_BUGREPORT);
+	       "Bug report address: %s\n", _PATH_LOG, PACKAGE_BUGREPORT);
 
 	return code;
 }
