@@ -32,7 +32,7 @@
 .Nd Send messages to system log, or a log file
 .Sh SYNOPSIS
 .Nm
-.Op Fl chsv
+.Op Fl chisv
 .Op Fl f Ar FILE
 .Op Fl p Ar PRIO
 .Op Fl r Ar SIZE:NUM
@@ -65,8 +65,9 @@ accepts
 .Fl f-
 as an alias for
 .Ar stdout .
-.It Fl h
-Show program help.
+.It Fl i
+Log the process id of the logger process with each line
+.Ql ( LOG_PID ) .
 .It Fl p Ar PRIO
 Priority, numeric or
 .Ar facility.severity
