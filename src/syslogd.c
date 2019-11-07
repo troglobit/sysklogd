@@ -2306,9 +2306,9 @@ void init(void)
 
 		funix[i] = create_unix_socket(funixn[i]);
 		if (funix[i] == -1)
-			logit(" failed, error %d: %s\n", strerror(errno));
+			logit(" failed opening, error %d: %s\n", errno, strerror(errno));
 		else
-			logit(" opened successfully\n", funixn[i]);
+			logit(" opened successfully\n");
 	}
 
 	if (cffwd() || AcceptRemote) {
