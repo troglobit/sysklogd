@@ -1698,7 +1698,7 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 						sin = (struct sockaddr_in *)ai->ai_addr;
 						inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
 					}
-					logit("Sent %d bytes to remote %s on socket %d ...\n",
+					logit("Sent %zd bytes to remote %s on socket %d ...\n",
 					      lsent, buf, finet[i + 1]);
 					if (lsent == len) {
 						err = -1;
