@@ -55,7 +55,7 @@ Main differences from the original sysklogd package are:
 
 - Support for `include /etc/syslog.d/*.conf`, see example .conf
 - Built-in log-rotation support, with compression by default, useful for
-  embedded systems.  No need for cron and a separate logrotate daemon
+  embedded systems.  No need for cron and a separate log rotate daemon
 - Full [RFC3164][] and [RFC5424][] support
 - Includes timestamp and hostname, RFC3164 style, in remote logging
 - Support for sending RFC5424 style remote syslog messages
@@ -102,6 +102,8 @@ proggy_CFLAGS = $(syslog_CFLAGS)
 proggy_LDADD  = $(syslog_LIBS)
 ```
 
+The distribution comes with an [example][] program that utilizes the
+NetBSD API and links against libsyslog.
 
 
 Build & Install
@@ -149,10 +151,10 @@ systems, unless you know what you are doing!
 Origin & References
 -------------------
 
-This is the continuation of the original sysklogd by [Martin Schulze][].
-Now maintained and heavilty updated by [Joachim Nilsson][].  Please file
-bug reports, or send pull requests for bug fixes and proposed extensions
-at [GitHub][].
+This is the continuation of the original sysklogd by Dr. G.W. Wettstein
+and [Martin Schulze][].  Now maintained and heavily updated by [Joachim
+Nilsson][].  Please file bug reports, or send pull requests for bug
+fixes and proposed extensions at [GitHub][].
 
 [RFC3164]:          https://tools.ietf.org/html/rfc3164
 [RFC5424]:          https://tools.ietf.org/html/rfc5424
@@ -160,6 +162,7 @@ at [GitHub][].
 [Joachim Nilsson]:  http://troglobit.com
 [Finit]:            https://github.com/troglobit/finit
 [GitHub]:           https://github.com/troglobit/sysklogd
+[example]:          https://github.com/troglobit/sysklogd/tree/master/example
 [buildsystem]:      https://airs.com/ian/configure/
 [License]:          https://en.wikipedia.org/wiki/GPL_license
 [License Badge]:    https://img.shields.io/badge/License-GPL%20v2-blue.svg
