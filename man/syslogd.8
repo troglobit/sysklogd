@@ -17,7 +17,7 @@
 .Op Fl b Ar :SVC
 .Op Fl f Ar FILE
 .Op Fl l Ar HOST[:HOST]
-.Op Fl m Ar MINUTES
+.Op Fl m Ar SECONDS
 .Op Fl P Ar FILE
 .Op Fl p Ar SOCK
 .Op Fl R Ar size[:count]
@@ -121,7 +121,7 @@ disks quite fast and thus needs to be used with caution.
 Specify a hostname that should be logged only with its simple hostname
 and not the fqdn.  Multiple hosts may be specified using the colon (':')
 separator.
-.It Fl m Ar MINUTES
+.It Fl m Ar SECONDS
 .Nm
 logs a mark timestamp regularly.  The default interval between two
 .Ql -- MARK --
@@ -132,12 +132,12 @@ Depending on other log messages generated these lines may not be written
 consecutively.  The
 .Ql -- MARK --
 message is only written if the log file hasn't been touched in
-.Ar MINUTES / 2
+.Ar (SEC * 60) / 2
 minutes.
 .It Fl n
 Run in foreground, required when run from a modern init/supervisor.  See
 your system
-.Xr init 8
+.Xr init 1
 for details.
 .It Fl P Ar FILE
 Specify an alternate file in which to store the process ID.

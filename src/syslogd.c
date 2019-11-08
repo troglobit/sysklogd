@@ -148,7 +148,6 @@ static int	  RotateCnt = 5;	  /* Max number (count) of log files to keep, set wi
 
 /* Function prototypes. */
 char      **crunch_list(char *list);
-int         usage(int code);
 void        untty(void);
 static void parsemsg(const char *from, char *msg);
 void        printsys(char *msg);
@@ -174,6 +173,45 @@ void        sighup_handler(int);
 static int  create_unix_socket(const char *path);
 static int *create_inet_sockets();
 
+
+int usage(int code)
+{
+	printf("Usage:\n"
+	       "  syslogd [-46Adnrvh?] [-f FILE] [-l HOST] [-m SEC] [-P PID_FILE]\n"
+	       "                       [-p SOCK_PATH] [-R SIZE[:NUM]] [-s NAME[:NAME[...]]]\n"
+	       "\n"
+	       "Options:\n"
+	       "  -4        Force IPv4 only\n"
+	       "  -6        Force IPv6 only\n"
+	       "  -A        Send to all addresses in DNS A, or AAAA record\n"
+	       "  -b :SRV   Bind to a specific internet port, default syslog/514, requires -r\n"
+	       "  -d        Enable debug mode\n"
+	       "  -f FILE   Alternate .conf file, default: /etc/syslog.conf\n"
+	       "  -h        Forward messages from other hosts also to remote syslog host(s)\n"
+	       "  -l HOST   Host name to log without its FQDN, use ':' for multiple hosts\n"
+	       "  -m SEC    Interval between MARK messages in log, 0 to disable, default: 20 min\n"
+	       "  -n        Run in foreground, required when run from a modern init/supervisor\n"
+	       "  -P FILE   File in which to store the process ID, default: %s\n"
+	       "  -p PATH   Path to UNIX domain socket, multiple -p create multiple sockets. If\n"
+	       "            no -p argument is given the default %s is used\n"
+	       "  -R S[:R]  Enable log rotation.  The size argument (S) takes k/M/G qualifiers,\n"
+	       "            e.g. 2M for 2 MiB.  The optional rotations argument default to 5.\n"
+	       "            Rotation can also be defined per log file in syslog.conf\n"
+	       "  -r        Act as remote syslog sink for other hosts, default is secure mode,\n"
+	       "            i.e., syslogd does not bind to any internet address:port by default\n"
+	       "  -s NAME   Strip domain name before logging, use ':' for multiple domains\n"
+	       "\n"
+	       "  -?        Show this help text\n"
+	       "  -v        Show program version and exit\n"
+	       "\n"
+	       "Bug report address: %s\n",
+	       _PATH_LOGPID, _PATH_LOG, PACKAGE_BUGREPORT);
+#ifdef PACKAGE_URL
+	printf("Project home page:  %s\n", PACKAGE_URL);
+#endif
+
+	return code;
+}
 
 int main(int argc, char *argv[])
 {
@@ -281,17 +319,15 @@ int main(int argc, char *argv[])
 			exit(0);
 
 		case '?':
-			usage(0);
-			break;
+			return usage(0);
 
 		default:
-			usage(1);
-			break;
+			return usage(1);
 		}
 	}
 
 	if ((argc -= optind))
-		usage(1);
+		return usage(1);
 
 	/* Default to _PATH_LOG for the UNIX domain socket */
 	if (!nfunix)
@@ -502,41 +538,6 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
-}
-
-int usage(int code)
-{
-	fprintf(stdout,
-	        "Usage:\n"
-	        "  syslogd [-46Adnrvh?] [-a SOCK] [-f FILE] [-l HOST] [-m SEC] [-P PID_FILE]\n"
-	        "                       [-p SOCK_PATH] [-R SIZE[:NUM]] [-s NAME[:NAME[...]]]\n"
-	        "\n"
-	        "Options:\n"
-	        "  -4        Force IPv4 only\n"
-	        "  -6        Force IPv6 only\n"
-	        "  -A        Send to all addresses in DNS A, or AAAA record\n"
-	        "  -a SOCK   Additional socket (max 19) to listen to, used with chroots\n"
-	        "  -d        Enable debug mode\n"
-	        "  -f FILE   Alternate .conf file, default: /etc/syslog.conf\n"
-	        "  -h        Forward messages from other hosts also to remote syslog host(s)\n"
-	        "  -l HOST   Host name to log without its FQDN, use ':' for multiple hosts\n"
-	        "  -m SEC    Interval between MARK messages in log, 0 to disable, default: 20\n"
-	        "  -n        Run in foreground, required when run from a modern init/supervisor\n"
-		"  -P FILE   Specify an	alternative file in which to store the process ID.\n"
-		"            The default is %s.\n"
-	        "  -p PATH   Alternate path to UNIX domain socket, default: %s\n"
-		"  -R S[:R]  Enable log rotation.  The size argument (S) takes k/M/G qualifiers,\n"
-		"            e.g. 2M for 2 MiB.  The optional rotations argument default to 5.\n"
-		"            Rotation can also be defined per log file in syslog.conf\n"
-	        "  -r        Act as remote syslog sink for other hosts\n"
-	        "  -s NAME   Strip domain name before logging, use ':' for multiple domains\n"
-		"\n"
-	        "  -?        Show this help text\n"
-	        "  -v        Show program version and exit\n"
-	        "\n"
-	        "Bug report address: %s\n",
-		_PATH_LOGPID, _PATH_LOG, PACKAGE_BUGREPORT);
-	exit(code);
 }
 
 /*
