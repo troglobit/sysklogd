@@ -13,7 +13,7 @@
 .Nd Kernel Log Daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl 2ndiInopsvx
+.Op Fl 2ndnopsvx
 .Op Fl c Ar NUM
 .Op Fl f Ar FILE
 .Op Fl k Ar FILE
@@ -32,10 +32,10 @@ stderr.
 .It Fl f Ar FILE
 Log messages to the specified filename rather than to the syslog facility.
 .It Fl n
-Avoid auto-backgrounding.  This is needed especially if
-.Nm
-is started and controlled by 
-.Xr init 8 .
+Run in foreground, required when run from a modern init/supervisor.  See
+your system
+.Xr init 1
+for details.
 .It Fl o
 Execute in one-shot mode.  This causes
 .Nm

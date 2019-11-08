@@ -595,7 +595,7 @@ int usage(int code)
 {
 	fprintf(stdout,
 	        "Usage:\n"
-	        "  klogd [-2diInopsvx?] [-c NUM] [-f FILE] [-k FILE]\n"
+	        "  klogd [-2dnopsvx?] [-c NUM] [-f FILE] [-k FILE]\n"
 	        "\n"
 	        "Options:\n"
 	        "  -?        Show this help text\n"
@@ -603,8 +603,6 @@ int usage(int code)
 	        "  -c NUM    Set default log level of console messages to NUM (1-8)\n"
 	        "  -d        Enable debug mode\n"
 	        "  -f FILE   Log messages to FILE rather than the syslog facility\n"
-	        "  -i        Signal klogd to reload kernel module symbols\n"
-	        "  -I        Signal klogd to reload kernel module *and* static kernel symbols\n"
 	        "  -k FILE   Location of kernel symbols (System.map), default: auto\n"
 	        "  -n        Run in foreground, required when run from a modern init/supervisor\n"
 	        "  -o        Run once, read kernel log messages and syslog them, then exit\n"
