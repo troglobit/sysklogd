@@ -474,7 +474,7 @@ the configuration file is reread and re-parsed you'll see a tabular,
 corresponding to the internal data structure.  This tabular consists of
 four fields:
 .Pp
-.Bl -tag -compact -width arguments
+.Bl -tag -width arguments
 .It number
 This field contains a serial number starting by zero.  This number
 represents the position in the internal data structure (i.e. the array).
@@ -505,7 +505,7 @@ tty-logging this is the specified tty; wall has no additional arguments.
 .Nm
 supports the following signals:
 .Pp
-.Bl -tag -width "TERM, QUIT" -compact
+.Bl -tag -width "TERM, QUIT"
 .It HUP
 This lets
 .Nm
@@ -532,7 +532,7 @@ Example usage:
 kill -SIGNAL `cat /var/run/syslogd.pid`
 .Ed
 .Sh FILES
-.Bl -tag -width TERM -compact
+.Bl -tag -width TERM
 .It Pa /etc/syslog.conf
 Configuration file for
 .Nm .

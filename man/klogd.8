@@ -352,15 +352,11 @@ corresponds to the sampe setting above.
 .Nm
 responds to eight signals:
 .Pp
-.Bl -tag -width TERM -compact
-.It HUP
-.It INT
-.It KILL
-.It TERM
+.Bl -tag -width TERM
+.It HUP , INT , KILL , TERM
 The SIGINT, SIGKILL, SIGTERM and SIGHUP signals cause the daemon to
 close its kernel log sources and terminate gracefully.
-.It TSTP
-.It CONT
+.It TSTP , CONT
 The SIGTSTP and SIGCONT signals are used to start and stop kernel
 logging.  Upon receipt of SIGTSTP the daemon will close its log sources
 and spin in an idle loop.  Subsequent receipt of SIGCONT cause the
@@ -380,8 +376,7 @@ kill -CONT pid
 Notations will be made in the system logs with
 .Ql LOG_INFO
 priority documenting the start/stop of logging.
-.It USR1
-.It USR2
+.It USR1 , USR2
 The SIGUSR1 and SIGUSR2 signals are used to initiate loading/reloading
 of kernel symbol information.  Receipt of SIGUSR1 will cause the kernel
 module symbols to be reloaded.  Signaling the daemon with SIGUSR2 will
@@ -399,7 +394,7 @@ address space occupied by a kernel module.
 .El
 .Pp
 .Sh FILES
-.Bl -tag -width TERM -compact
+.Bl -tag -width TERM
 .It Pa /proc/kmsg
 One source for kernel messages for
 .Nm klogd
