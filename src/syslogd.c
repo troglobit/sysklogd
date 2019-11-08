@@ -1100,6 +1100,9 @@ parsemsg_rfc3164(const char *from, int pri, char *msg)
 		return;
 	}
 
+	if (buffer.hostname == NULL || !RemoteHostname)
+		buffer.hostname = (char *)from;
+
 	/* Remove the TAG, if present. */
 	parsemsg_rfc3164_app_name_procid(&msg, &buffer.app_name, &buffer.proc_id);
 	parsemsg_remove_unsafe_characters(msg, line, sizeof(line));
