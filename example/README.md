@@ -53,3 +53,11 @@ example_LDADD   = $(syslog_LIBS)
 
     PKG_CONFIG_LIBDIR=/usr/local/lib/pkgconfig ./configure
 
+
+License
+-------
+
+This example code, `example.c`, this README.md and the `example.mk`
+Makefile are free and unencumbered software released into the public
+domain.
+
