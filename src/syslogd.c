@@ -387,6 +387,7 @@ int main(int argc, char *argv[])
 	(void)signal(SIGALRM, domark);
 	(void)signal(SIGUSR1, Debug ? debug_switch : SIG_IGN);
 	(void)signal(SIGXFSZ, SIG_IGN);
+	(void)signal(SIGHUP, sighup_handler);
 
 	LastAlarm = MarkInterval;
 	alarm(LastAlarm);
@@ -2373,7 +2374,6 @@ void init(void)
 	else
 		flog(LOG_SYSLOG | LOG_INFO, "syslogd v" VERSION ": restart.");
 
-	(void)signal(SIGHUP, sighup_handler);
 	logit("syslogd: restarted.\n");
 }
 
