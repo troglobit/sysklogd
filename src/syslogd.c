@@ -1035,6 +1035,7 @@ parsemsg_rfc3164(const char *from, int pri, char *msg)
 
 	memset(&buffer, 0, sizeof(buffer));
 	buffer.recvhost = (char *)from;
+	buffer.pri = pri;
 	buffer.msg = line;
 
 	/* Parse the timestamp provided by the remote side. */
