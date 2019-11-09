@@ -43,6 +43,8 @@
 #define LOG_BUFFER_SIZE 4096
 #define LOG_LINE_LENGTH 1000
 
+static struct syslog_data log = SYSLOG_DATA_INIT;
+
 static char *PidFile = _PATH_VARRUN "klogd.pid";
 
 static int kmsg;
@@ -147,7 +149,7 @@ static void Terminate(void)
 
 	if (output_file != NULL)
 		fclose(output_file);
-	closelog();
+	closelog_r(&log);
 
 	exit(1);
 }
@@ -303,13 +305,13 @@ extern void Syslog(int priority, char *fmt, ...)
 			}
 			argl += 3;
 		}
-		syslog(priority, fmt, argl);
+		syslog_r(priority, &log, fmt, argl);
 		va_end(ap);
 		return;
 	}
 
 	va_start(ap, fmt);
-	vsyslog(priority, fmt, ap);
+	vsyslog_r(priority, &log, fmt, ap);
 	va_end(ap);
 }
 
@@ -763,8 +765,11 @@ int main(int argc, char *argv[])
 			        output, strerror(errno));
 			return 1;
 		}
-	} else
-		openlog("kernel", 0, LOG_KERN);
+	} else {
+		/* No, I really want to use LOG_KERN */
+		log.log_fac = LOG_KERN;
+		openlog_r("kernel", 0, LOG_KERN, &log);
+	}
 
 	/* Handle one-shot logging. */
 	if (one_shot) {

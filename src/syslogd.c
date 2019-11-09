@@ -233,6 +233,15 @@ int main(int argc, char *argv[])
 		funix[i] = -1;
 	}
 
+#ifndef WITHOUT_KLOGD
+	/*
+	 * When building with klogd enabled this works around filtering
+	 * of LOG_KERN messages in parsemsg().  Otherwise it needs to be
+	 * actively enabled to allow logging of remote kernel messages.
+	 */
+	KeepKernFac = 1;
+#endif
+
 	while ((ch = getopt(argc, argv, "46Ab:dhHf:l:m:nP:p:R:rs:v?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
