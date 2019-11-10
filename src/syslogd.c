@@ -90,6 +90,7 @@ static char sccsid[] __attribute__((unused)) =
 
 #define SYSLOG_NAMES
 #include "syslogd.h"
+#include "socket.h"
 #include "compat.h"
 
 char *ConfFile = _PATH_LOGCONF;
