@@ -103,9 +103,9 @@ static int restart = 0;
 
 #define MAXFUNIX 20
 
-int   nfunix;
-char *funixn[MAXFUNIX];
-int   funix[MAXFUNIX];
+static int   nfunix;
+static char *funixn[MAXFUNIX];
+static int   funix[MAXFUNIX];
 
 /*
  * Intervals at which we flush out "message repeated" messages,
@@ -218,15 +218,14 @@ int main(int argc, char *argv[])
 	extern char *optarg;
 	extern int optind;
 	struct sockaddr_storage frominet;
-	pid_t ppid = getpid();
 	socklen_t len;
 	ssize_t msglen;
-	int fd;
 	fd_set readfds;
-	char line[MAXLINE + 1];
+	pid_t ppid = getpid();
 	char *ptr;
+	char line[MAXLINE + 1];
 	int num_fds, maxfds;
-	int i, ch;
+	int i, fd, ch;
 
 	for (i = 0; i < MAXFUNIX; i++) {
 		funixn[i] = NULL;
@@ -300,7 +299,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'p': /* path to regular log socket */
-			if (nfunix < MAXFUNIX)
+			if (nfunix < (int)NELEMS(funixn))
 				funixn[nfunix++] = optarg;
 			else
 				fprintf(stderr, "Max log sockets reached, ignoring %s\n", optarg);
@@ -439,13 +438,13 @@ int main(int argc, char *argv[])
 		 * Add the Unix Domain Sockets to the list of read
 		 * descriptors.
 		 */
-		/* Copy master connections */
 		for (i = 0; i < nfunix; i++) {
-			if (funix[i] != -1) {
-				FD_SET(funix[i], &readfds);
-				if (funix[i] > maxfds)
-					maxfds = funix[i];
-			}
+			if (funix[i] == -1)
+				continue;
+
+			FD_SET(funix[i], &readfds);
+			if (funix[i] > maxfds)
+				maxfds = funix[i];
 		}
 
 		/*
