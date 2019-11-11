@@ -159,7 +159,6 @@ void        wallmsg(struct filed *f, struct iovec *iov, int iovcnt);
 void        reapchild();
 const char *cvtaddr(struct sockaddr_storage *f, int len);
 const char *cvthname(struct sockaddr_storage *f, int len);
-static void flog(int pri, char *fmt, ...);
 void        domark();
 void        debug_switch();
 void        logerror(const char *type);
@@ -2008,7 +2007,7 @@ const char *cvthname(struct sockaddr_storage *f, int len)
 /*
  * Base function for domark(), logerror(), etc.
  */
-static void flog(int pri, char *fmt, ...)
+void flog(int pri, char *fmt, ...)
 {
 	struct buf_msg buffer;
 	va_list ap;

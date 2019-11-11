@@ -112,6 +112,13 @@
 #define NELEMS(array) (sizeof(array) / sizeof(array[0]))
 #endif
 
+/* Helper internal log macros */
+#define ERR(fmt,  args...)	flog(LOG_SYSLOG | LOG_ERR, fmt ": %m", ##args)
+#define ERRX(fmt, args...)	flog(LOG_SYSLOG | LOG_ERR, fmt, ##args)
+#define WARN(fmt, args...)	flog(LOG_SYSLOG | LOG_WARN, fmt, ##args)
+#define NOTE(fmt, args...)	flog(LOG_SYSLOG | LOG_NOTICE, fmt, ##args)
+#define INFO(fmt, args...)	flog(LOG_SYSLOG | LOG_INFO, fmt, ##args)
+
 /*
  * Flags to logmsg().
  */
@@ -214,5 +221,7 @@ struct filed {
 	int	 f_rotatecount;
 	int	 f_rotatesz;
 };
+
+void flog(int pri, char *fmt, ...);
 
 #endif /* SYSKLOGD_SYSLOGD_H_ */
