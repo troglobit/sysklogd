@@ -12,7 +12,7 @@ echo "= Phase 1 - simple syslog(), no openlog() ==============="
 grep "api ${MSG}" ${LOG}
 
 echo "= Phase 2 - syslog() with openlog() & custom facility ==="
-cat <<EOF >${CONFD}/bar.conf
+cat <<EOF >${CONFD}/console.conf
 console.*	-${LOGCONS}
 EOF
 kill -HUP `cat ${PID}`
