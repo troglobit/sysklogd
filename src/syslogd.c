@@ -94,7 +94,7 @@ static char sccsid[] __attribute__((unused)) =
 
 char *ConfFile = _PATH_LOGCONF;
 char *PidFile  = _PATH_LOGPID;
-char  ctty[]  = _PATH_CONSOLE;
+char  ctty[]   = _PATH_CONSOLE;
 
 static int debugging_on = 0;
 static int restart = 0;
@@ -438,7 +438,7 @@ int main(int argc, char *argv[])
 			logit("\nReceived SIGHUP, reloading syslogd.\n");
 			init();
 
-			if (pidfile(PidFile))
+			if (!Debug && pidfile(PidFile))
 				ERR("Failed writing %s", PidFile);
 			continue;
 		}
