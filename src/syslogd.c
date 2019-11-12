@@ -141,7 +141,7 @@ static int	  KeepKernFac;		  /* Keep remotely logged kernel facility */
 
 static int	  LastAlarm = 0;	  /* last value passed to alarm() (seconds)  */
 static int	  DupesPending = 0;	  /* Number of unflushed duplicate messages */
-static int	  AcceptRemote = 0;	  /* receive messages that come via UDP */
+static int	  AcceptRemote = 1;	  /* receive messages that come via UDP */
 static char	**StripDomains = NULL;	  /* these domains may be stripped before writing logs */
 static char	**LocalHosts = NULL;	  /* these hosts are logged with their hostname */
 static int	  NoHops = 1;		  /* Can we bounce syslog messages through an intermediate host. */
@@ -242,7 +242,7 @@ int main(int argc, char *argv[])
 	KeepKernFac = 1;
 #endif
 
-	while ((ch = getopt(argc, argv, "46Ab:dhHf:l:m:nP:p:R:rs:v?")) != EOF) {
+	while ((ch = getopt(argc, argv, "46Ab:dhHf:l:m:nP:p:R:s:v?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -307,10 +307,6 @@ int main(int argc, char *argv[])
 
 		case 'R':
 			parse_rotation(optarg, &RotateSz, &RotateCnt);
-			break;
-
-		case 'r': /* accept remote messages */
-			AcceptRemote = 1;
 			break;
 
 		case 's':

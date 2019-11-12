@@ -13,7 +13,7 @@
 .Nd System Log Daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl ?46Adhnrv
+.Op Fl ?46Adhnv
 .Op Fl b Ar :SVC
 .Op Fl f Ar FILE
 .Op Fl l Ar HOST[:HOST]
@@ -178,15 +178,6 @@ The size argument takes optional modifiers; k, M, G.  E.g., 100M is
 The optional number of files kept include both gzipped files and the
 first rotated (not zipped) file.  The default for this, when omitted,
 is 5.
-.It Fl r
-This option enables support for receiving syslog messages over the
-network using an internet domain socket with the
-.Ql syslog
-(514/udp) service, see
-.Xr services 5 .
-The default is to not listen for incoming network connections.  Use the
-.Fl b
-option to override the default listening port.
 .It Fl s NAME
 Specify domain name(s) to be stripped off before logging.  Multiple
 domains may be specified using the colon (':') separator.  Note, no
@@ -299,11 +290,6 @@ node running
 to another node running
 .Nm
 where they will be actually logged to a disk file.
-.Pp
-This feature is enabled using the
-.Fl r
-option on the command line.  The default behavior to not listen to
-network connections.
 .Pp
 The strategy is to have syslogd listen on a UNIX domain socket for
 locally generated log messages.  This behavior will allow syslogd to
