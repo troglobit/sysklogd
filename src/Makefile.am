@@ -16,10 +16,14 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-bin_PROGRAMS           = logger
-sbin_PROGRAMS         = syslogd klogd
+bin_PROGRAMS          = logger
+sbin_PROGRAMS         = syslogd
 lib_LTLIBRARIES       = libsyslog.la
 noinst_LTLIBRARIES    = libcompat.la
+
+if ENABLE_KLOGD
+sbin_PROGRAMS        += klogd
+endif
 
 AM_CFLAGS             = -W -Wall -Wextra
 AM_CFLAGS            += -Wno-unused-result -Wno-unused-parameter -fno-strict-aliasing

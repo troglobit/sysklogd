@@ -155,7 +155,10 @@ static SIMPLEQ_HEAD(, peer) pqueue = SIMPLEQ_HEAD_INITIALIZER(pqueue);
 /* Function prototypes. */
 void        untty(void);
 static void parsemsg(const char *from, char *msg);
-void        printsys(char *msg);
+#ifndef KLOGD
+static int  opensys(const char *file);
+static void printsys(char *msg);
+#endif
 static void logmsg(struct buf_msg *buffer);
 static void fprintlog(struct filed *f, struct buf_msg *buffer);
 void        endtty();
@@ -237,7 +240,7 @@ int main(int argc, char *argv[])
 	int pflag = 0, bflag = 0;
 	int ch;
 
-#ifndef WITHOUT_KLOGD
+#ifdef KLOGD
 	/*
 	 * When building with klogd enabled this works around filtering
 	 * of LOG_KERN messages in parsemsg().  Otherwise it needs to be
@@ -349,6 +352,12 @@ int main(int argc, char *argv[])
 				.pe_mode = 0666,
 			});
 
+#ifndef KLOGD
+	/* Attempt to open kernel log pipe */
+	if (opensys(_PATH_KLOG))
+		err(1, "Faield opening %s", _PATH_KLOG);
+#endif
+
 	if ((!Foreground) && (!Debug)) {
 		signal(SIGTERM, doexit);
 		chdir("/");
@@ -455,6 +464,61 @@ int main(int argc, char *argv[])
 
 	}
 }
+
+#ifndef KLOGD
+/*
+ * Read /dev/klog while data are available, split into lines.
+ */
+static void kernel_cb(int fd, void *arg)
+{
+	char *p, *q, line[MAXLINE + 1];
+	int len, i;
+
+	len = 0;
+	for (;;) {
+		i = read(fd, line + len, MAXLINE - 1 - len);
+		if (i > 0) {
+			line[i + len] = '\0';
+		} else {
+			if (i < 0 && errno != EINTR && errno != EAGAIN) {
+				ERR("klog");
+				socket_close(fd);
+			}
+			break;
+		}
+
+		for (p = line; (q = strchr(p, '\n')) != NULL; p = q + 1) {
+			*q = '\0';
+			printsys(p);
+		}
+		len = strlen(p);
+		if (len >= MAXLINE - 1) {
+			printsys(p);
+			len = 0;
+		}
+		if (len > 0)
+			memmove(line, p, len + 1);
+	}
+	if (len > 0)
+		printsys(line);
+}
+
+static int opensys(const char *file)
+{
+	int fd;
+
+	fd = open(file, O_RDONLY | O_NONBLOCK | O_CLOEXEC, 0);
+	if (fd < 0)
+		return 1;
+
+	if (socket_register(fd, NULL, kernel_cb, NULL) < 0) {
+		close(fd);
+		return 1;
+	}
+
+	return 0;
+}
+#endif
 
 static void unix_cb(int sd, void *arg)
 {
@@ -995,7 +1059,8 @@ void printsys(char *msg)
 	lp = line;
 	for (p = msg; *p != '\0';) {
 		memset(&buffer, 0, sizeof(buffer));
-		buffer.app_name = "vmunix";
+		buffer.app_name = "kernel";
+		buffer.hostname = LocalHostName;
 		buffer.pri = DEFSPRI;
 		buffer.msg = line;
 

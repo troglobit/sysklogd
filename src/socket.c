@@ -72,16 +72,18 @@ int socket_register(int sd, struct addrinfo *ai, void (*cb)(int, void *), void *
 {
 	struct sock *entry = NULL;
 
-	entry = malloc(sizeof(*entry));
+	entry = calloc(1, sizeof(*entry));
 	if (!entry)
 		goto err;
 
-	entry->ai.ai_addr = calloc(1, sizeof(struct sockaddr_un));
-	if (!entry->ai.ai_addr)
-		goto eaddr;
+	if (ai) {
+		entry->ai.ai_addr = calloc(1, sizeof(struct sockaddr_un));
+		if (!entry->ai.ai_addr)
+			goto eaddr;
 
-	entry->ai = *ai;
-	*entry->ai.ai_addr = *ai->ai_addr;
+		entry->ai = *ai;
+		*entry->ai.ai_addr = *ai->ai_addr;
+	}
 
 	entry->sd  = sd;
 	entry->cb  = cb;

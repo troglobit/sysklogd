@@ -96,6 +96,10 @@
 #define _PATH_LOG      "/dev/log"
 #endif
 
+#ifndef _PATH_KLOG
+#define _PATH_KLOG	"/proc/kmsg"
+#endif
+
 #ifdef UT_NAMESIZE
 #define UNAMESZ        UT_NAMESIZE /* length of a login name */
 #else

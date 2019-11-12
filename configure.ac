@@ -49,13 +49,17 @@ AC_CONFIG_LIBOBJ_DIR([lib])
 AC_CHECK_FUNCS([getprogname strtobytes])
 
 # Command line options
+AC_ARG_WITH(klogd,
+        AS_HELP_STRING([--with-klogd], [Build a separate klogd, default: disabled]),
+	[klogd=$withval], [klogd='no'])
+
+AC_ARG_WITH(klogd-delay,
+        AS_HELP_STRING([--with-klogd-delay=SEC], [When klogd is started at the same time as syslogd, default: 0]),
+	[klogd_delay=$withval], [klogd_delay='no'])
+
 AC_ARG_WITH(suspend-time,
         AS_HELP_STRING([--with-suspend-time=SEC], [Retry timeout for remote syslogd servers, default: 180]),
 	[suspend_time=$withval], [suspend_time='no'])
-
-AC_ARG_WITH(klogd-delay,
-        AS_HELP_STRING([--with-klogd-delay=SEC], [when started at the same time as syslogd, default: 0]),
-	[klogd_delay=$withval], [klogd_delay='no'])
 
 AC_ARG_WITH(syslogd-pidfile,
         AS_HELP_STRING([--with-syslogd-pidfile=FILE], [custom PID file, default: syslogd.pid]),
@@ -65,23 +69,32 @@ AC_ARG_WITH(systemd,
      [AS_HELP_STRING([--with-systemd=DIR], [Directory for systemd service files])],,
      [with_systemd=auto])
 
-AS_IF([test "x$suspend_time" != "xno"],[
-	AS_IF([test "x$suspend_time" = "xyes"],[
-		AC_MSG_ERROR([Must supply argument])])
-	]
-	AC_DEFINE_UNQUOTED(INET_SUSPEND_TIME, $suspend_time, [Retry timeout for remote syslgod servers, default: 180]))
+AS_IF([test "x$klogd" != "xno"],
+        with_klogd="yes"
+	AC_DEFINE(KLOGD, 1, [Build with klogd, default: built-in /dev/kmsg support in syslogd]),
+	with_klogd="no")
+AM_CONDITIONAL([ENABLE_KLOGD], [test "x$with_klogd" != "xno"])
 
 AS_IF([test "x$klogd_delay" != "xno"],[
 	AS_IF([test "x$klogd_delay" = "xyes"],[
 		AC_MSG_ERROR([Must supply argument])])
 	]
-	AC_DEFINE_UNQUOTED(KLOGD_DELAY, $klogd_delay, [Delay klogd startup N seconds, default: 0]))
+	AC_DEFINE_UNQUOTED(KLOGD_DELAY, $klogd_delay, [Delay klogd startup N seconds, default: 0]),
+	klogd_delay=0)
+
+AS_IF([test "x$suspend_time" != "xno"],[
+	AS_IF([test "x$suspend_time" = "xyes"],[
+		AC_MSG_ERROR([Must supply argument])])
+	]
+	AC_DEFINE_UNQUOTED(INET_SUSPEND_TIME, $suspend_time, [Retry timeout for remote syslgod servers, default: 180]),
+	suspend_time=180)
 
 AS_IF([test "x$syslogd_pidfile" != "xno"],[
 	AS_IF([test "x$syslogd_pidfile" = "xyes"],[
 		AC_MSG_ERROR([Must supply argument])])
 	]
-	AC_DEFINE_UNQUOTED(SYSLOGD_PIDNAME, "$syslogd_pidfile", [Custom syslogd PID file]))
+	AC_DEFINE_UNQUOTED(SYSLOGD_PIDNAME, "$syslogd_pidfile", [Custom syslogd PID file]),
+	syslogd_pidfile="syslogd.pid")
 
 # Check where to install the systemd .service file
 AS_IF([test "x$with_systemd" = "xyes" -o "x$with_systemd" = "xauto"], [
@@ -105,3 +118,28 @@ SBINDIR=`eval echo $SBINDIR`
 AC_SUBST(SBINDIR)
 
 AC_OUTPUT
+
+cat <<EOF
+
+------------------ Summary ------------------
+ $PACKAGE_NAME version $PACKAGE_VERSION
+  Prefix.........: $prefix
+  Sysconfdir.....: `eval echo $sysconfdir`
+  Localstatedir..: `eval echo $localstatedir`
+  C Compiler.....: $CC $CFLAGS $CPPFLAGS $LDFLAGS $LIBS
+
+ Optional features:
+  klogd..........: $with_klogd
+  klogd delay....: $klogd_delay sec
+  suspend time...: $suspend_time sec
+  pid file.......: /var/run/$syslogd_pidfile
+  systemd........: $with_systemd
+
+------------- Compiler version --------------
+$($CC --version || true)
+---------------------------------------------
+
+Check the above options and compile with:
+ ${MAKE-make}
+
+EOF
