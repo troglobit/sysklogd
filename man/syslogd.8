@@ -14,11 +14,12 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl ?46Adhnv
-.Op Fl b Ar :SVC
-.Op Fl f Ar FILE
-.Op Fl m Ar SECONDS
-.Op Fl P Ar FILE
-.Op Fl p Ar SOCK
+.Op Fl b Ar addr[:port]
+.Op Fl b Ar :port
+.Op Fl f Ar file
+.Op Fl m Ar sec
+.Op Fl P Ar file
+.Op Fl p Ar sock
 .Op Fl R Ar size[:count]
 .Sh DESCRIPTION
 .Nm
@@ -70,7 +71,7 @@ When
 starts up it reads its main configuration file
 .Pa /etc/syslog.conf ,
 or an alternate file given with the
-.Fl f Ar FILE
+.Fl f Ar file
 option.  For details on how to configure syslog priority
 (facility.severity) filtering, see
 .Xr syslog.conf 5 .
@@ -91,11 +92,18 @@ tries to send the message to only one address even if the host has
 more than one A or AAAA record.  If this option is specified,
 .Nm
 tries to send the message to all addresses.
+.It Fl b Ar address[:service]
 .It Fl b Ar :service
-Bind to a specific port.  The port can be specified as a service name or
-number.  The default service is
+Bind to a specific address and/or port.  The address can be specified as
+a hostname, and the port as a service name.  If an IPv6 address is
+specified, it should be enclosed with
+.Sq \&[
+and
+.Sq \&] .
+The default service is
 .Ql syslog
-(514/udp).
+(514/udp).  This option can be specified multiple times to bind to
+multiple addresses and/or ports.
 .It Fl d
 Turns on debug mode.  This implicitly enables
 .Fl n
@@ -106,7 +114,7 @@ TTY.  SIGUSR1 is required to confirm continued debug messages when the
 daemon has finished started up.  See the
 .Sx DEBUGGING
 section for more information.
-.It Fl f Ar FILE
+.It Fl f Ar file
 Specify an alternative configuration file instead of the default
 .Pa /etc/syslog.conf .
 .It Fl h
@@ -115,7 +123,7 @@ hosts.  Specifying this switch on the command line will cause the log
 daemon to forward any remote messages it receives to forwarding hosts
 which have been defined.  This can cause syslog loops that fill up hard
 disks quite fast and thus needs to be used with caution.
-.It Fl m Ar SECONDS
+.It Fl m Ar seconds
 .Nm
 logs a mark timestamp regularly.  The default interval between two
 .Ql -- MARK --
@@ -133,11 +141,11 @@ Run in foreground, required when run from a modern init/supervisor.  See
 your system
 .Xr init 1
 for details.
-.It Fl P Ar FILE
+.It Fl P Ar file
 Specify an alternate file in which to store the process ID.
 The default is
 .Pa /var/run/syslog.pid .
-.It Fl p Ar SOCK
+.It Fl p Ar socket
 Specify an alternate UNIX domain socket instead of the default
 .Pa /dev/log .
 When a single
