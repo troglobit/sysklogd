@@ -41,6 +41,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #include "queue.h"
 #include "syslogd.h"
@@ -48,6 +49,7 @@
 struct sock {
 	LIST_ENTRY(sock) link;
 
+	struct addrinfo ai;
 	int sd;
 
 	void (*cb)(int, void *arg);
@@ -66,50 +68,105 @@ int nfds(void)
 /*
  * register socket/fd/pipe created elsewhere, optional callback
  */
-int socket_register(int sd, void (*cb)(int, void *), void *arg)
+int socket_register(int sd, struct addrinfo *ai, void (*cb)(int, void *), void *arg)
 {
-	struct sock *entry;
+	struct sock *entry = NULL;
 
 	entry = malloc(sizeof(*entry));
 	if (!entry)
-		return -1;
+		goto err;
+
+	entry->ai.ai_addr = calloc(1, sizeof(struct sockaddr_un));
+	if (!entry->ai.ai_addr)
+		goto eaddr;
+
+	entry->ai = *ai;
+	*entry->ai.ai_addr = *ai->ai_addr;
 
 	entry->sd  = sd;
 	entry->cb  = cb;
 	entry->arg = arg;
 	LIST_INSERT_HEAD(&sl, entry, link);
 
-#if !defined(HAVE_SOCK_CLOEXEC) && defined(HAVE_FCNTL_H)
-	fcntl(sd, F_SETFD, fcntl(sd, F_GETFD) | FD_CLOEXEC);
-#endif
-
 	/* Keep track for select() */
 	if (sd > max_fdnum)
 		max_fdnum = sd;
 
 	return sd;
+eaddr:	free(entry);
+err:	return -1;
+}
+
+static int socket_opts(int sd, int family)
+{
+	socklen_t len, slen;
+	int on = 1;
+
+	/*
+	 * This first one is best-effort only, try to increase receive
+	 * buffer size.  Alert user on failure and proceed.
+	 */
+	slen = sizeof(len);
+	if (getsockopt(sd, SOL_SOCKET, SO_RCVBUF, &len, &slen) == 0 && len < RCVBUF_MINSIZE) {
+		len = RCVBUF_MINSIZE;
+		if (setsockopt(sd, SOL_SOCKET, SO_RCVBUF, &len, sizeof(len)))
+			ERR("Failed increasing size of socket receive buffer");
+	}
+
+	switch (family) {
+	case AF_INET6:
+		if (setsockopt(sd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) < 0) {
+			ERR("setsockopt (IPV6_ONLY), suspending IPv6");
+			return -1;
+		}
+		/* fallthrough */
+	case AF_INET:
+		if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+			ERR("setsockopt(REUSEADDR), suspending inet");
+			return -1;
+		}
+		break;
+	}
+
+	return 0;
 }
 
 /*
  * create socket, with optional callback for reading inbound data
  */
-int socket_create(int domain, int type, int proto, void (*cb)(int, void *), void *arg)
+int socket_create(struct addrinfo *ai, void (*cb)(int, void *), void *arg)
 {
+	struct sockaddr_un *sun = (struct sockaddr_un *)ai->ai_addr;
+	mode_t mode = ai->ai_protocol;
+	int type = ai->ai_socktype | SOCK_CLOEXEC | SOCK_NONBLOCK;
 	int sd;
 
-#ifdef HAVE_SOCK_CLOEXEC
-	type |= SOCK_CLOEXEC;
-#endif
-	sd = socket(domain, type, proto);
+	if (ai->ai_family == AF_UNIX) {
+		(void)unlink(sun->sun_path);
+		ai->ai_protocol = 0;
+	}
+
+	sd = socket(ai->ai_family, type, ai->ai_protocol);
 	if (sd < 0)
 		return -1;
 
-	if (socket_register(sd, cb, arg) < 0) {
-		close(sd);
-		return -1;
+	if (socket_opts(sd, ai->ai_family))
+		goto err;
+
+	if (bind(sd, ai->ai_addr, ai->ai_addrlen) < 0)
+		goto err;
+
+	if (ai->ai_family == AF_UNIX) {
+		if (chmod(sun->sun_path, mode) < 0)
+			goto err;
 	}
 
+	if (socket_register(sd, ai, cb, arg) < 0)
+		goto err;
+
 	return sd;
+err:	close(sd);
+	return -1;
 }
 
 int socket_close(int sd)
@@ -120,6 +177,8 @@ int socket_close(int sd)
 		if (entry->sd == sd) {
 			LIST_REMOVE(entry, link);
 			close(entry->sd);
+			if (entry->ai.ai_family == AF_UNIX)
+				free(entry->ai.ai_addr);
 			free(entry);
 
 			return 0;
@@ -127,6 +186,18 @@ int socket_close(int sd)
 	}
 
 	errno = ENOENT;
+	return -1;
+}
+
+int socket_ffs(int family)
+{
+	struct sock *entry;
+
+	LIST_FOREACH(entry, &sl, link) {
+		if (entry->ai.ai_family == family)
+			return entry->sd;
+	}
+
 	return -1;
 }
 

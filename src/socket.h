@@ -35,9 +35,10 @@
 #include <string.h>
 #include <sys/time.h>
 
-int socket_register(int sd, void (*cb)(int, void *), void *arg);
-int socket_create  (int domain, int type, int proto, void (*cb)(int, void *), void *arg);
+int socket_register(int sd, struct addrinfo *ai, void (*cb)(int, void *), void *arg);
+int socket_create  (struct addrinfo *ai, void (*cb)(int, void *), void *arg);
 int socket_close   (int sd);
+int socket_ffs     (int family);
 int socket_poll    (struct timeval *timeout);
 
 #endif /* SYSKLOGD_SOCKET_H_ */
