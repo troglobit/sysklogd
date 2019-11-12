@@ -30,7 +30,8 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Incompatible changes to command line options for `syslogd` and
   `klogd`, e.g;
   - In syslogd: `-b` and `-c` have been replaced with `-R` for global
-    log rotation, `-a` has been replaced with the new `-p` support
+    log rotation, `-a` has been replaced with the new `-p` support.
+    The `-r` flag and `-s HOST` has also been dropped
   - In klogd: `-i` and `-I` have been removed
 - Update COPYING file to GPL 2 rev 2, with new FSF address and other minor stuff
 - Update license header in all files:

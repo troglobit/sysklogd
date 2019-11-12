@@ -135,7 +135,6 @@ static int	  KeepKernFac;		  /* Keep remotely logged kernel facility */
 
 static int	  LastAlarm = 0;	  /* last value passed to alarm() (seconds)  */
 static int	  DupesPending = 0;	  /* Number of unflushed duplicate messages */
-static char	**StripDomains = NULL;	  /* these domains may be stripped before writing logs */
 static char	**LocalHosts = NULL;	  /* these hosts are logged with their hostname */
 static int	  NoHops = 1;		  /* Can we bounce syslog messages through an intermediate host. */
 static off_t	  RotateSz = 0;		  /* Max file size (bytes) before rotating, disabled by default */
@@ -195,7 +194,7 @@ int usage(int code)
 {
 	printf("Usage:\n"
 	       "  syslogd [-46Adnrvh?] [-f FILE] [-l HOST] [-m SEC] [-P PID_FILE]\n"
-	       "                       [-p SOCK_PATH] [-R SIZE[:NUM]] [-s NAME[:NAME[...]]]\n"
+	       "                       [-p SOCK_PATH] [-R SIZE[:NUM]]\n"
 	       "\n"
 	       "Options:\n"
 	       "  -4        Force IPv4 only\n"
@@ -216,7 +215,6 @@ int usage(int code)
 	       "            Rotation can also be defined per log file in syslog.conf\n"
 	       "  -r        Act as remote syslog sink for other hosts, default is secure mode,\n"
 	       "            i.e., syslogd does not bind to any internet address:port by default\n"
-	       "  -s NAME   Strip domain name before logging, use ':' for multiple domains\n"
 	       "\n"
 	       "  -?        Show this help text\n"
 	       "  -v        Show program version and exit\n"
@@ -247,7 +245,7 @@ int main(int argc, char *argv[])
 	KeepKernFac = 1;
 #endif
 
-	while ((ch = getopt(argc, argv, "46Ab:dhHf:l:m:nP:p:R:s:v?")) != EOF) {
+	while ((ch = getopt(argc, argv, "46Ab:dhHf:l:m:nP:p:R:v?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -323,15 +321,6 @@ int main(int argc, char *argv[])
 
 		case 'R':
 			parse_rotation(optarg, &RotateSz, &RotateCnt);
-			break;
-
-		case 's':
-			if (StripDomains) {
-				fprintf(stderr, "Only one -s argument allowed,"
-				                "the first one is taken.\n");
-				break;
-			}
-			StripDomains = crunch_list(optarg);
 			break;
 
 		case 'v':
@@ -1852,16 +1841,6 @@ const char *cvthname(struct sockaddr_storage *f, int len)
 			*p = '\0';
 			return hname;
 		} else {
-			if (StripDomains) {
-				count = 0;
-				while (StripDomains[count]) {
-					if (strcmp(p + 1, StripDomains[count]) == 0) {
-						*p = '\0';
-						return hname;
-					}
-					count++;
-				}
-			}
 			if (LocalHosts) {
 				count = 0;
 				while (LocalHosts[count]) {

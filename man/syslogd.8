@@ -21,7 +21,6 @@
 .Op Fl P Ar FILE
 .Op Fl p Ar SOCK
 .Op Fl R Ar size[:count]
-.Op Fl s Ar NAME[:NAME]
 .Sh DESCRIPTION
 .Nm
 support RFC3164 and RFC5424 style log messages for both local and remote
@@ -178,15 +177,6 @@ The size argument takes optional modifiers; k, M, G.  E.g., 100M is
 The optional number of files kept include both gzipped files and the
 first rotated (not zipped) file.  The default for this, when omitted,
 is 5.
-.It Fl s NAME
-Specify domain name(s) to be stripped off before logging.  Multiple
-domains may be specified using the colon (':') separator.  Note, no
-sub-domains may be specified but only entire domains.  For example if
-.Fl s Ar north.de
-is specified and the host logging resolves to
-.Ql satu.infodrom.north.de
-nothing is stripped, instead two domains must be specified:
-.Fl s Ar north.de:infodrom.north.de .
 .It Fl v
 Print
 .Nm
@@ -363,12 +353,6 @@ If the remote host is located in the same domain as the host,
 .Nm
 is running on, only the simple hostname will be logged instead of the
 whole FQDN.
-.Pp
-In a local network you may provide a central log server to have all the
-important information kept on one machine.  If the network consists of
-different domains, you may want to use the strip-domain feature
-.Fl s .
-See above.
 .Pp
 Using the
 .Fl l
