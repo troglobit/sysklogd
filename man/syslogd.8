@@ -16,7 +16,6 @@
 .Op Fl ?46Adhnv
 .Op Fl b Ar :SVC
 .Op Fl f Ar FILE
-.Op Fl l Ar HOST[:HOST]
 .Op Fl m Ar SECONDS
 .Op Fl P Ar FILE
 .Op Fl p Ar SOCK
@@ -116,10 +115,6 @@ hosts.  Specifying this switch on the command line will cause the log
 daemon to forward any remote messages it receives to forwarding hosts
 which have been defined.  This can cause syslog loops that fill up hard
 disks quite fast and thus needs to be used with caution.
-.It Fl l Ar HOST
-Specify a hostname that should be logged only with its simple hostname
-and not the fqdn.  Multiple hosts may be specified using the colon (':')
-separator.
 .It Fl m Ar SECONDS
 .Nm
 logs a mark timestamp regularly.  The default interval between two
@@ -353,11 +348,6 @@ If the remote host is located in the same domain as the host,
 .Nm
 is running on, only the simple hostname will be logged instead of the
 whole FQDN.
-.Pp
-Using the
-.Fl l
-option it is possibile to define single hosts as local machines.  This
-also results in logging only their simple hostnames and not the FQDNs.
 .Pp
 The UDP socket used to forward messages to remote hosts or to receive
 messages from them is only opened when it is needed.  In releases

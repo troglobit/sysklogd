@@ -135,7 +135,6 @@ static int	  KeepKernFac;		  /* Keep remotely logged kernel facility */
 
 static int	  LastAlarm = 0;	  /* last value passed to alarm() (seconds)  */
 static int	  DupesPending = 0;	  /* Number of unflushed duplicate messages */
-static char	**LocalHosts = NULL;	  /* these hosts are logged with their hostname */
 static int	  NoHops = 1;		  /* Can we bounce syslog messages through an intermediate host. */
 static off_t	  RotateSz = 0;		  /* Max file size (bytes) before rotating, disabled by default */
 static int	  RotateCnt = 5;	  /* Max number (count) of log files to keep, set with -c <NUM> */
@@ -153,7 +152,6 @@ struct peer {
 static SIMPLEQ_HEAD(, peer) pqueue = SIMPLEQ_HEAD_INITIALIZER(pqueue);
 
 /* Function prototypes. */
-char      **crunch_list(char *list);
 void        untty(void);
 static void parsemsg(const char *from, char *msg);
 void        printsys(char *msg);
@@ -204,7 +202,6 @@ int usage(int code)
 	       "  -d        Enable debug mode\n"
 	       "  -f FILE   Alternate .conf file, default: /etc/syslog.conf\n"
 	       "  -h        Forward messages from other hosts also to remote syslog host(s)\n"
-	       "  -l HOST   Host name to log without its FQDN, use ':' for multiple hosts\n"
 	       "  -m SEC    Interval between MARK messages in log, 0 to disable, default: 20 min\n"
 	       "  -n        Run in foreground, required when run from a modern init/supervisor\n"
 	       "  -P FILE   File in which to store the process ID, default: %s\n"
@@ -245,7 +242,7 @@ int main(int argc, char *argv[])
 	KeepKernFac = 1;
 #endif
 
-	while ((ch = getopt(argc, argv, "46Ab:dhHf:l:m:nP:p:R:v?")) != EOF) {
+	while ((ch = getopt(argc, argv, "46Ab:dhHf:m:nP:p:R:v?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -284,14 +281,6 @@ int main(int argc, char *argv[])
 
 		case 'h':
 			NoHops = 0;
-			break;
-
-		case 'l':
-			if (LocalHosts) {
-				warnx("Only one -l argument allowed, the first one is taken.");
-				break;
-			}
-			LocalHosts = crunch_list(optarg);
 			break;
 
 		case 'm': /* mark interval */
@@ -559,63 +548,6 @@ static void create_inet_socket(struct peer *pe)
 	}
 
 	freeaddrinfo(res);
-}
-
-char **crunch_list(list) char *list;
-{
-	char **result = NULL;
-	char *p, *q;
-	int i, m, n;
-
-	p = list;
-
-	/* strip off trailing delimiters */
-	while (*p && p[strlen(p) - 1] == LIST_DELIMITER)
-		p[strlen(p) - 1] = '\0';
-	/* cut off leading delimiters */
-	while (p[0] == LIST_DELIMITER)
-		p++;
-
-	/* count delimiters to calculate the number of elements */
-	for (n = i = 0; p[i]; i++)
-		if (p[i] == LIST_DELIMITER)
-			n++;
-
-	if ((result = (char **)malloc(sizeof(char *) * (n + 2))) == NULL) {
-		printf("Sorry, can't get enough memory, exiting.\n");
-		exit(1);
-	}
-
-	/*
-	 * We now can assume that the first and last
-	 * characters are different from any delimiters,
-	 * so we don't have to care about this.
-	 */
-	m = 0;
-	while ((q = strchr(p, LIST_DELIMITER)) && m < n) {
-		result[m] = (char *)malloc((q - p + 1) * sizeof(char));
-		if (result[m] == NULL) {
-			printf("Sorry, can't get enough memory, exiting.\n");
-			exit(1);
-		}
-		memcpy(result[m], p, q - p);
-		result[m][q - p] = '\0';
-		p = q;
-		p++;
-		m++;
-	}
-	if ((result[m] = strdup(p)) == NULL) {
-		printf("Sorry, can't get enough memory, exiting.\n");
-		exit(1);
-	}
-	result[++m] = NULL;
-
-#if 0
-	m = 0;
-	while (result[m])
-		logit("#%d: %s\n", m, result[m++]);
-#endif
-	return result;
 }
 
 void untty(void)
@@ -1810,7 +1742,7 @@ const char *cvthname(struct sockaddr_storage *f, int len)
 {
 	static char hname[NI_MAXHOST];
 	char *p;
-	int err, count;
+	int err;
 
 	err = getnameinfo((struct sockaddr *)f, len, hname, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
 	if (err) {
@@ -1840,17 +1772,6 @@ const char *cvthname(struct sockaddr_storage *f, int len)
 		if (strcmp(p + 1, LocalDomain) == 0) {
 			*p = '\0';
 			return hname;
-		} else {
-			if (LocalHosts) {
-				count = 0;
-				while (LocalHosts[count]) {
-					if (!strcmp(hname, LocalHosts[count])) {
-						*p = '\0';
-						return hname;
-					}
-					count++;
-				}
-			}
 		}
 	}
 
