@@ -1343,8 +1343,9 @@ static int fmt3164(struct buf_msg *buffer, char *fmt, struct iovec *iov, size_t 
 		if (buffer->proc_id) {
 			pushiov(iov, i, "[");
 			pushiov(iov, i, buffer->proc_id);
-			pushiov(iov, i, "]:");
+			pushiov(iov, i, "]");
 		}
+		pushiov(iov, i, ":");
 		pushsp(iov, i);
 	}
 
