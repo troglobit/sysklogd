@@ -17,10 +17,10 @@ EOF
 
 cat <<EOF > ${CONFD}/bar.conf
 # For remote logging
-*.*	@127.0.0.2:${PORT}
+*.*	@127.0.0.2
 EOF
 
-../src/syslogd -b :${PORT} -d -n -f ${CONF} -p ${SOCK} -p ${ALTSOCK} &
+../src/syslogd -b :${PORT} -d -sn -f ${CONF} -p ${SOCK} -p ${ALTSOCK} &
 echo "$!" > ${PID}
 
 sleep 2
