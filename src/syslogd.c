@@ -210,7 +210,7 @@ int usage(int code)
 	       "  -P FILE   File in which to store the process ID, default: %s\n"
 	       "  -p PATH   Path to UNIX domain socket, multiple -p create multiple sockets. If\n"
 	       "            no -p argument is given the default %s is used\n"
-	       "  -R S[:R]  Enable log rotation.  The size argument (S) takes k/M/G qualifiers,\n"
+	       "  -r S[:R]  Enable log rotation.  The size argument (S) takes k/M/G qualifiers,\n"
 	       "            e.g. 2M for 2 MiB.  The optional rotations argument default to 5.\n"
 	       "            Rotation can also be defined per log file in syslog.conf\n"
 	       "  -s        Operate in secure mode, do not log messages from remote machines.\n"
@@ -246,7 +246,7 @@ int main(int argc, char *argv[])
 	KeepKernFac = 1;
 #endif
 
-	while ((ch = getopt(argc, argv, "46Ab:dhHf:m:nP:p:R:sv?")) != EOF) {
+	while ((ch = getopt(argc, argv, "46Ab:dhHf:m:nP:p:r:sv?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -312,7 +312,7 @@ int main(int argc, char *argv[])
 				});
 			break;
 
-		case 'R':
+		case 'r':
 			parse_rotation(optarg, &RotateSz, &RotateCnt);
 			break;
 

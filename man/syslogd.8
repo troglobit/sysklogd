@@ -20,7 +20,7 @@
 .Op Fl m Ar sec
 .Op Fl P Ar file
 .Op Fl p Ar sock
-.Op Fl R Ar size[:count]
+.Op Fl r Ar size[:count]
 .Sh DESCRIPTION
 .Nm
 support RFC3164 and RFC5424 style log messages for both local and remote
@@ -158,7 +158,7 @@ log sockets.  This might be needed when running applications in
 containers or a
 .Xr chroot 8
 environment.
-.It Fl R Ar size[:count]
+.It Fl r Ar size[:count]
 Enable built-in support for log rotation of files listed in
 .Pa /etc/syslog.conf .
 This feature is particulary useful for small and embedded systems that
