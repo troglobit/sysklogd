@@ -128,6 +128,11 @@ skip:	switch (family) {
 			ERR("setsockopt(REUSEADDR), suspending inet");
 			return -1;
 		}
+#ifdef SO_REUSEPORT
+		if (setsockopt(sd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on)) < 0) {
+			ERR("setsockopt(REUSEPORT), suspending inet");
+		}
+#endif
 		break;
 	}
 
