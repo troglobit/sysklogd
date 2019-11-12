@@ -13,7 +13,7 @@
 .Nd System Log Daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl ?46Adhnv
+.Op Fl ?46Adhnsv
 .Op Fl b Ar addr[:port]
 .Op Fl b Ar :port
 .Op Fl f Ar file
@@ -180,6 +180,10 @@ The size argument takes optional modifiers; k, M, G.  E.g., 100M is
 The optional number of files kept include both gzipped files and the
 first rotated (not zipped) file.  The default for this, when omitted,
 is 5.
+.It Fl s
+Operate in secure mode.  Do not log messages from remote machines.  If
+specified twice, no network socket will be opened at all, which also
+disables logging to remote machines.
 .It Fl v
 Print
 .Nm

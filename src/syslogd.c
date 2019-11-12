@@ -127,6 +127,7 @@ static int	  family = PF_UNSPEC;	  /* protocol family (IPv4, IPv6 or both) */
 static int	  mask_C1 = 1;		  /* mask characters from 0x80 - 0x9F */
 static int	  send_to_all;		  /* send message to all IPv4/IPv6 addresses */
 static int	  MarkSeq = 0;		  /* mark sequence number */
+static int	  SecureMode;		  /* when true, receive only unix domain socks */
 
 static int	  RemoteAddDate;	  /* Always set the date on remote messages */
 static int	  RemoteHostname;	  /* Log remote hostname from the message */
@@ -191,8 +192,8 @@ static int addpeer(struct peer *pe0)
 int usage(int code)
 {
 	printf("Usage:\n"
-	       "  syslogd [-46Adnrvh?] [-b :PORT] [-b ADDR[:PORT]] [-f FILE] [-m SEC]\n"
-	       "                       [-P PID_FILE] [-p SOCK_PATH] [-R SIZE[:NUM]]\n"
+	       "  syslogd [-46Adnrsvh?] [-b :PORT] [-b ADDR[:PORT]] [-f FILE] [-m SEC]\n"
+	       "                        [-P PID_FILE] [-p SOCK_PATH] [-R SIZE[:NUM]]\n"
 	       "\n"
 	       "Options:\n"
 	       "  -4        Force IPv4 only\n"
@@ -212,6 +213,9 @@ int usage(int code)
 	       "  -R S[:R]  Enable log rotation.  The size argument (S) takes k/M/G qualifiers,\n"
 	       "            e.g. 2M for 2 MiB.  The optional rotations argument default to 5.\n"
 	       "            Rotation can also be defined per log file in syslog.conf\n"
+	       "  -s        Operate in secure mode, do not log messages from remote machines.\n"
+	       "            If specified twice, no socket at all will be opened, which also\n"
+	       "            disables support for logging to remote machines.\n"
 	       "\n"
 	       "  -?        Show this help text\n"
 	       "  -v        Show program version and exit\n"
@@ -242,7 +246,7 @@ int main(int argc, char *argv[])
 	KeepKernFac = 1;
 #endif
 
-	while ((ch = getopt(argc, argv, "46Ab:dhHf:m:nP:p:R:v?")) != EOF) {
+	while ((ch = getopt(argc, argv, "46Ab:dhHf:m:nP:p:R:sv?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -310,6 +314,10 @@ int main(int argc, char *argv[])
 
 		case 'R':
 			parse_rotation(optarg, &RotateSz, &RotateCnt);
+			break;
+
+		case 's':
+			SecureMode++;
 			break;
 
 		case 'v':
@@ -393,7 +401,7 @@ int main(int argc, char *argv[])
 	SIMPLEQ_FOREACH(pe, &pqueue, next) {
 		if (pe->pe_name && pe->pe_name[0] == '/')
 			create_unix_socket(pe);
-		else // XXX if (cffwd() && SecureMode <= 1)
+		else if (SecureMode < 2)
 			create_inet_socket(pe);
 	}
 
@@ -540,6 +548,11 @@ static void create_inet_socket(struct peer *pe)
 	}
 
 	for (r = res; r; r = r->ai_next) {
+		if (SecureMode)
+			r->ai_flags |= AI_SECURE;
+		else
+			r->ai_flags &= ~AI_SECURE;
+
 		sd = socket_create(r, inet_cb, NULL);
 		if (sd < 0)
 			continue;
@@ -1905,24 +1918,6 @@ void die(int signo)
 void doexit(int signo)
 {
 	exit(0);
-}
-
-/*
- * Check active rules for action FWD
- */
-static int cffwd(void)
-{
-	struct filed *f;
-	int fwd = 0;
-
-	SIMPLEQ_FOREACH(f, &fhead, f_link) {
-		if (f->f_type == F_FORW      ||
-		    f->f_type == F_FORW_SUSP ||
-		    f->f_type == F_FORW_UNKN)
-			fwd++;
-	}
-
-	return fwd;
 }
 
 /* Create fallback .conf with err+panic sent to console */

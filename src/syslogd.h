@@ -111,6 +111,8 @@
 
 #define LIST_DELIMITER    ':' /* delimiter between two hosts */
 
+#define	AI_SECURE	0x8000	/* Tell socket_create() to not bind() */
+
 /* From The Practice of Programming, by Kernighan and Pike */
 #ifndef NELEMS
 #define NELEMS(array) (sizeof(array) / sizeof(array[0]))

@@ -97,10 +97,13 @@ eaddr:	free(entry);
 err:	return -1;
 }
 
-static int socket_opts(int sd, int family)
+static int socket_opts(int sd, int family, int secure)
 {
 	socklen_t len, slen;
 	int on = 1;
+
+	if (secure)
+		goto skip;
 
 	/*
 	 * This first one is best-effort only, try to increase receive
@@ -113,7 +116,7 @@ static int socket_opts(int sd, int family)
 			ERR("Failed increasing size of socket receive buffer");
 	}
 
-	switch (family) {
+skip:	switch (family) {
 	case AF_INET6:
 		if (setsockopt(sd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) < 0) {
 			ERR("setsockopt (IPV6_ONLY), suspending IPv6");
@@ -138,6 +141,7 @@ int socket_create(struct addrinfo *ai, void (*cb)(int, void *), void *arg)
 {
 	struct sockaddr_un *sun = (struct sockaddr_un *)ai->ai_addr;
 	mode_t mode = ai->ai_protocol;
+	int secure = ai->ai_flags & AI_SECURE;
 	int type = ai->ai_socktype | SOCK_CLOEXEC | SOCK_NONBLOCK;
 	int sd;
 
@@ -150,13 +154,16 @@ int socket_create(struct addrinfo *ai, void (*cb)(int, void *), void *arg)
 	if (sd < 0)
 		return -1;
 
-	if (socket_opts(sd, ai->ai_family))
+	if (socket_opts(sd, ai->ai_family, secure))
 		goto err;
+
+	if (secure)
+		goto skip;
 
 	if (bind(sd, ai->ai_addr, ai->ai_addrlen) < 0)
 		goto err;
 
-	if (ai->ai_family == AF_UNIX) {
+skip:	if (ai->ai_family == AF_UNIX) {
 		if (chmod(sun->sun_path, mode) < 0)
 			goto err;
 	}
