@@ -67,6 +67,7 @@ static char sccsid[] __attribute__((unused)) =
 #include <utmp.h>
 
 #include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/file.h>
@@ -279,8 +280,7 @@ int main(int argc, char *argv[])
 
 		case 'l':
 			if (LocalHosts) {
-				fprintf(stderr, "Only one -l argument allowed,"
-				                "the first one is taken.\n");
+				warnx("Only one -l argument allowed, the first one is taken.");
 				break;
 			}
 			LocalHosts = crunch_list(optarg);
@@ -476,7 +476,7 @@ int main(int argc, char *argv[])
 			init();
 
 			if (pidfile(PidFile))
-				flog(LOG_SYSLOG | LOG_ERR, "Failed writing %s", PidFile);
+				ERR("Failed writing %s", PidFile);
 			continue;
 		}
 
@@ -486,7 +486,7 @@ int main(int argc, char *argv[])
 		}
 		if (nfds < 0) {
 			if (errno != EINTR)
-				logerror("select");
+				ERR("select()");
 			continue;
 		}
 
@@ -1435,9 +1435,7 @@ void logrotate(struct filed *f)
 			f->f_file = open(f->f_un.f_fname, O_WRONLY | O_APPEND | O_CREAT | O_NONBLOCK | O_NOCTTY, 0644);
 			if (f->f_file < 0) {
 				f->f_type = F_UNUSED;
-				logerror("Failed re-opening log file after rotation");
-				errno = 0;
-				logerror(f->f_un.f_fname);
+				ERR("Failed re-opening log file %s after rotation", f->f_un.f_fname);
 				return;
 			}
 		}
@@ -1645,18 +1643,16 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 				logit("Failure resolving %s:%s: %s\n", host, serv, gai_strerror(err));
 				logit("Retries: %d\n", f->f_prevcount);
 				if (--f->f_prevcount < 0) {
-					flog(LOG_SYSLOG | LOG_WARN, "Still cannot find %s, "
-					     "giving up: %s", host, gai_strerror(err));
-					logit("Giving up.\n");
+					WARN("Still cannot find %s, giving up: %s",
+					     host, gai_strerror(err));
 					f->f_type = F_UNUSED;
 				} else {
-					flog(LOG_SYSLOG | LOG_WARN, "Still cannot find %s, "
-					     "will try again later: %s", host, gai_strerror(err));
+					WARN("Still cannot find %s, will try again later: %s",
+					     host, gai_strerror(err));
 					logit("Left retries: %d\n", f->f_prevcount);
 				}
 			} else {
-				flog(LOG_SYSLOG | LOG_NOTICE, "Found %s, resuming operation.", host);
-				logit("%s found, resuming.\n", host);
+				NOTE("Found %s, resuming operation.", host);
 				f->f_un.f_forw.f_addr = ai;
 				f->f_prevcount = 0;
 				f->f_type = F_FORW;
@@ -1719,11 +1715,9 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 					break;
 			}
 			if (err != -1) {
-				logit("INET sendto error: %d = %s.\n",
-				      err, strerror(err));
 				f->f_type = F_FORW_SUSP;
 				errno = err;
-				logerror("sendto");
+				ERR("INET sendto()");
 			}
 		}
 		break;
@@ -1783,7 +1777,7 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 				f->f_file = open(f->f_un.f_fname, O_WRONLY | O_APPEND | O_NOCTTY);
 				if (f->f_file < 0) {
 					f->f_type = F_UNUSED;
-					logerror(f->f_un.f_fname);
+					ERR("Failed writing and re-opening %s", f->f_un.f_fname);
 				} else {
 					untty();
 					goto again;
@@ -1791,7 +1785,7 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 			} else {
 				f->f_type = F_UNUSED;
 				errno = e;
-				logerror(f->f_un.f_fname);
+				ERR("Failed writing to %s", f->f_un.f_fname);
 			}
 		} else if (f->f_type == F_FILE && (f->f_flags & SYNC_FILE))
 			(void)fsync(f->f_file);
@@ -2005,7 +1999,7 @@ const char *cvthname(struct sockaddr_storage *f, int len)
 }
 
 /*
- * Base function for domark(), logerror(), etc.
+ * Base function for domark(), ERR(), etc.
  */
 void flog(int pri, char *fmt, ...)
 {
@@ -2018,8 +2012,9 @@ void flog(int pri, char *fmt, ...)
 	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	(void)snprintf(proc_id, sizeof(proc_id), "%d", getpid());
+	logit("%s\n", buf);
 
+	(void)snprintf(proc_id, sizeof(proc_id), "%d", getpid());
 	memset(&buffer, 0, sizeof(buffer));
 	buffer.hostname = LocalHostName;
 	buffer.app_name = "syslogd";
@@ -2462,7 +2457,6 @@ static struct filed *cfline(char *line)
 	struct addrinfo *ai;
 	struct filed *f;
 	char buf[MAXLINE];
-	char xbuf[MAXLINE + 24];
 	char *p, *q, *bp;
 	int ignorepri = 0;
 	int singlpri = 0;
@@ -2473,11 +2467,9 @@ static struct filed *cfline(char *line)
 
 	f = calloc(1, sizeof(*f));
 	if (!f) {
-		logerror("Cannot allocate memory for log file");
+		ERR("Cannot allocate memory for log file");
 		return NULL;
 	}
-
-	errno = 0; /* keep strerror() stuff out of logerror messages */
 
 	/* default rotate from command line */
 	f->f_rotatecount = RotateCnt;
@@ -2517,8 +2509,7 @@ static struct filed *cfline(char *line)
 		}
 
 		if (pri < 0) {
-			(void)snprintf(xbuf, sizeof(xbuf), "unknown priority name \"%s\"", buf);
-			logerror(xbuf);
+			ERRX("unknown priority name \"%s\"", buf);
 			free(f);
 
 			return NULL;
@@ -2560,8 +2551,7 @@ static struct filed *cfline(char *line)
 			} else {
 				i = decode(buf, facilitynames);
 				if (i < 0) {
-					(void)snprintf(xbuf, sizeof(xbuf), "unknown facility name \"%s\"", buf);
-					logerror(xbuf);
+					ERR("unknown facility name \"%s\"", buf);
 					free(f);
 
 					return NULL;
@@ -2627,8 +2617,7 @@ static struct filed *cfline(char *line)
 
 		err = nslookup(p, bp, &ai);
 		if (err) {
-			flog(LOG_SYSLOG | LOG_WARN, "Cannot find %s, "
-			     "will try again later: %s", p, gai_strerror(err));
+			WARN("Cannot find %s, will try again later: %s", p, gai_strerror(err));
 			/*
 			 * The host might be unknown due to an inaccessible
 			 * nameserver (perhaps on the same host). We try to
@@ -2663,8 +2652,7 @@ static struct filed *cfline(char *line)
 
 		if (f->f_file < 0) {
 			f->f_file = -1;
-			logit("Error opening log file: %s\n", p);
-			logerror(p);
+			ERR("Error opening log file: %s", p);
 			break;
 		}
 		if (isatty(f->f_file)) {

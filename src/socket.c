@@ -42,8 +42,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include "log.h"
 #include "queue.h"
+#include "syslogd.h"
 
 struct sock {
 	LIST_ENTRY(sock) link;
@@ -144,7 +144,7 @@ int socket_poll(struct timeval *timeout)
 	if (num <= 0) {
 		/* Log all errors, except when signalled, ignore failures. */
 		if (num < 0 && EINTR != errno)
-			smclog(LOG_WARNING, "Failed select(): %s", strerror(errno));
+			WARN("Failed select(): %s", strerror(errno));
 
 		return num;
 	}
