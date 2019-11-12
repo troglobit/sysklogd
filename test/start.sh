@@ -17,7 +17,7 @@ EOF
 
 cat <<EOF > ${CONFD}/bar.conf
 # For remote logging
-*.*	@127.0.0.2
+*.*	@127.0.0.2:${PORT}
 EOF
 
 ../src/syslogd -b :${PORT} -d -n -f ${CONF} -p ${SOCK} -p ${ALTSOCK} &

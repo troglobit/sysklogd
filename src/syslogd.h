@@ -32,6 +32,10 @@
 #ifndef SYSKLOGD_SYSLOGD_H_
 #define SYSKLOGD_SYSLOGD_H_
 
+#include <netdb.h>		/* struct addrinfo */
+#include <sys/param.h>		/* MAXHOSTNAMELEN */
+#include <sys/socket.h>
+#include <sys/un.h>		/* struct sockaddr_un */
 #include "queue.h"
 #include "syslog.h"
 
@@ -159,11 +163,6 @@
 #define F_FORW_SUSP       7   /* suspended host forwarding */
 #define F_FORW_UNKN       8   /* unknown host forwarding */
 #define F_PIPE            9   /* named pipe */
-char *TypeNames[] = {
-	"UNUSED",        "FILE",  "TTY",  "CONSOLE",
-	"FORW",          "USERS", "WALL", "FORW(SUSPENDED)",
-	"FORW(UNKNOWN)", "PIPE"
-};
 
 /* Timestamps of log entries. */
 struct logtime {

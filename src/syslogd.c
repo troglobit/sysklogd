@@ -74,11 +74,9 @@ static char sccsid[] __attribute__((unused)) =
 #include <sys/ioctl.h>
 #include <sys/param.h>
 #include <sys/resource.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/uio.h>
-#include <sys/un.h>
 #include <sys/wait.h>
 
 #include <arpa/inet.h>
@@ -98,16 +96,8 @@ char *ConfFile = _PATH_LOGCONF;
 char *PidFile  = _PATH_LOGPID;
 char  ctty[]  = _PATH_CONSOLE;
 
-char **parts;
-
 static int debugging_on = 0;
 static int restart = 0;
-
-#define MAXFUNIX 20
-
-static int   nfunix;
-static char *funixn[MAXFUNIX];
-static int   funix[MAXFUNIX];
 
 /*
  * Intervals at which we flush out "message repeated" messages,
@@ -115,6 +105,13 @@ static int   funix[MAXFUNIX];
  * we move to the next interval until we reach the largest.
  */
 static int repeatinterval[] = { 30, 120, 600 };	/* # of secs before flush */
+
+/* values for f_type */
+static char *TypeNames[] = {
+	"UNUSED",        "FILE",  "TTY",  "CONSOLE",
+	"FORW",          "USERS", "WALL", "FORW(SUSPENDED)",
+	"FORW(UNKNOWN)", "PIPE"
+};
 
 static SIMPLEQ_HEAD(files, filed) fhead = SIMPLEQ_HEAD_INITIALIZER(fhead);
 struct filed consfile;
@@ -124,12 +121,9 @@ static int	  Foreground = 0;	/* don't fork - don't run in daemon mode */
 static char	  LocalHostName[MAXHOSTNAMELEN + 1]; /* our hostname */
 static char	 *LocalDomain;			     /* our local domain name */
 static char	 *emptystring = "";
-static int	  InetInuse = 0;	  /* non-zero if INET sockets are being used */
-static int	 *finet = NULL;		  /* Internet datagram sockets */
 static int	  Initialized = 0;	  /* set when we have initialized ourselves */
 static int	  MarkInterval = 20 * 60; /* interval between marks in seconds */
 static int	  family = PF_UNSPEC;	  /* protocol family (IPv4, IPv6 or both) */
-static char      *service = "syslog";	  /* Port to bind to, default 514/udp */
 static int	  mask_C1 = 1;		  /* mask characters from 0x80 - 0x9F */
 static int	  send_to_all;		  /* send message to all IPv4/IPv6 addresses */
 static int	  MarkSeq = 0;		  /* mark sequence number */
@@ -141,12 +135,23 @@ static int	  KeepKernFac;		  /* Keep remotely logged kernel facility */
 
 static int	  LastAlarm = 0;	  /* last value passed to alarm() (seconds)  */
 static int	  DupesPending = 0;	  /* Number of unflushed duplicate messages */
-static int	  AcceptRemote = 1;	  /* receive messages that come via UDP */
 static char	**StripDomains = NULL;	  /* these domains may be stripped before writing logs */
 static char	**LocalHosts = NULL;	  /* these hosts are logged with their hostname */
 static int	  NoHops = 1;		  /* Can we bounce syslog messages through an intermediate host. */
 static off_t	  RotateSz = 0;		  /* Max file size (bytes) before rotating, disabled by default */
 static int	  RotateCnt = 5;	  /* Max number (count) of log files to keep, set with -c <NUM> */
+
+/*
+ * List of peers and sockets for binding.
+ */
+struct peer {
+	const char	*pe_name;
+	const char	*pe_serv;
+	mode_t		 pe_mode;
+
+	SIMPLEQ_ENTRY(peer)	next;
+};
+static SIMPLEQ_HEAD(, peer) pqueue = SIMPLEQ_HEAD_INITIALIZER(pqueue);
 
 /* Function prototypes. */
 char      **crunch_list(char *list);
@@ -162,7 +167,6 @@ const char *cvtaddr(struct sockaddr_storage *f, int len);
 const char *cvthname(struct sockaddr_storage *f, int len);
 void        domark();
 void        debug_switch();
-void        logerror(const char *type);
 void        die(int sig);
 void        doexit(int sig);
 void        init();
@@ -171,9 +175,21 @@ static int  cfparse(FILE *fp, struct files *newf);
 int         decode(char *name, struct _code *codetab);
 static void logit(char *, ...);
 void        sighup_handler(int);
-static int  create_unix_socket(const char *path);
-static int *create_inet_sockets();
+static void create_unix_socket(struct peer *pe);
+static void create_inet_socket(struct peer *pe);
 
+static int addpeer(struct peer *pe0)
+{
+	struct peer *pe;
+
+	pe = calloc(1, sizeof(*pe));
+	if (pe == NULL)
+		err(1, "malloc failed");
+	*pe = *pe0;
+	SIMPLEQ_INSERT_TAIL(&pqueue, pe, next);
+
+	return (0);
+}
 
 int usage(int code)
 {
@@ -216,22 +232,11 @@ int usage(int code)
 
 int main(int argc, char *argv[])
 {
-	extern char *optarg;
-	extern int optind;
-	struct sockaddr_storage frominet;
-	socklen_t len;
-	ssize_t msglen;
-	fd_set readfds;
+	struct peer *pe;
 	pid_t ppid = getpid();
 	char *ptr;
-	char line[MAXLINE + 1];
-	int num_fds, maxfds;
-	int i, fd, ch;
-
-	for (i = 0; i < MAXFUNIX; i++) {
-		funixn[i] = NULL;
-		funix[i] = -1;
-	}
+	int pflag = 0, bflag = 0;
+	int ch;
 
 #ifndef WITHOUT_KLOGD
 	/*
@@ -257,9 +262,14 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'b':
+			bflag = 1;
 			ptr = strchr(optarg, ':');
 			if (ptr)
-				service = ++ptr;
+				*ptr++ = 0;
+			addpeer(&(struct peer) {
+				.pe_name = optarg,
+				.pe_serv = ptr,
+			});
 			break;
 
 		case 'd': /* debug */
@@ -299,10 +309,16 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'p': /* path to regular log socket */
-			if (nfunix < (int)NELEMS(funixn))
-				funixn[nfunix++] = optarg;
-			else
-				fprintf(stderr, "Max log sockets reached, ignoring %s\n", optarg);
+			if (optarg[0] != '/') {
+				warnx("Socket paths must be absolute (start with '/').");
+				break;
+			}
+
+			pflag = 1;
+			addpeer(&(struct peer) {
+					.pe_name = optarg,
+					.pe_mode = 0666,
+				});
 			break;
 
 		case 'R':
@@ -333,9 +349,19 @@ int main(int argc, char *argv[])
 	if ((argc -= optind))
 		return usage(1);
 
+	/* Default to listen to :514 (syslog/udp) */
+	if (!bflag)
+		addpeer(&(struct peer) {
+				.pe_name = NULL,
+				.pe_serv = "syslog",
+			});
+
 	/* Default to _PATH_LOG for the UNIX domain socket */
-	if (!nfunix)
-		funixn[nfunix++] = _PATH_LOG;
+	if (!pflag)
+		addpeer(&(struct peer) {
+				.pe_name = _PATH_LOG,
+				.pe_mode = 0666,
+			});
 
 	if ((!Foreground) && (!Debug)) {
 		signal(SIGTERM, doexit);
@@ -358,23 +384,12 @@ int main(int argc, char *argv[])
 		}
 
 		signal(SIGTERM, SIG_DFL);
-		num_fds = getdtablesize();
-		for (i = 0; i < num_fds; i++)
+		for (int i = 0; i < getdtablesize(); i++)
 			(void)close(i);
 		untty();
 	} else {
 		debugging_on = 1;
 		setlinebuf(stdout);
-	}
-
-	if (!Debug) {
-		if (pidfile(PidFile)) {
-			logit("Failed creating PID file %s: %s",
-			      PidFile, strerror(errno));
-			if (getpid() != ppid)
-				kill(ppid, SIGTERM);
-			exit(1);
-		}
 	}
 
 	consfile.f_type = F_CONSOLE;
@@ -396,19 +411,14 @@ int main(int argc, char *argv[])
 	LastAlarm = MarkInterval;
 	alarm(LastAlarm);
 
-	/* Create a partial message table for all file descriptors. */
-	num_fds = getdtablesize();
-	logit("Allocated parts table for %d file descriptors.\n", num_fds);
-	if ((parts = malloc(num_fds * sizeof(char *))) == NULL) {
-		logerror("Cannot allocate memory for message parts table.");
-		if (getpid() != ppid)
-			kill(ppid, SIGTERM);
-		die(0);
-	}
-	for (i = 0; i < num_fds; ++i)
-		parts[i] = NULL;
-
 	logit("Starting.\n");
+	SIMPLEQ_FOREACH(pe, &pqueue, next) {
+		if (pe->pe_name && pe->pe_name[0] == '/')
+			create_unix_socket(pe);
+		else // XXX if (cffwd() && SecureMode <= 1)
+			create_inet_socket(pe);
+	}
+
 	init();
 
 	if (Debug) {
@@ -422,50 +432,21 @@ int main(int argc, char *argv[])
 	if (getpid() != ppid)
 		kill(ppid, SIGTERM);
 
+	/*
+	 * Tell system we're up and running by creating /run/syslogd.pid
+	 */
+	if (!Debug && pidfile(PidFile)) {
+		logit("Failed creating %s: %s", PidFile, strerror(errno));
+		if (getpid() != ppid)
+			kill(ppid, SIGTERM);
+		exit(1);
+	}
+
 	/* Main loop begins here. */
 	for (;;) {
-		int nfds;
+		int rc;
 
-		errno = 0;
-		FD_ZERO(&readfds);
-		maxfds = 0;
-
-		/*
-		 * Add the Unix Domain Sockets to the list of read
-		 * descriptors.
-		 */
-		for (i = 0; i < nfunix; i++) {
-			if (funix[i] == -1)
-				continue;
-
-			FD_SET(funix[i], &readfds);
-			if (funix[i] > maxfds)
-				maxfds = funix[i];
-		}
-
-		/*
-		 * Add the Internet Domain Socket to the list of read
-		 * descriptors.
-		 */
-		if (InetInuse && AcceptRemote) {
-			for (i = 0; i < *finet; i++) {
-				if (finet[i + 1] != -1)
-					FD_SET(finet[i + 1], &readfds);
-				if (finet[i + 1] > maxfds)
-					maxfds = finet[i + 1];
-			}
-			logit("Listening on syslog UDP port.\n");
-		}
-
-		if (debugging_on) {
-			logit("Calling select, active file descriptors (max %d): ", maxfds);
-			for (nfds = 0; nfds <= maxfds; ++nfds)
-				if (FD_ISSET(nfds, &readfds))
-					logit("%d ", nfds);
-			logit("\n");
-		}
-
-		nfds = select(maxfds + 1, &readfds, NULL, NULL, NULL);
+		rc = socket_poll(NULL);
 		if (restart) {
 			restart = 0;
 			logit("\nReceived SIGHUP, reloading syslogd.\n");
@@ -476,225 +457,119 @@ int main(int argc, char *argv[])
 			continue;
 		}
 
-		if (nfds == 0) {
+		if (rc == 0) {
 			logit("No select activity.\n");
 			continue;
 		}
-		if (nfds < 0) {
+		if (rc < 0) {
 			if (errno != EINTR)
 				ERR("select()");
 			continue;
 		}
 
-		if (debugging_on) {
-			logit("\nSuccessful select, descriptor count = %d, "
-			      "Activity on: ",
-			      nfds);
-			for (nfds = 0; nfds <= maxfds; ++nfds)
-				if (FD_ISSET(nfds, &readfds))
-					logit("%d ", nfds);
-			logit("\n");
-		}
-
-		for (i = 0; i < nfunix; i++) {
-			if ((fd = funix[i]) != -1 && FD_ISSET(fd, &readfds)) {
-				memset(line, 0, sizeof(line));
-				msglen = recv(fd, line, MAXLINE - 2, 0);
-				logit("Message from UNIX socket #%d: %s\n", fd, line);
-				if (msglen > 0)
-					parsemsg(LocalHostName, line);
-				else if (msglen < 0 && errno != EINTR) {
-					logit("UNIX socket error: %d = %s.\n",
-					      errno, strerror(errno));
-					logerror("recvfrom UNIX");
-				}
-			}
-		}
-
-		if (InetInuse && AcceptRemote && finet) {
-			for (i = 0; i < *finet; i++) {
-				if (finet[i + 1] != -1 && FD_ISSET(finet[i + 1], &readfds)) {
-					len = sizeof(frominet);
-					memset(line, 0, sizeof(line));
-					msglen = recvfrom(finet[i + 1], line, MAXLINE - 2, 0,
-					                  (struct sockaddr *)&frominet, &len);
-					if (Debug) {
-						const char *addr = cvtaddr(&frominet, len);
-						logit("Message from inetd socket: #%d, host: %s\n",
-						      i + 1, addr);
-					}
-					if (msglen > 0) {
-						const char *from;
-
-						/* Note that if cvthname() returns NULL then
-						   we shouldn't attempt to log the line -- jch */
-						from = cvthname(&frominet, len);
-						if (from)
-							parsemsg(from, line);
-					} else if (msglen < 0 && errno != EINTR && errno != EAGAIN) {
-						logit("INET socket error: %d = %s.\n",
-						      errno, strerror(errno));
-						logerror("recvfrom inet");
-						/* should be harmless now that we set
-						 * BSDCOMPAT on the socket */
-						sleep(1);
-					}
-				}
-			}
-		}
 	}
 }
 
-/*
- * From FreeBSD syslogd SVN r259368
- * https://svnweb.freebsd.org/base/stable/10/usr.sbin/syslogd/syslogd.c?r1=256281&r2=259368
- */
-static void increase_rcvbuf(int fd)
+static void unix_cb(int sd, void *arg)
 {
-	socklen_t len, slen;
+	ssize_t msglen;
+	char msg[MAXLINE + 1] = { 0 };
 
-	slen = sizeof(len);
-	if (getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &len, &slen))
+	msglen = recv(sd, msg, sizeof(msg) - 1, 0);
+	logit("Message from UNIX socket #%d: %s\n", sd, msg);
+	if (msglen <= 0) {
+		if (msglen < 0 && errno != EINTR)
+			ERR("recv() UNIX");
 		return;
-
-	if (len < RCVBUF_MINSIZE) {
-		len = RCVBUF_MINSIZE;
-		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &len, sizeof(len)))
-			logerror("Failed increasing size of socket receive buffer");
 	}
+
+	parsemsg(LocalHostName, msg);
 }
 
-static int create_unix_socket(const char *path)
+static void create_unix_socket(struct peer *pe)
 {
 	struct sockaddr_un sun;
-	char line[MAXLINE + 1];
+	struct addrinfo ai;
 	int sd = -1;
 
-	if (path[0] == '\0')
-		return -1;
+	ai.ai_addr = (struct sockaddr *)&sun;
+	ai.ai_addrlen = sizeof(sun);
+	ai.ai_family = sun.sun_family = AF_UNIX;
+	ai.ai_socktype = SOCK_DGRAM;
+	ai.ai_protocol = pe->pe_mode;
+	strlcpy(sun.sun_path, pe->pe_name, sizeof(sun.sun_path));
 
-	(void)unlink(path);
-
-	sd = socket(AF_UNIX, SOCK_DGRAM, 0);
+	sd = socket_create(&ai, unix_cb, NULL);
 	if (sd < 0)
 		goto err;
 
-	memset(&sun, 0, sizeof(sun));
-	sun.sun_family = AF_UNIX;
-	strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
-	if (bind(sd, (struct sockaddr *)&sun, sizeof(sun.sun_family) + strlen(sun.sun_path)))
-		goto err;
-
-	if (chmod(path, 0666) < 0)
-		goto err;
-
-	increase_rcvbuf(sd);
-
-	return sd;
+	return;
 err:
-	snprintf(line, sizeof(line), "cannot create %s", path);
-	logerror(line);
-	logit("cannot create %s (%d).\n", path, errno);
-	if (sd != -1)
-		close(sd);
-
-	return -1;
+	ERR("cannot create %s", pe->pe_name);
 }
 
-static int nslookup(char *host, char *service, struct addrinfo **ai)
+static void inet_cb(int sd, void *arg)
+{
+	struct sockaddr_storage ss;
+	socklen_t len;
+	ssize_t msglen;
+	char msg[MAXLINE + 1] = { 0 };
+
+	len = sizeof(ss);
+	msglen = recvfrom(sd, msg, sizeof(msg) - 1, 0, (struct sockaddr *)&ss, &len);
+	if (msglen > 0) {
+		const char *from;
+
+		from = cvthname(&ss, len);
+		if (from) {
+			logit("Message from inet host %s\n", cvtaddr(&ss, len));
+			parsemsg(from, msg);
+		}
+	} else if (msglen < 0 && errno != EINTR && errno != EAGAIN) {
+		ERR("INET socket recvfrom()");
+		/* should be harmless now that we set
+		 * BSDCOMPAT on the socket */
+		sleep(1);
+	}
+}
+
+static int nslookup(const char *host, const char *service, struct addrinfo **ai)
 {
 	struct addrinfo hints;
+	const char *node = host;
 
+	if (!node || !node[0])
+		node = NULL;
+
+	logit("nslookup '%s:%s'\n", node ?: "none", service);
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_flags    = !host ? AI_PASSIVE : 0;
+	hints.ai_flags    = !node ? AI_PASSIVE : 0;
 	hints.ai_family   = family;
 	hints.ai_socktype = SOCK_DGRAM;
 
-	return getaddrinfo(host, service, &hints, ai);
+	return getaddrinfo(node, service, &hints, ai);
 }
 
-static int *create_inet_sockets(void)
+static void create_inet_socket(struct peer *pe)
 {
 	struct addrinfo *res, *r;
-	int err, maxs, *s, *socks;
-	int on = 1, sockflags;
+	int sd, err;
 
-	err = nslookup(NULL, service, &res);
+	err = nslookup(pe->pe_name, pe->pe_serv, &res);
 	if (err) {
-		flog(LOG_SYSLOG | LOG_ERR, "network logging disabled (%s/udp "
-		     " service unknown): %s", service, gai_strerror(err));
-		return NULL;
+		ERRX("%s/udp service unknown: %s", pe->pe_serv, gai_strerror(err));
+		return;
 	}
 
-	/* Count max number of sockets we may open */
-	for (maxs = 0, r = res; r; r = r->ai_next, maxs++)
-		;
-	socks = malloc((maxs + 1) * sizeof(int));
-	if (!socks) {
-		logerror("couldn't allocate memory for sockets");
-		freeaddrinfo(res);
-		die(0);
-	}
-
-	*socks = 0; /* num of sockets counter at start of array */
-	s = socks + 1;
 	for (r = res; r; r = r->ai_next) {
-		*s = socket(r->ai_family, r->ai_socktype, r->ai_protocol);
-		if (*s < 0) {
-			logerror("socket");
+		sd = socket_create(r, inet_cb, NULL);
+		if (sd < 0)
 			continue;
-		}
-		if (r->ai_family == AF_INET6) {
-			if (setsockopt(*s, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) < 0) {
-				logerror("setsockopt (IPV6_ONLY), suspending IPv6");
-				close(*s);
-				continue;
-			}
-		}
-		if (setsockopt(*s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
-			logerror("setsockopt(REUSEADDR), suspending inet");
-			close(*s);
-			continue;
-		}
 
-		logit("Created inet socket %d ...\n", *s);
-		increase_rcvbuf(*s);
-
-		/* We must not block on the network socket, in case a packet
-		 * gets lost between select and recv, otherise the process
-		 * will stall until the timeout, and other processes trying to
-		 * log will also stall.
-		 */
-		if ((sockflags = fcntl(*s, F_GETFL)) != -1) {
-			sockflags |= O_NONBLOCK;
-			/*
-			 * SETFL could fail too, so get it caught by the subsequent
-			 * error check.
-			 */
-			sockflags = fcntl(*s, F_SETFL, sockflags);
-		}
-		if (sockflags == -1) {
-			logerror("fcntl(O_NONBLOCK), suspending inet");
-			close(*s);
-			continue;
-		}
-		if (bind(*s, r->ai_addr, r->ai_addrlen) < 0) {
-			logerror("bind, suspending inet");
-			close(*s);
-			continue;
-		}
-		(*socks)++;
-		s++;
+		logit("Created inet socket %d ...\n", sd);
 	}
+
 	freeaddrinfo(res);
-
-	if (*socks == 0) {
-		logerror("no valid sockets, suspending inet");
-		free(socks);
-		return NULL;
-	}
-
-	return socks;
 }
 
 char **crunch_list(list) char *list;
@@ -1669,7 +1544,7 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 		logit(" %s:%s\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
 		if (strcmp(buffer->hostname, LocalHostName) && NoHops)
 			logit("Not sending message to remote.\n");
-		else if (finet) {
+		else {
 			struct msghdr msg;
 			ssize_t len = 0;
 
@@ -1686,21 +1561,30 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 
 			err = -1;
 			for (ai = f->f_un.f_forw.f_addr; ai; ai = ai->ai_next) {
-				for (int i = 0; i < *finet; i++) {
-					struct sockaddr_in *sin;
+				int sd;
+
+				sd = socket_ffs(ai->ai_family);
+				if (sd != -1) {
 					char buf[64] = { 0 };
 					ssize_t lsent;
 
 					msg.msg_name = ai->ai_addr;
 					msg.msg_namelen = ai->ai_addrlen;
-					lsent = sendmsg(finet[i + 1], &msg, 0);
+					lsent = sendmsg(sd, &msg, 0);
 
 					if (AF_INET == ai->ai_family) {
+						struct sockaddr_in *sin;
+
 						sin = (struct sockaddr_in *)ai->ai_addr;
 						inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
+					} else {
+						struct sockaddr_in6 *sin6;
+
+						sin6 = (struct sockaddr_in6 *)ai->ai_addr;
+						inet_ntop(AF_INET6, &sin6->sin6_addr, buf, sizeof(buf));
 					}
-					logit("Sent %zd bytes to remote %s on socket %d ...\n",
-					      lsent, buf, finet[i + 1]);
+
+					logit("Sent %zd bytes to %s on socket %d ...\n", lsent, buf, sd);
 					if (lsent == len) {
 						err = -1;
 						break;
@@ -2061,24 +1945,10 @@ void debug_switch(int signo)
 	signal(SIGUSR1, debug_switch);
 }
 
-/*
- * Print syslogd errors some place.
- */
-void logerror(const char *type)
-{
-	logit("Called logerr, msg: %s\n", type);
-
-	if (errno == 0)
-		flog(LOG_SYSLOG | LOG_ERR, "%s", type);
-	else
-		flog(LOG_SYSLOG | LOG_ERR, "%s: %m", type);
-}
-
 void die(int signo)
 {
 	struct filed *f, *next;
 	int was_initialized = Initialized;
-	int i;
 
 	Initialized = 0; /* Don't log SIGCHLDs in case we
 			    receive one during exiting */
@@ -2118,26 +1988,13 @@ void die(int signo)
 	}
 
 	/* Close the UNIX sockets. */
-	for (i = 0; i < nfunix; i++) {
-		if (funix[i] != -1)
-			close(funix[i]);
-	}
+	/* XXX */
 
 	/* Close the inet sockets. */
-	if (InetInuse && finet) {
-		for (i = 0; i < *finet; i++)
-			close(finet[i + 1]);
-		free(finet);
-	}
+	/* XXX */
 
-	/* Clean-up files. */
-	for (i = 0; i < nfunix; i++) {
-		if (funixn[i] && funix[i] != -1)
-			(void)unlink(funixn[i]);
-	}
-
-	if (parts)
-		free(parts);
+	/* Clean-up UNIX sockets. */
+	/* XXX */
 
 	exit(0);
 }
@@ -2220,7 +2077,7 @@ void init(void)
 	if ((p = strchr(LocalHostName, '.'))) {
 		*p++ = '\0';
 		LocalDomain = p;
-	} else if (AcceptRemote) {
+	} else {
 		/*
 		 * It's not clearly defined whether gethostname()
 		 * should return the simple hostname or the fqdn. A
@@ -2293,45 +2150,6 @@ void init(void)
 	}
 	fhead = newf;
 
-	for (i = 0; i < nfunix; i++) {
-		/*
-		 * UNIX domain sockets are given on the command line, so
-		 * there's no need to close them if they're already
-		 * open.  Doing so would only cause loss of any already
-		 * buffered messages
-		 */
-		logit("Checking if we should open UNIX socket %s ...", funixn[i]);
-		if (funix[i] != -1) {
-			logit(" nope, already open.\n");
-			continue;
-		}
-
-		funix[i] = create_unix_socket(funixn[i]);
-		if (funix[i] == -1)
-			logit(" failed opening, error %d: %s\n", errno, strerror(errno));
-		else
-			logit(" opened successfully\n");
-	}
-
-	if (cffwd() || AcceptRemote) {
-		if (!finet) {
-			finet = create_inet_sockets();
-			if (finet) {
-				InetInuse = 1;
-				logit("Opened syslog UDP port.\n");
-			}
-		}
-	} else {
-		if (finet) {
-			for (i = 0; i < *finet; i++)
-				if (finet[i + 1] != -1)
-					close(finet[i + 1]);
-			free(finet);
-			finet = NULL;
-		}
-		InetInuse = 0;
-	}
-
 	Initialized = 1;
 
 	if (Debug) {
@@ -2369,11 +2187,7 @@ void init(void)
 		}
 	}
 
-	if (AcceptRemote)
-		flog(LOG_SYSLOG | LOG_INFO, "syslogd v" VERSION ": restart (remote reception).");
-	else
-		flog(LOG_SYSLOG | LOG_INFO, "syslogd v" VERSION ": restart.");
-
+	flog(LOG_SYSLOG | LOG_INFO, "syslogd v" VERSION ": restart.");
 	logit("syslogd: restarted.\n");
 }
 
@@ -2605,7 +2419,7 @@ static struct filed *cfline(char *line)
 		if (bp)
 			*bp++ = 0;
 		else
-			bp = service;
+			bp = "syslog"; /* default: 514/udp */
 
 		strlcpy(f->f_un.f_forw.f_hname, p, sizeof(f->f_un.f_forw.f_hname));
 		strlcpy(f->f_un.f_forw.f_serv, bp, sizeof(f->f_un.f_forw.f_serv));
