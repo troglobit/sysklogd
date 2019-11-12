@@ -176,8 +176,6 @@ static int  cfparse(FILE *fp, struct files *newf);
 int         decode(char *name, struct _code *codetab);
 static void logit(char *, ...);
 void        sighup_handler(int);
-static void create_unix_socket(struct peer *pe);
-static void create_inet_socket(struct peer *pe);
 
 static int addpeer(struct peer *pe0)
 {
@@ -234,7 +232,6 @@ int usage(int code)
 
 int main(int argc, char *argv[])
 {
-	struct peer *pe;
 	pid_t ppid = getpid();
 	char *ptr;
 	int pflag = 0, bflag = 0;
@@ -390,10 +387,6 @@ int main(int argc, char *argv[])
 	consfile.f_type = F_CONSOLE;
 	strlcpy(consfile.f_un.f_fname, ctty, sizeof(consfile.f_un.f_fname));
 
-	/* Initialization is done by init() */
-	strlcpy(LocalHostName, emptystring, sizeof(LocalHostName));
-	LocalDomain = emptystring;
-
 	(void)signal(SIGTERM, die);
 	(void)signal(SIGINT, Debug ? die : SIG_IGN);
 	(void)signal(SIGQUIT, Debug ? die : SIG_IGN);
@@ -407,13 +400,6 @@ int main(int argc, char *argv[])
 	alarm(LastAlarm);
 
 	logit("Starting.\n");
-	SIMPLEQ_FOREACH(pe, &pqueue, next) {
-		if (pe->pe_name && pe->pe_name[0] == '/')
-			create_unix_socket(pe);
-		else if (SecureMode < 2)
-			create_inet_socket(pe);
-	}
-
 	init();
 
 	if (Debug) {
@@ -2018,6 +2004,7 @@ static FILE *cftemp(void)
  */
 void init(void)
 {
+	static int once = 1;
 	struct hostent *hent;
 	struct files newf = SIMPLEQ_HEAD_INITIALIZER(newf);
 	struct filed *f, *next;
@@ -2028,7 +2015,6 @@ void init(void)
 	/*
 	 *  Close all open log files and free log descriptor array.
 	 */
-	logit("Called init.\n");
 	Initialized = 0;
 
 	/* Get hostname */
@@ -2065,6 +2051,23 @@ void init(void)
 	for (p = (char *)LocalDomain; *p; p++) {
 		if (isupper(*p))
 			*p = tolower(*p);
+	}
+
+	/*
+	 * Open sockets for local and remote communication
+	 */
+	if (once) {
+		struct peer *pe;
+
+		/* Only once at startup */
+		once = 0;
+
+		SIMPLEQ_FOREACH(pe, &pqueue, next) {
+			if (pe->pe_name && pe->pe_name[0] == '/')
+				create_unix_socket(pe);
+			else if (SecureMode < 2)
+				create_inet_socket(pe);
+		}
 	}
 
 	/*
