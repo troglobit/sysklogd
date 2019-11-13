@@ -77,10 +77,13 @@ int socket_register(int sd, struct addrinfo *ai, void (*cb)(int, void *), void *
 		goto err;
 
 	if (ai) {
-		entry->ai.ai_addr = calloc(1, sizeof(struct sockaddr_un));
-		if (!entry->ai.ai_addr)
+		struct sockaddr_un *sun;
+
+		sun = calloc(1, sizeof(struct sockaddr_un));
+		if (!sun)
 			goto eaddr;
 
+		entry->ai.ai_addr = (struct sockaddr *)sun;
 		entry->ai = *ai;
 		*entry->ai.ai_addr = *ai->ai_addr;
 	}
