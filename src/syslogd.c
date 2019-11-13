@@ -353,7 +353,7 @@ int main(int argc, char *argv[])
 #ifndef KLOGD
 	/* Attempt to open kernel log pipe */
 	if (opensys(_PATH_KLOG))
-		err(1, "Faield opening %s", _PATH_KLOG);
+		warn("Kernel logging disabled, failed opening %s", _PATH_KLOG);
 #endif
 
 	if ((!Foreground) && (!Debug)) {
