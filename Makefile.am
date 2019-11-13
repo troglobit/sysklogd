@@ -20,6 +20,13 @@ SUBDIRS        = example man src test
 doc_DATA       = README.md ChangeLog.md syslog.conf
 EXTRA_DIST     = README.md ChangeLog.md syslog.conf
 
+if HAVE_SYSTEMD
+systemd_DATA   = syslogd.service
+if ENABLE_KLOGD
+systemd_DATA  += klogd.service
+endif
+endif
+
 #
 # Target to run when building a release
 #
