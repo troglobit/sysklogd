@@ -233,6 +233,7 @@ int usage(int code)
 	       "  -s        Operate in secure mode, do not log messages from remote machines.\n"
 	       "            If specified twice, no socket at all will be opened, which also\n"
 	       "            disables support for logging to remote machines.\n"
+	       "  -T        Use local time and date for all messages recived from remote hosts.\n"
 	       "  -?        Show this help text\n"
 	       "  -v        Show program version and exit\n"
 	       "\n"
@@ -334,6 +335,10 @@ int main(int argc, char *argv[])
 
 		case 's':
 			SecureMode++;
+			break;
+
+		case 'T':
+			RemoteAddDate = 1;
 			break;
 
 		case 'v':
