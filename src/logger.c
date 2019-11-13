@@ -184,22 +184,22 @@ static int usage(int code)
 	       "\n"
 	       "  -c        Log to console (LOG_CONS) on failure\n"
 	       "  -d SD     Log SD as RFC5424 style 'structured data' in message\n"
+	       "  -f FILE   Log file to write messages to, instead of syslog daemon\n"
 	       "  -i        Log process ID of the logger process with each line (LOG_PID)\n"
 	       "  -m MSGID  Log message using this RFC5424 style MSGID\n"
 	       "  -n        Open log file immediately (LOG_NDELAY)\n"
 	       "  -p PRIO   Log message priority (numeric or facility.severity pair)\n"
-	       "  -t TAG    Log using the specified tag (defaults to user name)\n"
-	       "  -s        Log to stderr as well as the system log\n"
-	       "\n"
-	       "  -u SOCK   Log to UNIX domain socket `SOCK` instead of default %s\n"
-	       "  -f FILE   Log file to write messages to, instead of syslog daemon\n"
 	       "  -r S[:R]  Enable log file rotation, default: 200 kB \e[4ms\e[0mize, 5 \e[4mr\e[0motations\n"
-	       "\n"
+	       "  -s        Log to stderr as well as the system log\n"
+	       "  -t TAG    Log using the specified tag (defaults to user name)\n"
+	       "  -u SOCK   Log to UNIX domain socket `SOCK` instead of default %s\n"
 	       "  -?        This help text\n"
 	       "  -v        Show program version\n"
 	       "\n"
-	       "This version of logger is distributed as part of sysklogd.\n"
 	       "Bug report address: %s\n", _PATH_LOG, PACKAGE_BUGREPORT);
+#ifdef PACKAGE_URL
+	printf("Project home page:  %s\n", PACKAGE_URL);
+#endif
 
 	return code;
 }
