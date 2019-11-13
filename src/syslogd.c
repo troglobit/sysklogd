@@ -945,43 +945,46 @@ parsemsg_rfc3164(const char *from, int pri, char *msg)
 	buffer.pri = pri;
 	buffer.msg = line;
 
-	/* Parse the timestamp provided by the remote side. */
-	if (strptime(msg, RFC3164_DATEFMT, &tm_parsed) !=
-	    msg + RFC3164_DATELEN || msg[RFC3164_DATELEN] != ' ') {
-		logit("Failed to parse TIMESTAMP from %s: %s\n", from, msg);
-		return;
-	}
-	msg += RFC3164_DATELEN + 1;
+	/*
+	 * Parse the TIMESTAMP provided by the remote side. If none is
+	 * found, assume this is not an RFC 3164 formatted message,
+	 * only containing a TAG and a MSG.
+	 */
+	if (strptime(msg, RFC3164_DATEFMT, &tm_parsed) ==
+	    msg + RFC3164_DATELEN && msg[RFC3164_DATELEN] == ' ') {
+		msg += RFC3164_DATELEN + 1;
 
-	if (!RemoteAddDate) {
-		struct tm tm_now;
-		time_t t_now;
-		int year;
+		if (!RemoteAddDate) {
+			struct tm tm_now;
+			time_t t_now;
+			int year;
 
-		/*
-		 * As the timestamp does not contain the year number,
-		 * daylight saving time information, nor a time zone,
-		 * attempt to infer it. Due to clock skews, the
-		 * timestamp may even be part of the next year. Use the
-		 * last year for which the timestamp is at most one week
-		 * in the future.
-		 *
-		 * This loop can only run for at most three iterations
-		 * before terminating.
-		 */
-		t_now = time(NULL);
-		localtime_r(&t_now, &tm_now);
-		for (year = tm_now.tm_year + 1;; --year) {
-			assert(year >= tm_now.tm_year - 1);
-			timestamp_remote.tm = tm_parsed;
-			timestamp_remote.tm.tm_year = year;
-			timestamp_remote.tm.tm_isdst = -1;
-			timestamp_remote.usec = 0;
-			if (mktime(&timestamp_remote.tm) <
-			    t_now + 7 * 24 * 60 * 60)
-				break;
+			/*
+			 * As the timestamp does not contain the year
+			 * number, daylight saving time information, nor
+			 * a time zone, attempt to infer it. Due to
+			 * clock skews, the timestamp may even be part
+			 * of the next year. Use the last year for which
+			 * the timestamp is at most one week in the
+			 * future.
+			 *
+			 * This loop can only run for at most three
+			 * iterations before terminating.
+			 */
+			t_now = time(NULL);
+			localtime_r(&t_now, &tm_now);
+			for (year = tm_now.tm_year + 1;; --year) {
+				assert(year >= tm_now.tm_year - 1);
+				timestamp_remote.tm = tm_parsed;
+				timestamp_remote.tm.tm_year = year;
+				timestamp_remote.tm.tm_isdst = -1;
+				timestamp_remote.usec = 0;
+				if (mktime(&timestamp_remote.tm) <
+				    t_now + 7 * 24 * 60 * 60)
+					break;
+			}
+			buffer.timestamp = timestamp_remote;
 		}
-		buffer.timestamp = timestamp_remote;
 	}
 
 	/*
