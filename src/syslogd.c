@@ -136,7 +136,6 @@ static int	  KeepKernFac;		  /* Keep remotely logged kernel facility */
 
 static int	  LastAlarm = 0;	  /* last value passed to alarm() (seconds)  */
 static int	  DupesPending = 0;	  /* Number of unflushed duplicate messages */
-static int	  NoHops = 1;		  /* Can we bounce syslog messages through an intermediate host. */
 static off_t	  RotateSz = 0;		  /* Max file size (bytes) before rotating, disabled by default */
 static int	  RotateCnt = 5;	  /* Max number (count) of log files to keep, set with -c <NUM> */
 
@@ -194,8 +193,8 @@ static int addpeer(struct peer *pe0)
 int usage(int code)
 {
 	printf("Usage:\n"
-	       "  syslogd [-46Adnrsvh?] [-b :PORT] [-b ADDR[:PORT]] [-f FILE] [-m SEC]\n"
-	       "                        [-P PID_FILE] [-p SOCK_PATH] [-R SIZE[:NUM]]\n"
+	       "  syslogd [-46Adnrsv?] [-b :PORT] [-b ADDR[:PORT]] [-f FILE] [-m SEC]\n"
+	       "                       [-P PID_FILE] [-p SOCK_PATH] [-R SIZE[:NUM]]\n"
 	       "\n"
 	       "Options:\n"
 	       "  -4        Force IPv4 only\n"
@@ -206,7 +205,6 @@ int usage(int code)
 	       "            as a hostname ath the port as as ervice name, default syslog/514\n"
 	       "  -d        Enable debug mode\n"
 	       "  -f FILE   Alternate .conf file, default: /etc/syslog.conf\n"
-	       "  -h        Forward messages from other hosts also to remote syslog host(s)\n"
 	       "  -m SEC    Interval between MARK messages in log, 0 to disable, default: 20 min\n"
 	       "  -n        Run in foreground, required when run from a modern init/supervisor\n"
 	       "  -P FILE   File in which to store the process ID, default: %s\n"
@@ -247,7 +245,7 @@ int main(int argc, char *argv[])
 	KeepKernFac = 1;
 #endif
 
-	while ((ch = getopt(argc, argv, "46Ab:dhHf:m:nP:p:r:sv?")) != EOF) {
+	while ((ch = getopt(argc, argv, "46Ab:dHf:m:nP:p:r:sv?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -282,10 +280,6 @@ int main(int argc, char *argv[])
 
 		case 'H':
 			RemoteHostname = 1;
-			break;
-
-		case 'h':
-			NoHops = 0;
 			break;
 
 		case 'm': /* mark interval */

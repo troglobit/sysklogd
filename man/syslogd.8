@@ -13,7 +13,7 @@
 .Nd System Log Daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl ?46Adhnsv
+.Op Fl ?46Adnsv
 .Op Fl b Ar addr[:port]
 .Op Fl b Ar :port
 .Op Fl f Ar file
@@ -117,12 +117,6 @@ section for more information.
 .It Fl f Ar file
 Specify an alternative configuration file instead of the default
 .Pa /etc/syslog.conf .
-.It Fl h
-By default syslogd will not forward messages it receives from remote
-hosts.  Specifying this switch on the command line will cause the log
-daemon to forward any remote messages it receives to forwarding hosts
-which have been defined.  This can cause syslog loops that fill up hard
-disks quite fast and thus needs to be used with caution.
 .It Fl m Ar seconds
 .Nm
 logs a mark timestamp regularly.  The default interval between two
@@ -345,16 +339,6 @@ name-server might not be accessible (it may be started after
 will retry resolving the name ten times before logging the error.
 Another possibility to avoid this is to place the hostname in
 .Pa /etc/hosts .
-.Pp
-To avoid syslog-loops (messages that were received from a remote host
-are sent back to the same host, or more complicated to a third host that
-sends it back to the first one, and so on),
-.Nm
-by default does not forward remote messages to another remote server.
-If this for some reason is required, use the
-.Fl h
-option on the command line.  However, this option needs to be handled
-with caution since a syslog loop can fill up hard disks quite fast.
 .Pp
 If the remote host is located in the same domain as the host,
 .Nm
