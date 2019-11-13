@@ -194,7 +194,7 @@ static int addpeer(struct peer *pe0)
 int usage(int code)
 {
 	printf("Usage:\n"
-	       "  syslogd [-46Adknrsv?] [-a PEER] [-b :PORT] [-b ADDR[:PORT]] [-f FILE] [-m SEC]\n"
+	       "  syslogd [-46AdFkrsv?] [-a PEER] [-b :PORT] [-b ADDR[:PORT]] [-f FILE] [-m SEC]\n"
 	       "                        [-P PID_FILE] [-p SOCK_PATH] [-R SIZE[:NUM]]\n"
 	       "Options:\n"
 	       "  -4        Force IPv4 only\n"
@@ -221,10 +221,10 @@ int usage(int code)
 	       "                                    service name, default is 'syslog', port 514.\n"
 	       "\n"
 	       "  -d        Enable debug mode\n"
+	       "  -F        Run in foreground, required when run from a modern init/supervisor\n"
 	       "  -f FILE   Alternate .conf file, default: /etc/syslog.conf\n"
 	       "  -k        Allow logging with facility 'kernel', otherwise remapped to 'user'.\n"
 	       "  -m SEC    Interval between MARK messages in log, 0 to disable, default: 20 min\n"
-	       "  -n        Run in foreground, required when run from a modern init/supervisor\n"
 	       "  -P FILE   File to store the process ID, default: %s\n"
 	       "  -p PATH   Path to UNIX domain socket, multiple -p create multiple sockets. If\n"
 	       "            no -p argument is given the default %s is used\n"
@@ -263,7 +263,7 @@ int main(int argc, char *argv[])
 	KeepKernFac = 1;
 #endif
 
-	while ((ch = getopt(argc, argv, "46Aa:b:dHf:m:nP:p:r:sv?")) != EOF) {
+	while ((ch = getopt(argc, argv, "46Aa:b:dHFf:m:P:p:r:sv?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -297,6 +297,10 @@ int main(int argc, char *argv[])
 			Debug = 1;
 			break;
 
+		case 'F': /* don't fork */
+			Foreground = 1;
+			break;
+
 		case 'f': /* configuration file */
 			ConfFile = optarg;
 			break;
@@ -311,10 +315,6 @@ int main(int argc, char *argv[])
 
 		case 'm': /* mark interval */
 			MarkInterval = atoi(optarg) * 60;
-			break;
-
-		case 'n': /* don't fork */
-			Foreground = 1;
 			break;
 
 		case 'P':

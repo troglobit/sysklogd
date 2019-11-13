@@ -13,7 +13,7 @@
 .Nd System Log Daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl ?46AdknsTv
+.Op Fl ?46AdFksTv
 .Op Fl a Ar addr[/len][:port]
 .Op Fl a Ar name[:port]
 .Op Fl b Ar addr[:port]
@@ -169,6 +169,11 @@ TTY.  SIGUSR1 is required to confirm continued debug messages when the
 daemon has finished starting up.  See the
 .Sx DEBUGGING
 section for more information.
+.It Fl F
+Run in foreground, required when run from a modern init/supervisor.  See
+your system
+.Xr init 1
+for details.
 .It Fl f Ar file
 Specify an alternative configuration file instead of the default
 .Pa /etc/syslog.conf .
@@ -198,11 +203,6 @@ facility is reserved for kernel log messages.  When the
 daemon runs alongside
 .Nm ,
 this option is always set.
-.It Fl n
-Run in foreground, required when run from a modern init/supervisor.  See
-your system
-.Xr init 1
-for details.
 .It Fl P Ar file
 Specify an alternate file in which to store the process ID.
 The default is

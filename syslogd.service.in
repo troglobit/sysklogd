@@ -6,7 +6,7 @@ Requires=syslog.socket
 
 [Service]
 Type=simple
-ExecStart=@SBINDIR@/syslogd -sn
+ExecStart=@SBINDIR@/syslogd -sF
 StandardOutput=null
 Restart=on-failure
 

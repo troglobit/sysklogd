@@ -20,7 +20,7 @@ cat <<EOF > ${CONFD}/bar.conf
 *.*	@127.0.0.2
 EOF
 
-../src/syslogd -b :${PORT} -d -sn -f ${CONF} -p ${SOCK} -p ${ALTSOCK} &
+../src/syslogd -b :${PORT} -d -sF -f ${CONF} -p ${SOCK} -p ${ALTSOCK} &
 echo "$!" > ${PID}
 
 sleep 2
