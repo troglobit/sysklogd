@@ -31,12 +31,12 @@ addons:
 # Build test programs as regular user, or clang build may fail
 script:
   - ./autogen.sh
-  - ./configure --prefix= --disable-silent-rules
+  - ./configure --prefix=/tmp/sysklogd --disable-silent-rules --with-systemd=/tmp/sysklogd/lib/systemd/system
   - make clean
   - make all
   - make -C test programs
   - sudo make check || (which clang; cat test/test-suite.log; cat test/start.log; cat test/api.log; false)
-  - make install-strip DESTDIR=/tmp/sysklogd
+  - make install-strip
   - mkdir -p /tmp/example; cp -a example/example.* /tmp/example/
   - (cd /tmp/example; PKG_CONFIG_LIBDIR=/tmp/sysklogd/lib/pkgconfig make -f example.mk)
   - tree /tmp/sysklogd
