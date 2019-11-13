@@ -35,7 +35,7 @@ syslogd_CPPFLAGS      = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
 syslogd_LDADD         = $(LIBS) $(LIBOBJS)
 
 klogd_SOURCES         = klogd.c klogd.h syslog.h compat.h ksym.c ksyms.h ksym_mod.c module.h
-klogd_CPPFLAGS        = $(AM_CPPFLAGS) -DALLOW_KERNEL_LOGGING
+klogd_CPPFLAGS        = $(AM_CPPFLAGS)
 klogd_LDADD           = $(LIBS) $(LIBOBJS)
 klogd_LDADD          += libsyslog.la
 

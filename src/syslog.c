@@ -526,11 +526,7 @@ openlog_unlocked_r(const char *ident, int logstat, int logfac,
 	if (ident != NULL)
 		data->log_tag = ident;
 	data->log_stat = logstat;
-#ifdef ALLOW_KERNEL_LOGGING
-	if ((logfac & ~LOG_FACMASK) == 0)
-#else
 	if (logfac != 0 && (logfac &~ LOG_FACMASK) == 0)
-#endif
 		data->log_fac = logfac;
 
 	if (data->log_stat & LOG_NDELAY)	/* open immediately */
