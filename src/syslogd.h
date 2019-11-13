@@ -125,6 +125,23 @@
 #define INFO(fmt, args...)	flog(LOG_SYSLOG | LOG_INFO, fmt, ##args)
 
 /*
+ * Help macros to convert between sockaddr types
+ */
+#define	sstosa(ss)	((struct sockaddr *)(ss))
+#define	sstosin(ss)	((struct sockaddr_in *)(void *)(ss))
+#define	satosin(sa)	((struct sockaddr_in *)(void *)(sa))
+#define	sstosin6(ss)	((struct sockaddr_in6 *)(void *)(ss))
+#define	satosin6(sa)	((struct sockaddr_in6 *)(void *)(sa))
+#ifndef s6_addr32
+#define	s6_addr32	__u6_addr.__u6_addr32
+#endif
+#define	IN6_ARE_MASKED_ADDR_EQUAL(d, a, m)	(	\
+	(((d)->s6_addr32[0] ^ (a)->s6_addr32[0]) & (m)->s6_addr32[0]) == 0 && \
+	(((d)->s6_addr32[1] ^ (a)->s6_addr32[1]) & (m)->s6_addr32[1]) == 0 && \
+	(((d)->s6_addr32[2] ^ (a)->s6_addr32[2]) & (m)->s6_addr32[2]) == 0 && \
+	(((d)->s6_addr32[3] ^ (a)->s6_addr32[3]) & (m)->s6_addr32[3]) == 0 )
+
+/*
  * Flags to logmsg().
  */
 #define IGN_CONS  0x001  /* don't print on console */
@@ -164,6 +181,37 @@
 #define F_FORW_SUSP       7   /* suspended host forwarding */
 #define F_FORW_UNKN       8   /* unknown host forwarding */
 #define F_PIPE            9   /* named pipe */
+
+/*
+ * Struct to hold records of peers and sockets
+ */
+struct peer {
+	const char	*pe_name;
+	const char	*pe_serv;
+	mode_t		 pe_mode;
+
+	SIMPLEQ_ENTRY(peer)	next;
+};
+
+/*
+ * Struct to hold records of network addresses that are allowed to log
+ * to us.
+ */
+struct allowedpeer {
+	int isnumeric;
+	u_short port;
+	union {
+		struct {
+			struct sockaddr_storage addr;
+			struct sockaddr_storage mask;
+		} numeric;
+		char *name;
+	} u;
+#define a_addr u.numeric.addr
+#define a_mask u.numeric.mask
+#define a_name u.name
+	SIMPLEQ_ENTRY(allowedpeer)	next;
+};
 
 /* Timestamps of log entries. */
 struct logtime {

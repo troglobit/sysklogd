@@ -14,6 +14,8 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl ?46Adnsv
+.Op Fl a Ar addr[/len][:port]
+.Op Fl a Ar name[:port]
 .Op Fl b Ar addr[:port]
 .Op Fl b Ar :port
 .Op Fl f Ar file
@@ -97,6 +99,54 @@ tries to send the message to only one address even if the host has
 more than one A or AAAA record.  If this option is specified,
 .Nm
 tries to send the message to all addresses.
+.It Fl a Ar address[/len][:service] | Fl a Ar domainname[:service]
+Allow peers to log to this syslogd using UDP datagrams.  Multiple
+.Fl a
+options may be specified.  Any
+.Fl a
+option is ignored if the
+.Fl s
+option is also specified.
+.Pp
+The peer argument may be any of the following:
+.Bl -tag -width 'address[/len][:service]'
+.It Ql address[/len][:service]
+Accept datagrams from IP
+.Ar address ,
+which can be specified as an IPv4 address or as an IPv6 address enclosed
+with
+.Sq \&[
+and
+.Sq \&] .
+If specified, service is the name or port number of an UDP service (see
+.Xr services 5 )
+the source packet must belong to.  A service of
+.Ql *
+accepts UDP packets from any source port.  The default service is
+.Ql syslog .
+If
+.Ar address
+is an IPv4 address, a missing prefix
+.Ar len
+will be substituted by the historic class A or class B netmasks if
+.Ar address
+belongs in the address range of class A or B, respectively, or by'
+.Ar /24
+otherwise.  If
+.Ar address
+is an IPv6 address, a missing prefix
+.Ar len
+will be substituted by 128.
+.It Ql domainname[:service]
+Accept datagrams where the reverse address lookup yields
+.Ar domainname
+for the sender address.  The meaning of
+.Ar service
+is as explained above.
+.Ar domainname
+can contain special characters of a shell-style pattern such as
+.Ql * .
+.El
 .It Fl b Ar address[:service]
 .It Fl b Ar :service
 Bind to a specific address and/or port.  The address can be specified as
