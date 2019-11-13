@@ -160,7 +160,8 @@ static int  opensys(const char *file);
 static void printsys(char *msg);
 #endif
 static void logmsg(struct buf_msg *buffer);
-static void fprintlog(struct filed *f, struct buf_msg *buffer);
+static void fprintlog_first(struct filed *f, struct buf_msg *buffer);
+static void fprintlog_successive(struct filed *f, int flags);
 void        endtty();
 void        wallmsg(struct filed *f, struct iovec *iov, int iovcnt);
 void        reapchild();
@@ -1147,7 +1148,7 @@ static void logmsg(struct buf_msg *buffer)
 		f->f_file = open(ctty, O_WRONLY | O_NOCTTY);
 		if (f->f_file >= 0) {
 			untty();
-			fprintlog(f, buffer);
+			fprintlog_first(f, buffer);
 			(void)close(f->f_file);
 			f->f_file = -1;
 		}
@@ -1214,13 +1215,13 @@ static void logmsg(struct buf_msg *buffer)
 			 * in the future.
 			 */
 			if (now > REPEATTIME(f)) {
-				fprintlog(f, NULL);
+				fprintlog_successive(f, buffer->flags);
 				BACKOFF(f);
 			}
 		} else {
 			/* new line, save it */
 			if (f->f_prevcount) {
-				fprintlog(f, NULL);
+				fprintlog_successive(f, 0);
 
 				if (--DupesPending == 0) {
 					logit("unsetting duplicate message flush alarm\n");
@@ -1236,7 +1237,7 @@ static void logmsg(struct buf_msg *buffer)
 			strlcpy(f->f_prevhost, buffer->hostname, sizeof(f->f_prevhost));
 			strlcpy(f->f_prevline, saved, sizeof(f->f_prevline));
 			f->f_prevlen = savedlen;
-			fprintlog(f, buffer);
+			fprintlog_first(f, buffer);
 		}
 	}
 
@@ -1311,6 +1312,212 @@ void logrotate(struct filed *f)
 		iov[cnt].iov_len = 1;		\
 		cnt++;				\
 	} while (0);
+
+void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
+{
+	struct addrinfo *ai;
+	struct msghdr msg;
+	ssize_t len = 0;
+	time_t fwd_suspend;
+	int err;
+
+	switch (f->f_type) {
+	case F_UNUSED:
+		f->f_time = now;
+		logit("\n");
+		break;
+
+	case F_FORW_SUSP:
+		fwd_suspend = time(NULL) - f->f_time;
+		if (fwd_suspend >= INET_SUSPEND_TIME) {
+			logit("\nForwarding suspension over, retrying FORW ");
+			f->f_type = F_FORW;
+			goto f_forw;
+		} else {
+			logit(" %s:%s\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+			logit("Forwarding suspension not over, time left: %d.\n",
+			      (int)(INET_SUSPEND_TIME - fwd_suspend));
+		}
+		break;
+
+	/*
+	 * The trick is to wait some time, then retry to get the
+	 * address. If that fails retry x times and then give up.
+	 *
+	 * You'll run into this problem mostly if the name server you
+	 * need for resolving the address is on the same machine, but
+	 * is started after syslogd. 
+	 */
+	case F_FORW_UNKN:
+		logit(" %s:%s\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+		fwd_suspend = time(NULL) - f->f_time;
+		if (fwd_suspend >= INET_SUSPEND_TIME) {
+			char *host = f->f_un.f_forw.f_hname;
+			char *serv = f->f_un.f_forw.f_serv;
+
+			logit("Forwarding suspension to %s:%s over, retrying\n", host, serv);
+			err = nslookup(host, serv, &ai);
+			if (err) {
+				logit("Failure resolving %s:%s: %s\n", host, serv, gai_strerror(err));
+				logit("Retries: %d\n", f->f_prevcount);
+				if (--f->f_prevcount < 0) {
+					WARN("Still cannot find %s, giving up: %s",
+					     host, gai_strerror(err));
+					f->f_type = F_UNUSED;
+				} else {
+					WARN("Still cannot find %s, will try again later: %s",
+					     host, gai_strerror(err));
+					logit("Left retries: %d\n", f->f_prevcount);
+				}
+			} else {
+				NOTE("Found %s, resuming operation.", host);
+				f->f_un.f_forw.f_addr = ai;
+				f->f_prevcount = 0;
+				f->f_type = F_FORW;
+				goto f_forw;
+			}
+		} else
+			logit("Forwarding suspension not over, time left: %d\n",
+			      (int)(INET_SUSPEND_TIME - fwd_suspend));
+		break;
+
+	case F_FORW:
+	f_forw:
+		logit(" %s:%s\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+		f->f_time = now;
+
+		memset(&msg, 0, sizeof(msg));
+		msg.msg_iov = iov;
+		msg.msg_iovlen = iovcnt;
+
+		for (int i = 0; i < iovcnt; i++) {
+			logit("iov[%d] => %s\n", i, (char *)iov[i].iov_base);
+			len += iov[i].iov_len;
+		}
+
+		err = -1;
+		for (ai = f->f_un.f_forw.f_addr; ai; ai = ai->ai_next) {
+			int sd;
+
+			sd = socket_ffs(ai->ai_family);
+			if (sd != -1) {
+				char buf[64] = { 0 };
+				ssize_t lsent;
+
+				msg.msg_name = ai->ai_addr;
+				msg.msg_namelen = ai->ai_addrlen;
+				lsent = sendmsg(sd, &msg, 0);
+
+				if (AF_INET == ai->ai_family) {
+					struct sockaddr_in *sin;
+
+					sin = (struct sockaddr_in *)ai->ai_addr;
+					inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
+				} else {
+					struct sockaddr_in6 *sin6;
+
+					sin6 = (struct sockaddr_in6 *)ai->ai_addr;
+					inet_ntop(AF_INET6, &sin6->sin6_addr, buf, sizeof(buf));
+				}
+
+				logit("Sent %zd bytes to %s on socket %d ...\n", lsent, buf, sd);
+				if (lsent == len) {
+					err = -1;
+					break;
+				}
+				err = errno;
+			}
+			if (err == -1 && !send_to_all)
+				break;
+		}
+		if (err != -1) {
+			f->f_type = F_FORW_SUSP;
+			errno = err;
+			ERR("INET sendto()");
+		}
+		break;
+
+	case F_CONSOLE:
+		f->f_time = now;
+		if (flags & IGN_CONS) {
+			logit(" (ignored).\n");
+			break;
+		}
+		/* FALLTHROUGH */
+
+	case F_TTY:
+	case F_FILE:
+	case F_PIPE:
+		f->f_time = now;
+		logit(" %s\n", f->f_un.f_fname);
+		if (f->f_type == F_TTY || f->f_type == F_CONSOLE) {
+			pushiov(iov, iovcnt, "\r\n");
+		} else {
+			pushiov(iov, iovcnt, "\n");
+		}
+	again:
+		/* f->f_file == -1 is an indicator that we couldn't
+		   open the file at startup. */
+		if (f->f_file == -1)
+			break;
+
+		if (f->f_type == F_FILE)
+			logrotate(f);
+
+		if (writev(f->f_file, &iov[2], iovcnt - 2) < 0) {
+			int e = errno;
+
+			/* If a named pipe is full, just ignore it for now */
+			if (f->f_type == F_PIPE && e == EAGAIN)
+				break;
+
+			/* If the filesystem is filled up, just ignore
+			   it for now and continue writing when
+			   possible */
+			if (f->f_type == F_FILE && e == ENOSPC)
+				break;
+
+			/*
+			 * If the console is backed up, just ignore it
+			 * and continue writing again when possible.
+			 */
+			if (f->f_type == F_CONSOLE && e == EAGAIN)
+				break;
+
+			(void)close(f->f_file);
+			/*
+			 * Check for EBADF/EIO on TTY's due to vhangup()
+			 */
+			if ((f->f_type == F_TTY || f->f_type == F_CONSOLE) && e == EHANGUP) {
+				f->f_file = open(f->f_un.f_fname, O_WRONLY | O_APPEND | O_NOCTTY);
+				if (f->f_file < 0) {
+					f->f_type = F_UNUSED;
+					ERR("Failed writing and re-opening %s", f->f_un.f_fname);
+				} else {
+					untty();
+					goto again;
+				}
+			} else {
+				f->f_type = F_UNUSED;
+				errno = e;
+				ERR("Failed writing to %s", f->f_un.f_fname);
+			}
+		} else if (f->f_type == F_FILE && (f->f_flags & SYNC_FILE))
+			(void)fsync(f->f_file);
+		break;
+
+	case F_USERS:
+	case F_WALL:
+		f->f_time = now;
+		logit("\n");
+		pushiov(iov, iovcnt, "\r\n");
+		wallmsg(f, &iov[2], iovcnt - 2);
+		break;
+	} /* switch */
+
+	if (f->f_type != F_FORW_UNKN)
+		f->f_prevcount = 0;
+}
 
 #define fmtlogit(bm) logit("%s(%d, 0x%02x, %s, %s, %s, %s, %s, %s)", __func__, \
 			   bm->pri, bm->flags, bm->hostname, bm->app_name,     \
@@ -1405,36 +1612,13 @@ static int fmt5424(struct buf_msg *buffer, char *fmt, struct iovec *iov, size_t 
 	return i;
 }
 
-void fprintlog(struct filed *f, struct buf_msg *buffer)
+static void fprintlog_first(struct filed *f, struct buf_msg *buffer)
 {
-	struct addrinfo *ai;
-	struct buf_msg repeat;
 	struct logtime zero = { 0 };
 	struct iovec iov[20];
-	time_t fwd_suspend;
-	char repbuf[80];
-	char line[MAXLINE + 1];
-	int iovhead = 1;
-	int iovcnt = iovhead; /* One to spare at head for remote <PRI> */
-	int err;
+	int iovcnt;
 
-	logit("Called fprintlog, ");
-	if (!buffer) {
-		memset(&repeat, 0, sizeof(repeat));
-		repeat.hostname = f->f_prevhost;
-		repeat.pri = f->f_prevpri;
-		repeat.timestamp = f->f_lasttime;
-		if (f->f_prevcount > 1) {
-			snprintf(repbuf, sizeof(repbuf), "last message repeated %d times",
-				 f->f_prevcount);
-			repeat.msg = repbuf;
-		} else {
-			strlcpy(line, f->f_prevline, sizeof(line));
-			repeat.msg = line;
-		}
-
-		buffer = &repeat;
-	}
+	logit("Called fprintlog_first(), ");
 
 	if (!memcmp(&buffer->timestamp, &zero, sizeof(zero))) {
 		struct logtime timestamp_now;
@@ -1455,220 +1639,28 @@ void fprintlog(struct filed *f, struct buf_msg *buffer)
 	else
 		iovcnt = fmt3164(buffer, BSDFMT_DATEFMT, iov, NELEMS(iov));
 
-	/* Save actual message for future repeats */
-//	if (iovcnt > 0)
-//		strlcpy(f->f_prevline, iov[iovcnt - 1].iov_base, sizeof(f->f_prevline));
-
 	logit("logging to %s", TypeNames[f->f_type]);
+	fprintlog_write(f, iov, iovcnt, buffer->flags);
+}
 
-	switch (f->f_type) {
-	case F_UNUSED:
-		f->f_time = now;
-		logit("\n");
-		break;
+static void fprintlog_successive(struct filed *f, int flags)
+{
+	struct buf_msg buffer;
+	char msg[80];
 
-	case F_FORW_SUSP:
-		fwd_suspend = time(NULL) - f->f_time;
-		if (fwd_suspend >= INET_SUSPEND_TIME) {
-			logit("\nForwarding suspension over, retrying FORW ");
-			f->f_type = F_FORW;
-			goto f_forw;
-		} else {
-			logit(" %s:%s\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
-			logit("Forwarding suspension not over, time left: %d.\n",
-			      (int)(INET_SUSPEND_TIME - fwd_suspend));
-		}
-		break;
+	assert(f->f_prevcount > 0);
 
-	/*
-	 * The trick is to wait some time, then retry to get the
-	 * address. If that fails retry x times and then give up.
-	 *
-	 * You'll run into this problem mostly if the name server you
-	 * need for resolving the address is on the same machine, but
-	 * is started after syslogd. 
-	 */
-	case F_FORW_UNKN:
-		logit(" %s:%s\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
-		fwd_suspend = time(NULL) - f->f_time;
-		if (fwd_suspend >= INET_SUSPEND_TIME) {
-			char *host = f->f_un.f_forw.f_hname;
-			char *serv = f->f_un.f_forw.f_serv;
+	memset(&buffer, 0, sizeof(buffer));
+	buffer.hostname = f->f_prevhost;
+	buffer.pri = f->f_prevpri;
+	buffer.timestamp = f->f_lasttime;
+	buffer.flags = flags;
 
-			logit("Forwarding suspension to %s:%s over, retrying\n", host, serv);
-			err = nslookup(host, serv, &ai);
-			if (err) {
-				logit("Failure resolving %s:%s: %s\n", host, serv, gai_strerror(err));
-				logit("Retries: %d\n", f->f_prevcount);
-				if (--f->f_prevcount < 0) {
-					WARN("Still cannot find %s, giving up: %s",
-					     host, gai_strerror(err));
-					f->f_type = F_UNUSED;
-				} else {
-					WARN("Still cannot find %s, will try again later: %s",
-					     host, gai_strerror(err));
-					logit("Left retries: %d\n", f->f_prevcount);
-				}
-			} else {
-				NOTE("Found %s, resuming operation.", host);
-				f->f_un.f_forw.f_addr = ai;
-				f->f_prevcount = 0;
-				f->f_type = F_FORW;
-				goto f_forw;
-			}
-		} else
-			logit("Forwarding suspension not over, time left: %d\n",
-			      (int)(INET_SUSPEND_TIME - fwd_suspend));
-		break;
+	snprintf(msg, sizeof(msg), "last message buffered %d times",
+		 f->f_prevcount);
+	buffer.msg = msg;
 
-	case F_FORW:
-		/* 
-		 * Don't send any message to a remote host if it
-		 * already comes from one. (we don't care 'bout who
-		 * sent the message, we don't send it anyway)  -Joey
-		 */
-	f_forw:
-		logit(" %s:%s\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
-		if (strcmp(buffer->hostname, LocalHostName) && NoHops)
-			logit("Not sending message to remote.\n");
-		else {
-			struct msghdr msg;
-			ssize_t len = 0;
-
-			f->f_time = now;
-
-			memset(&msg, 0, sizeof(msg));
-			msg.msg_iov = iov;
-			msg.msg_iovlen = iovcnt;
-
-			for (int i = 0; i < iovcnt; i++) {
-				logit("iov[%d] => %s\n", i, (char *)iov[i].iov_base);
-				len += iov[i].iov_len;
-			}
-
-			err = -1;
-			for (ai = f->f_un.f_forw.f_addr; ai; ai = ai->ai_next) {
-				int sd;
-
-				sd = socket_ffs(ai->ai_family);
-				if (sd != -1) {
-					char buf[64] = { 0 };
-					ssize_t lsent;
-
-					msg.msg_name = ai->ai_addr;
-					msg.msg_namelen = ai->ai_addrlen;
-					lsent = sendmsg(sd, &msg, 0);
-
-					if (AF_INET == ai->ai_family) {
-						struct sockaddr_in *sin;
-
-						sin = (struct sockaddr_in *)ai->ai_addr;
-						inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
-					} else {
-						struct sockaddr_in6 *sin6;
-
-						sin6 = (struct sockaddr_in6 *)ai->ai_addr;
-						inet_ntop(AF_INET6, &sin6->sin6_addr, buf, sizeof(buf));
-					}
-
-					logit("Sent %zd bytes to %s on socket %d ...\n", lsent, buf, sd);
-					if (lsent == len) {
-						err = -1;
-						break;
-					}
-					err = errno;
-				}
-				if (err == -1 && !send_to_all)
-					break;
-			}
-			if (err != -1) {
-				f->f_type = F_FORW_SUSP;
-				errno = err;
-				ERR("INET sendto()");
-			}
-		}
-		break;
-
-	case F_CONSOLE:
-		f->f_time = now;
-		if (buffer->flags & IGN_CONS) {
-			logit(" (ignored).\n");
-			break;
-		}
-		/* FALLTHROUGH */
-
-	case F_TTY:
-	case F_FILE:
-	case F_PIPE:
-		f->f_time = now;
-		logit(" %s\n", f->f_un.f_fname);
-		if (f->f_type == F_TTY || f->f_type == F_CONSOLE) {
-			pushiov(iov, iovcnt, "\r\n");
-		} else {
-			pushiov(iov, iovcnt, "\n");
-		}
-	again:
-		/* f->f_file == -1 is an indicator that we couldn't
-		   open the file at startup. */
-		if (f->f_file == -1)
-			break;
-
-		if (f->f_type == F_FILE)
-			logrotate(f);
-
-		if (writev(f->f_file, &iov[2], iovcnt - 2) < 0) {
-			int e = errno;
-
-			/* If a named pipe is full, just ignore it for now */
-			if (f->f_type == F_PIPE && e == EAGAIN)
-				break;
-
-			/* If the filesystem is filled up, just ignore
-			   it for now and continue writing when
-			   possible */
-			if (f->f_type == F_FILE && e == ENOSPC)
-				break;
-
-			/*
-			 * If the console is backed up, just ignore it
-			 * and continue writing again when possible.
-			 */
-			if (f->f_type == F_CONSOLE && e == EAGAIN)
-				break;
-
-			(void)close(f->f_file);
-			/*
-			 * Check for EBADF/EIO on TTY's due to vhangup()
-			 */
-			if ((f->f_type == F_TTY || f->f_type == F_CONSOLE) && e == EHANGUP) {
-				f->f_file = open(f->f_un.f_fname, O_WRONLY | O_APPEND | O_NOCTTY);
-				if (f->f_file < 0) {
-					f->f_type = F_UNUSED;
-					ERR("Failed writing and re-opening %s", f->f_un.f_fname);
-				} else {
-					untty();
-					goto again;
-				}
-			} else {
-				f->f_type = F_UNUSED;
-				errno = e;
-				ERR("Failed writing to %s", f->f_un.f_fname);
-			}
-		} else if (f->f_type == F_FILE && (f->f_flags & SYNC_FILE))
-			(void)fsync(f->f_file);
-		break;
-
-	case F_USERS:
-	case F_WALL:
-		f->f_time = now;
-		logit("\n");
-		pushiov(iov, iovcnt, "\r\n");
-		wallmsg(f, &iov[2], iovcnt - 2);
-		break;
-	} /* switch */
-
-	if (f->f_type != F_FORW_UNKN)
-		f->f_prevcount = 0;
+	fprintlog_first(f, &buffer);
 }
 
 jmp_buf ttybuf;
@@ -1891,7 +1883,7 @@ void domark(int signo)
 			logit("flush %s: repeated %d times, %d sec.\n",
 			      TypeNames[f->f_type], f->f_prevcount,
 			      repeatinterval[f->f_repeatcount]);
-			fprintlog(f, NULL);
+			fprintlog_successive(f, 0);
 			BACKOFF(f);
 			DupesPending--;
 		}
@@ -1922,7 +1914,7 @@ void die(int signo)
 	/* flush any pending output */
 	SIMPLEQ_FOREACH(f, &fhead, f_link) {
 		if (f->f_prevcount)
-			fprintlog(f, NULL);
+			fprintlog_successive(f, 0);
 	}
 
 	Initialized = was_initialized;
@@ -2096,6 +2088,10 @@ void init(void)
 	 * Close all open log files.
 	 */
 	SIMPLEQ_FOREACH_SAFE(f, &fhead, f_link, next) {
+		/* flush any pending output */
+		if (f->f_prevcount)
+			fprintlog_successive(f, 0);
+
 		switch (f->f_type) {
 		case F_FILE:
 		case F_TTY:
