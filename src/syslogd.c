@@ -187,7 +187,7 @@ static int addpeer(struct peer *pe0)
 	if (pe == NULL)
 		err(1, "malloc failed");
 	*pe = *pe0;
-	SIMPLEQ_INSERT_TAIL(&pqueue, pe, next);
+	SIMPLEQ_INSERT_TAIL(&pqueue, pe, pe_link);
 
 	return (0);
 }
@@ -2122,7 +2122,7 @@ void init(void)
 		/* Only once at startup */
 		once = 0;
 
-		SIMPLEQ_FOREACH(pe, &pqueue, next) {
+		SIMPLEQ_FOREACH(pe, &pqueue, pe_link) {
 			if (pe->pe_name && pe->pe_name[0] == '/')
 				create_unix_socket(pe);
 			else if (SecureMode < 2)

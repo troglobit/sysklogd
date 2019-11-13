@@ -186,11 +186,11 @@
  * Struct to hold records of peers and sockets
  */
 struct peer {
+	SIMPLEQ_ENTRY(peer)	pe_link;
 	const char	*pe_name;
 	const char	*pe_serv;
 	mode_t		 pe_mode;
-
-	SIMPLEQ_ENTRY(peer)	next;
+	int		 pe_sock;
 };
 
 /*
