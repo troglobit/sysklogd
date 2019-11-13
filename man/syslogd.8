@@ -25,9 +25,14 @@
 .Nm
 support RFC3164 and RFC5424 style log messages for both local and remote
 logging using Internet and UNIX domain sockets.  Differences in style is
-shown below.  The companion daemon,
+shown below.  The optional companion daemon,
 .Xr klogd 8 ,
-is used for trapping kernel messages and events.
+can be used to trap kernel messages and interpret events like Oops.  By
+default
+.Nm klogd
+is not built and
+.Nm
+handles reading and logging of kernel messages.
 .Pp
 .Bl -tag -compact -width "RFC3164:"
 .It RFC3164:
@@ -111,7 +116,7 @@ to prevent
 .Nm
 from backgrounding itself.  Debug information is written to the current
 TTY.  SIGUSR1 is required to confirm continued debug messages when the
-daemon has finished started up.  See the
+daemon has finished starting up.  See the
 .Sx DEBUGGING
 section for more information.
 .It Fl f Ar file
@@ -128,7 +133,7 @@ Depending on other log messages generated these lines may not be written
 consecutively.  The
 .Ql -- MARK --
 message is only written if the log file hasn't been touched in
-.Ar (SEC * 60) / 2
+.Ar (seconds * 60) / 2
 minutes.
 .It Fl n
 Run in foreground, required when run from a modern init/supervisor.  See
@@ -273,22 +278,13 @@ mail.!debug
 The '-' may only be used to prefix a filename if you want to omit
 sync'ing the file after every write to it.
 .Sh REMOTE LOGGING
-The following modifications provide network support to the
 .Nm
-facility.  Network support means that messages can be forwarded from one
-node running
-.Nm
-to another node running
-.Nm
-where they will be actually logged to a disk file.
-.Pp
-The strategy is to have syslogd listen on a UNIX domain socket for
-locally generated log messages.  This behavior will allow syslogd to
-inter-operate with the syslog found in the standard C library.  At the
-same time syslogd listens on the standard syslog port for messages
-forwarded from other hosts.  To have this work correctly the
+has network support enabled by default.  Meaning, when it starts up it
+opens a socket for sending to remote servers and also binds it to listen
+for incoming syslog messages over UDP port 514.  For this to work
+correctly the
 .Xr services 5
-files (typically found in
+file (typically found in
 .Pa /etc/services )
 must have the following entry:
 .Bd -literal -offset indent
@@ -297,20 +293,29 @@ syslog          514/udp
 .Pp
 If this entry is missing
 .Nm
-cannot receive remote messages, or send them, because the UDP port cannot
-be determined.  Instead
+by default disables networking completely.  This can also be achieved
+by the
+.Fl s
+flag.  However,
 .Nm
-will die immediately with an error message.
+can listen to any port, named or by value.  Use the
+.Fl b Ar :5514
+flag to bind a socket to (unprivileged) port 5514 instead.
 .Pp
-To forward messages to to a remote host, replace the file line in the
+To forward messages to to a remote host, create a rule in
 .Pa syslog.conf
-file with the name of the hostname to which the messages is to be sent
-prepended with an at ('@') sign.  For remote logging the hostname can
-also be appended with the flag
+with the name of the hostname to which the messages is to be sent
+prepended with an at
+.Sq ( @ )
+sign.  By default,
+.Nm
+sends messages to remote servers in the old-school
+.Ql BSD
+format, without timestamp and hostname.  This is for compatibility
+reasons.   Append the
 .Ql ;RFC5424
-to enable RFC5424 style formatting which includes RFC3339 timestamp and
-hostname information, which is not included in the default BSD
-.Nm .
+option to the rule to enable RFC5424 style formatting which includes
+RFC3339 timestamp and hostname information.
 .Pp
 For example, to forward
 .Sy ALL
@@ -320,21 +325,22 @@ entry:
 .Bd -literal -offset indent
 # Sample syslogd configuration file to forward all message
 # messages to a remote host using RFC5424 style formatting
-*.*		@hostname;RFC5424
+*.*		@hostname	;RFC5424
 .Ed
 .Pp
 To forward all
 .Ql kernel
-messages to a remote host the configuration file would be as follows:
+messages to a remote host (in old-school BSD formatting) the
+configuration file would be as follows:
 .Bd -literal -offset indent
-# Sample configuration file to forward all kernel
-# messages to a remote host.
+# Sample configuration file to forward all kernel messages
+# to a remote host.
 kern.*		@hostname
 .Ed
 .Pp
 If the remote hostname cannot be resolved at startup, because the
-name-server might not be accessible (it may be started after
-.Nm ),
+name server might not yet be accessible (maybe started later in
+the boot sequence),
 .Nm
 will retry resolving the name ten times before logging the error.
 Another possibility to avoid this is to place the hostname in
@@ -344,17 +350,10 @@ If the remote host is located in the same domain as the host,
 .Nm
 is running on, only the simple hostname will be logged instead of the
 whole FQDN.
-.Pp
-The UDP socket used to forward messages to remote hosts or to receive
-messages from them is only opened when it is needed.  In releases
-prior to 1.3-23 it was opened every time but not opened for reading or
-forwarding respectively.
-.Sh OUTPUT TO NAMED PIPES (FIFOs)
-This version of syslogd has support for logging output to named pipes
-(fifos).  A FIFO or named pipe can be used as a destination for log
-messages by prepending a pipy symbol ('|') to the name of the file.
-This is very handy for debugging.  Note, the FIFO must be created with
-the
+.Sh NAMED PIPES
+A FIFO, or named pipe, can be used as a destination for log messages by
+prepending a pipy symbol ('|') to the name of the file.  This is very
+handy for debugging.  Note, the FIFO must be created with the
 .Xr mkfifo 1
 command before
 .Nm
@@ -363,29 +362,10 @@ is started.
 The following configuration file routes debug messages from the kernel
 to a FIFO:
 .Bd -literal -offset indent
-# Sample configuration to route kernel debugging
-# messages ONLY to /var/log/debug which is a
-# named pipe.
+# Sample configuration to route kernel debugging messages
+# ONLY to /var/log/debug which is a named pipe.
 kern.=debug	|/var/log/debug
 .Ed
-.Sh CONCERNS
-There is probably one important consideration when installing this
-version of syslogd.  This version of syslogd is dependent on proper
-formatting of messages by the syslog function.  The functioning of the
-syslog function in the shared libraries changed somewhere in the region
-of libc.so.4.[2-4].n.  The specific change was to null-terminate the
-message before transmitting it to the
-.Pa /dev/log
-socket.  Proper functioning of this version of
-.Nm
-is dependent on null-termination of the message.
-.Pp
-This problem will typically manifest itself if old statically linked
-binaries are being used on the system.  Binaries using old versions of
-the syslog function will cause empty lines to be logged followed by the
-message with the first character in the message removed.  Relinking
-these binaries to newer versions of the shared libraries will correct
-this problem.
 .Sh SECURITY
 There is the potential for
 .Nm
@@ -481,27 +461,51 @@ In debug mode this switches debugging on/off.  In normal operation
 it is ignored.
 .El
 .Pp
-For convenience the PID is, by default, stored in
+For convenience the PID is by default stored in
 .Pa /var/run/syslogd.pid .
-Example usage:
+A script can look for the existance of this file to determine if
+.Nm
+is running, and then send signals:
 .Bd -literal -offset indent
 kill -SIGNAL `cat /var/run/syslogd.pid`
 .Ed
 .Sh FILES
 .Bl -tag -width TERM
+.It Pa /dev/log
+The UNIX domain socket to from where local syslog messages are read.
+.It Pa /proc/kmsg
+The Linux kernel log file
+.Nm
+reads when built without the optional
+.Nm klogd .
 .It Pa /etc/syslog.conf
 Configuration file for
 .Nm .
 See
 .Xr syslog.conf 5
 for more information.
-.It Pa  /dev/log
-The UNIX domain socket to from where local syslog messages are read.
+.It Pa /etc/syslog.d/*.conf
+Conventional sub-directory of
+.Pa .conf
+files read by
+.Nm .
+.It Pa /etc/syslog.d/50-default.conf
+Conventional name for default rules.
 .It Pa /var/run/syslogd.pid
 The file containing the process id of 
 .Nm .
 .El
 .Sh BUGS
+The ability to log messages received in UDP packets is equivalent to an
+unauthenticated remote disk-filling service, and should probably be
+disabled
+.Fl ( s )
+by default.  (The shipped systemd unit file disables this by default.)
+A future version of
+.Nm
+may include support for TLS, RFC5425, which includes authentication of
+both senders and receivers.
+.Pp
 As mentioned in the
 .Sx DESCRIPTION ,
 .Nm
@@ -547,7 +551,7 @@ fixed some bugs, added several new features and took over maintenance.
 .An Joachim Nilsson Aq Mt troglobit@gmail.com
 later picked up the aging
 .Nm sysklogd
-and gave it a home at GitHub with new features imported from
+project and gave it a home at GitHub with new features imported from
 .Fx
 and
 .Nx .
