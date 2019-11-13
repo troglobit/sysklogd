@@ -528,6 +528,7 @@ static void create_unix_socket(struct peer *pe)
 	struct addrinfo ai;
 	int sd = -1;
 
+	memset(&ai, 0, sizeof(ai));
 	ai.ai_addr = (struct sockaddr *)&sun;
 	ai.ai_addrlen = sizeof(sun);
 	ai.ai_family = sun.sun_family = AF_UNIX;
