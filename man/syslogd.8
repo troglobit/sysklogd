@@ -13,7 +13,7 @@
 .Nd System Log Daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl ?46AdFksTv
+.Op Fl ?46AdFknsTv
 .Op Fl a Ar addr[/len][:port]
 .Op Fl a Ar name[:port]
 .Op Fl b Ar addr[:port]
@@ -177,19 +177,6 @@ for details.
 .It Fl f Ar file
 Specify an alternative configuration file instead of the default
 .Pa /etc/syslog.conf .
-.It Fl m Ar seconds
-.Nm
-logs a mark timestamp regularly.  The default interval between two
-.Ql -- MARK --
-lines is 20 minutes.  This can be changed with this option.  Setting
-this to zero disables log marks entirely.
-.Pp
-Depending on other log messages generated these lines may not be written
-consecutively.  The
-.Ql -- MARK --
-message is only written if the log file hasn't been touched in
-.Ar (seconds * 60) / 2
-minutes.
 .It Fl k
 Disable the translation of messages received with facility
 .Ql kern
@@ -203,6 +190,21 @@ facility is reserved for kernel log messages.  When the
 daemon runs alongside
 .Nm ,
 this option is always set.
+.It Fl m Ar seconds
+.Nm
+logs a mark timestamp regularly.  The default interval between two
+.Ql -- MARK --
+lines is 20 minutes.  This can be changed with this option.  Setting
+this to zero disables log marks entirely.
+.Pp
+Depending on other log messages generated these lines may not be written
+consecutively.  The
+.Ql -- MARK --
+message is only written if the log file hasn't been touched in
+.Ar (seconds * 60) / 2
+minutes.
+.It Fl n
+Disable DNS query for every request.
 .It Fl P Ar file
 Specify an alternate file in which to store the process ID.
 The default is

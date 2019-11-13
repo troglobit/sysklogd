@@ -119,6 +119,7 @@ struct filed consfile;
 
 static int	  Debug;		/* debug flag */
 static int	  Foreground = 0;	/* don't fork - don't run in daemon mode */
+static int	  resolve = 1;		/* resolve hostname */
 static char	  LocalHostName[MAXHOSTNAMELEN + 1]; /* our hostname */
 static char	 *LocalDomain;			     /* our local domain name */
 static char	 *emptystring = "";
@@ -165,7 +166,7 @@ void        endtty();
 void        wallmsg(struct filed *f, struct iovec *iov, int iovcnt);
 void        reapchild();
 const char *cvtaddr(struct sockaddr_storage *f, int len);
-const char *cvthname(struct sockaddr_storage *f, socklen_t len);
+const char *cvthname(struct sockaddr *f, socklen_t len);
 void        domark();
 void        debug_switch();
 void        die(int sig);
@@ -194,8 +195,8 @@ static int addpeer(struct peer *pe0)
 int usage(int code)
 {
 	printf("Usage:\n"
-	       "  syslogd [-46AdFkrsv?] [-a PEER] [-b :PORT] [-b ADDR[:PORT]] [-f FILE] [-m SEC]\n"
-	       "                        [-P PID_FILE] [-p SOCK_PATH] [-R SIZE[:NUM]]\n"
+	       "  syslogd [-46AdFknsTv?] [-a PEER] [-b :PORT] [-b ADDR[:PORT]] [-f FILE]\n"
+	       "                         [-m SEC] [-P PID_FILE] [-p SOCK_PATH] [-R SIZE[:NUM]]\n"
 	       "Options:\n"
 	       "  -4        Force IPv4 only\n"
 	       "  -6        Force IPv6 only\n"
@@ -225,6 +226,7 @@ int usage(int code)
 	       "  -f FILE   Alternate .conf file, default: /etc/syslog.conf\n"
 	       "  -k        Allow logging with facility 'kernel', otherwise remapped to 'user'.\n"
 	       "  -m SEC    Interval between MARK messages in log, 0 to disable, default: 20 min\n"
+	       "  -n        Disable DNS query for every request\n"
 	       "  -P FILE   File to store the process ID, default: %s\n"
 	       "  -p PATH   Path to UNIX domain socket, multiple -p create multiple sockets. If\n"
 	       "            no -p argument is given the default %s is used\n"
@@ -263,7 +265,7 @@ int main(int argc, char *argv[])
 	KeepKernFac = 1;
 #endif
 
-	while ((ch = getopt(argc, argv, "46Aa:b:dHFf:m:P:p:r:sv?")) != EOF) {
+	while ((ch = getopt(argc, argv, "46Aa:b:dHFf:m:nP:p:r:sv?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -315,6 +317,10 @@ int main(int argc, char *argv[])
 
 		case 'm': /* mark interval */
 			MarkInterval = atoi(optarg) * 60;
+			break;
+
+		case 'n':
+			resolve = 0;
 			break;
 
 		case 'P':
@@ -613,7 +619,7 @@ static void inet_cb(int sd, void *arg)
 		return;
 	}
 
-	hname = cvthname(&ss, sslen);
+	hname = cvthname((struct sockaddr *)&ss, sslen);
 	unmapped(sa);
 	if (!validate(sa, hname)) {
 		logit("Message from %s was ignored.\n", hname);
@@ -1851,26 +1857,30 @@ const char *cvtaddr(struct sockaddr_storage *f, int len)
  * Callers of cvthname() need to know that if NULL is returned then
  * the host is to be ignored.
  */
-const char *cvthname(struct sockaddr_storage *f, socklen_t len)
+const char *cvthname(struct sockaddr *f, socklen_t len)
 {
-	static char hname[NI_MAXHOST];
+	static char hname[NI_MAXHOST], ip[NI_MAXHOST];
 	char *p;
 	int err;
 
-	err = getnameinfo((struct sockaddr *)f, len, hname, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
+	err = getnameinfo(f, len, ip, sizeof(ip), NULL, 0, NI_NUMERICHOST);
 	if (err) {
-		logit("Host name for your address (%s) unknown: %s\n", hname, gai_strerror(err));
+		logit("Malformed from address: %s\n", gai_strerror(err));
+		return "???";
+	}
 
-		err = getnameinfo((struct sockaddr *)f, len, hname, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
-		if (err) {
-			logit("Malformed from address: %s\n", gai_strerror(err));
-			return "???";
-		}
-		return hname;
+	if (!resolve)
+		return ip;
+
+	err = getnameinfo(f, len, hname, sizeof(hname), NULL, 0, NI_NAMEREQD);
+	if (err) {
+		logit("Host name for your address (%s) unknown: %s\n",
+		      ip, gai_strerror(err));
+		return ip;
 	}
 
 	/*
-	 * Convert to lower case, just like LocalDomain above
+	 * Convert to lower case, just like LocalDomain in init()
 	 */
 	for (p = hname; *p; p++) {
 		if (isupper(*p))
@@ -1878,6 +1888,7 @@ const char *cvthname(struct sockaddr_storage *f, socklen_t len)
 	}
 
 	/*
+	 * BSD has trimdomain(h1, ...), we implement our own here.
 	 * Notice that the string still contains the fqdn, but your
 	 * hostname and domain are separated by a '\0'.
 	 */
