@@ -8,7 +8,7 @@
 Aug 24 05:14:15 192.0.2.1 myproc[8710]: Kilroy was here.
 2019-11-04T00:50:15.001234+01:00 troglobit myproc 8710 - - Kilroy was here.
 ```
-[![License Badge][]][License] [![Travis Status][]][Travis] [![Coverity Status][]][Coverity Scan]
+[![BSD Badge][]][BSD License] [![License Badge][]][License] [![Travis Status][]][Travis] [![Coverity Status][]][Coverity Scan]
 
 Table of Contents
 -----------------
@@ -26,7 +26,7 @@ This is the continuation of the original Debian/Ubuntu syslog daemon,
 updated with full [RFC3164][] and [RFC5424][] support from NetBSD and
 FreeBSD.  The package includes the `libsyslog.{a,so}` library and a
 `syslog.h` header file replacement, two system log daemons, `syslogd`
-and `klogd`, and one command line tool called `logger`.
+and `klogd` (optional), and one command line tool called `logger`.
 
 `libsyslog` and `syslog/syslog.h`, derived directly from NetBSD, expose
 `syslogp()` and other new features available only in [RFC5424][]:
@@ -41,11 +41,11 @@ standard C-library implementations of the `syslog()` API (GLIBC, musl
 libc, uClibc), `libsyslog` must be used in your application to unlock
 the new [RFC5424][] `syslogp()` API.
 
-The `klogd` daemon listens to kernel message sources and is responsible
-for prioritizing and processing operating system messages.  The `klogd`
-daemon can run as a client of `syslogd` or optionally as a standalone
-program.  `klogd` can now be used to decode EIP addresses if it can
-determine a `System.map` file.
+The optional `klogd` daemon, enabled with `configure --with-klogd`,
+supports the GLIBC `klogctl()` API to read kernel log messages and can
+also decode EIP addresses on Linux Oops, provided a `System.map` file.
+The `syslogd` daemon can run stand-alone without `klogd`, this is the
+default.
 
 The included `logger` tool can be used from the command line, or script,
 to send RFC5424 formatted messages using `libsyslog` to `syslogd` for
@@ -152,9 +152,12 @@ Origin & References
 -------------------
 
 This is the continuation of the original sysklogd by Dr. G.W. Wettstein
-and [Martin Schulze][].  Now maintained and heavily updated by [Joachim
-Nilsson][].  Please file bug reports, or send pull requests for bug
-fixes and proposed extensions at [GitHub][].
+and [Martin Schulze][].  Currently maintained, and heavily updated, by
+[Joachim Nilsson][].  Please file bug reports, or send pull requests for
+bug fixes and proposed extensions at [GitHub][].
+
+The project is licensed under the [GPL][License], but the main `syslogd`
+daemon and `syslogp()` API:s are [3-clause BSD][BSD License] licensed.
 
 [RFC3164]:          https://tools.ietf.org/html/rfc3164
 [RFC5424]:          https://tools.ietf.org/html/rfc5424
@@ -166,6 +169,8 @@ fixes and proposed extensions at [GitHub][].
 [buildsystem]:      https://airs.com/ian/configure/
 [License]:          https://en.wikipedia.org/wiki/GPL_license
 [License Badge]:    https://img.shields.io/badge/License-GPL%20v2-blue.svg
+[BSD License]:      http://en.wikipedia.org/wiki/BSD_licenses
+[BSD Badge]:        https://img.shields.io/badge/License-BSD%203--Clause-blue.svg
 [Travis]:           https://travis-ci.org/troglobit/sysklogd
 [Travis Status]:    https://travis-ci.org/troglobit/sysklogd.png?branch=master
 [Coverity Scan]:    https://scan.coverity.com/projects/19540
