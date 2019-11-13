@@ -29,21 +29,13 @@ addons:
 
 # Build test programs as regular user, or clang build may fail
 script:
-  - echo "PASS 1/2 ===================================================================="
   - ./autogen.sh
-  - ./configure --prefix=/tmp/sysklogd --disable-silent-rules --with-klogd
+  - ./configure --prefix=/tmp/sysklogd --disable-silent-rules
   - make clean
   - make all
   - make -C test programs
-  - sudo make check || (which clang; cat test/test-suite.log; false)
-  - (cat test/test-suite.log; cat test/start.log; cat test/api.log)
+  - sudo make check || (which clang; cat test/test-suite.log; cat test/start.log; cat test/api.log; false)
   - make install-strip
   - mkdir -p /tmp/example; cp -a example/example.* /tmp/example/
   - (cd /tmp/example; PKG_CONFIG_LIBDIR=/tmp/sysklogd/lib/pkgconfig make -f example.mk)
   - tree /tmp/sysklogd
-  - echo "PASS 2/2 ===================================================================="
-  - make distclean
-  - ./configure --prefix=/tmp/syslogd --disable-silent-rules
-  - make all
-  - make install-strip
-  - tree /tmp/syslogd
