@@ -23,19 +23,19 @@ addons:
       name: "troglobit/sysklogd"
       description: "RFC5424 compliant syslog daemon and syslog()/syslogp() API for Linux"
     notification_email: troglobit@gmail.com
-    build_command_prepend: "./autogen.sh && ./configure"
+    build_command_prepend: "./autogen.sh && ./configure --with-klogd"
     build_command: "make"
     branch_pattern: dev
 
 # Build test programs as regular user, or clang build may fail
 script:
   - ./autogen.sh
-  - ./configure --prefix=/tmp/sysklogd --disable-silent-rules
+  - ./configure --prefix= --disable-silent-rules
   - make clean
   - make all
   - make -C test programs
   - sudo make check || (which clang; cat test/test-suite.log; cat test/start.log; cat test/api.log; false)
-  - make install-strip
+  - make install-strip DESTDIR=/tmp/sysklogd
   - mkdir -p /tmp/example; cp -a example/example.* /tmp/example/
   - (cd /tmp/example; PKG_CONFIG_LIBDIR=/tmp/sysklogd/lib/pkgconfig make -f example.mk)
   - tree /tmp/sysklogd
