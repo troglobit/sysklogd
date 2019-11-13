@@ -54,16 +54,12 @@ AC_ARG_WITH(klogd,
 	[klogd=$withval], [klogd='no'])
 
 AC_ARG_WITH(klogd-delay,
-        AS_HELP_STRING([--with-klogd-delay=SEC], [When klogd is started at the same time as syslogd, default: 0]),
+        AS_HELP_STRING([--with-klogd-delay=SEC], [Delay before klogd connects to syslogd, default: 0]),
 	[klogd_delay=$withval], [klogd_delay='no'])
 
 AC_ARG_WITH(suspend-time,
-        AS_HELP_STRING([--with-suspend-time=SEC], [Retry timeout for remote syslogd servers, default: 180]),
+        AS_HELP_STRING([--with-suspend-time=SEC], [Retry delay for sending to remote, default: 180]),
 	[suspend_time=$withval], [suspend_time='no'])
-
-AC_ARG_WITH(syslogd-pidfile,
-        AS_HELP_STRING([--with-syslogd-pidfile=FILE], [custom PID file, default: syslogd.pid]),
-	[syslogd_pidfile=$withval], [syslogd_pidfile='no'])
 
 AC_ARG_WITH(systemd,
      [AS_HELP_STRING([--with-systemd=DIR], [Directory for systemd service files])],,
@@ -86,15 +82,8 @@ AS_IF([test "x$suspend_time" != "xno"],[
 	AS_IF([test "x$suspend_time" = "xyes"],[
 		AC_MSG_ERROR([Must supply argument])])
 	]
-	AC_DEFINE_UNQUOTED(INET_SUSPEND_TIME, $suspend_time, [Retry timeout for remote syslgod servers, default: 180]),
+	AC_DEFINE_UNQUOTED(INET_SUSPEND_TIME, $suspend_time, [Retry delay for sending to remote syslog servers, default: 180]),
 	suspend_time=180)
-
-AS_IF([test "x$syslogd_pidfile" != "xno"],[
-	AS_IF([test "x$syslogd_pidfile" = "xyes"],[
-		AC_MSG_ERROR([Must supply argument])])
-	]
-	AC_DEFINE_UNQUOTED(SYSLOGD_PIDNAME, "$syslogd_pidfile", [Custom syslogd PID file]),
-	syslogd_pidfile="syslogd.pid")
 
 # Check where to install the systemd .service file
 AS_IF([test "x$with_systemd" = "xyes" -o "x$with_systemd" = "xauto"], [
@@ -132,7 +121,6 @@ cat <<EOF
   klogd..........: $with_klogd
   klogd delay....: $klogd_delay sec
   suspend time...: $suspend_time sec
-  pid file.......: /var/run/$syslogd_pidfile
   systemd........: $with_systemd
 
 ------------- Compiler version --------------

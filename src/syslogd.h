@@ -68,16 +68,11 @@
 #endif
 
 #ifndef _PATH_LOGCONF
-#define _PATH_LOGCONF  "/etc/syslog.conf"
+#define _PATH_LOGCONF  SYSCONFDIR "/syslog.conf"
 #endif
 
-#if defined(SYSLOGD_PIDNAME)
-#undef _PATH_LOGPID
-#define _PATH_LOGPID _PATH_VARRUN SYSLOGD_PIDNAME
-#else
 #ifndef _PATH_LOGPID
-#define _PATH_LOGPID _PATH_VARRUN "syslogd.pid"
-#endif
+#define _PATH_LOGPID LOCALSTATEDIR "/run/syslogd.pid"
 #endif
 
 #ifndef _PATH_DEV
