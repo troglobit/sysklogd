@@ -199,6 +199,7 @@ struct peer {
  * to us.
  */
 struct allowedpeer {
+	SIMPLEQ_ENTRY(allowedpeer)	next;
 	int isnumeric;
 	u_short port;
 	union {
@@ -211,7 +212,6 @@ struct allowedpeer {
 #define a_addr u.numeric.addr
 #define a_mask u.numeric.mask
 #define a_name u.name
-	SIMPLEQ_ENTRY(allowedpeer)	next;
 };
 
 /* Timestamps of log entries. */

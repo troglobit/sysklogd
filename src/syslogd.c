@@ -1980,19 +1980,14 @@ void debug_switch(int signo)
 void die(int signo)
 {
 	struct filed *f, *next;
-	int was_initialized = Initialized;
 	struct peer *pe, *penext;
 
-	Initialized = 0; /* Don't log SIGCHLDs in case we
-			    receive one during exiting */
-
-	/* flush any pending output */
 	SIMPLEQ_FOREACH(f, &fhead, f_link) {
+		/* flush any pending output */
 		if (f->f_prevcount)
 			fprintlog_successive(f, 0);
 	}
 
-	Initialized = was_initialized;
 	if (signo) {
 		logit("syslogd: exiting on signal %d\n", signo);
 		flog(LOG_SYSLOG | LOG_INFO, "exiting on signal %d", signo);
