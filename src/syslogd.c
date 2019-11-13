@@ -572,6 +572,8 @@ static void create_unix_socket(struct peer *pe)
 	if (sd < 0)
 		goto err;
 
+	logit("Created UNIX socket %d ...\n", sd);
+	pe->pe_sock[pe->pe_socknum++] = sd;
 	return;
 err:
 	ERR("cannot create %s", pe->pe_name);
@@ -658,6 +660,11 @@ static void create_inet_socket(struct peer *pe)
 	}
 
 	for (r = res; r; r = r->ai_next) {
+		if (pe->pe_socknum + 1 >= NELEMS(pe->pe_sock)) {
+			WARN("Only %zd IP addresses per socket supported.", NELEMS(pe->pe_sock));
+			break;
+		}
+
 		if (SecureMode)
 			r->ai_flags |= AI_SECURE;
 		else
@@ -667,7 +674,8 @@ static void create_inet_socket(struct peer *pe)
 		if (sd < 0)
 			continue;
 
-		logit("Created inet socket %d ...\n", sd);
+		logit("Created inet socket %d for %s:%s ...\n", sd, pe->pe_name, pe->pe_serv);
+		pe->pe_sock[pe->pe_socknum++] = sd;
 	}
 
 	freeaddrinfo(res);
@@ -1973,6 +1981,7 @@ void die(int signo)
 {
 	struct filed *f, *next;
 	int was_initialized = Initialized;
+	struct peer *pe, *penext;
 
 	Initialized = 0; /* Don't log SIGCHLDs in case we
 			    receive one during exiting */
@@ -2011,14 +2020,16 @@ void die(int signo)
 		free(f);
 	}
 
-	/* Close the UNIX sockets. */
-	/* XXX */
-
-	/* Close the inet sockets. */
-	/* XXX */
-
-	/* Clean-up UNIX sockets. */
-	/* XXX */
+	/*
+	 * Close all UNIX and inet sockets
+	 */
+	SIMPLEQ_FOREACH_SAFE(pe, &pqueue, pe_link, penext) {
+		for (size_t i = 0; i < pe->pe_socknum; i++) {
+			logit("Closing socket %d ...\n", pe->pe_sock[i]);
+			socket_close(pe->pe_sock[i]);
+		}
+		free(pe);
+	}
 
 	exit(0);
 }

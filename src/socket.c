@@ -186,18 +186,23 @@ err:	close(sd);
 
 int socket_close(int sd)
 {
+	struct sockaddr_un *sun;
 	struct sock *entry, *tmp;
 
 	LIST_FOREACH_SAFE(entry, &sl, link, tmp) {
-		if (entry->sd == sd) {
-			LIST_REMOVE(entry, link);
-			close(entry->sd);
-			if (entry->ai.ai_family == AF_UNIX)
-				free(entry->ai.ai_addr);
-			free(entry);
+		if (entry->sd != sd)
+			continue;
 
-			return 0;
+		LIST_REMOVE(entry, link);
+		close(entry->sd);
+		if (entry->ai.ai_family == AF_UNIX) {
+			sun = (struct sockaddr_un *)entry->ai.ai_addr;
+			(void)unlink(sun->sun_path);
 		}
+		free(entry->ai.ai_addr);
+		free(entry);
+
+		return 0;
 	}
 
 	errno = ENOENT;

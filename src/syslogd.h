@@ -190,7 +190,8 @@ struct peer {
 	const char	*pe_name;
 	const char	*pe_serv;
 	mode_t		 pe_mode;
-	int		 pe_sock;
+	int		 pe_sock[16];
+	size_t		 pe_socknum;
 };
 
 /*
