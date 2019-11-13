@@ -3,7 +3,6 @@ sudo: required
 
 compiler:
   - gcc
-  - clang
 
 env:
   global:
