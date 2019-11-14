@@ -13,12 +13,12 @@ tshark -Qni lo -w ${CAP} port 514 &
 PID="$!"
 
 # Wait for tshark to start up properly
-sleep 2
+sleep 3
 
 ../src/logger -u ${SOCK} ${MSG}
 
 # Wait for any OS delays, in particular on Travis
-sleep 2
+sleep 1
 
 # Stop tshark collector
 kill -TERM ${PID}
