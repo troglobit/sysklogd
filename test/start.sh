@@ -10,6 +10,12 @@ cat <<EOF > ${CONF}
 include ${CONFD}/*.conf
 EOF
 
+mkdir -p ${CONFD2}
+cat <<EOF > ${CONF2}
+# Nothing here yo
+include ${CONFD2}/*.conf
+EOF
+
 cat <<EOF > ${CONFD}/foo.conf
 # Local log file, avoid sync to disk
 *.*	-${LOG}

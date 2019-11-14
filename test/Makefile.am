@@ -13,6 +13,7 @@ TESTS            = start.sh
 TESTS           += local.sh
 TESTS           += remote.sh
 TESTS           += api.sh
+TESTS           += fwd.sh
 TESTS           += stop.sh
 
 programs: $(check_PROGRAMS)

@@ -17,3 +17,4 @@ rm -f ${CAP}
 rm -f ${SOCK}
 rm -f ${CONF}
 rm -rf ${CONFD}
+rm -rf ${CONFD2}
