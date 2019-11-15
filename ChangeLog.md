@@ -4,8 +4,8 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
-[v2.0][UNRELEASED]
-------------------
+[v2.0][] - 2019-11-15
+---------------------
 
 This release represents a major refresh of the sysklogd project.  The
 venerable syslogd gets an infusion of new blood from NetBSD and FreeBSD
@@ -203,7 +203,8 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v1.6...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.0...HEAD
+[v2.0]:       https://github.com/troglobit/sysklogd/compare/v1.6...v2.0
 [v1.6]:       https://github.com/troglobit/sysklogd/compare/v1.5...v1.6
 [v1.5.1]:     https://github.com/troglobit/sysklogd/compare/v1.5...v1.5.1
 [v1.5]:       https://github.com/troglobit/sysklogd/compare/v1.4...v1.5
