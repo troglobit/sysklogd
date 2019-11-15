@@ -5,8 +5,8 @@
 |_____|___  |_____|__|__|__|_____|___  |_____|    RFC5424 :: w/NetBSD syslogp()
       |_____|                    |_____|
 
-Aug 24 05:14:15 192.0.2.1 myproc[8710]: Kilroy was here.
-2019-11-04T00:50:15.001234+01:00 troglobit myproc 8710 - - Kilroy was here.
+<23>Aug 24 05:14:15 192.0.2.1 myproc[8710]: Kilroy was here.
+<23>1 2019-11-04T00:50:15.001234+01:00 troglobit myproc 8710 - - Kilroy was here.
 ```
 [![BSD Badge][]][BSD License] [![License Badge][]][License] [![Travis Status][]][Travis] [![Coverity Status][]][Coverity Scan]
 
@@ -53,15 +53,22 @@ local or remote logging.
 
 Main differences from the original sysklogd package are:
 
-- Support for `include /etc/syslog.d/*.conf`, see example .conf
+- `klogd` no longer built by default (optional) `syslogd` is stand-alone
+- *Major* command line changes to `syslogd`, for compatibilty with *BSD
+- Supports `include /etc/syslog.d/*.conf` directuve, see example .conf
 - Built-in log-rotation support, with compression by default, useful for
   embedded systems.  No need for cron and a separate log rotate daemon
-- Full [RFC3164][] and [RFC5424][] support
-- Includes timestamp and hostname, RFC3164 style, in remote logging
+- Full [RFC3164][] and [RFC5424][] support from NetBSD and FreeBSD
+- Support for sending RFC3164 style remote syslog messages, including
+  timestamp and hostname.  Defaults to send w/o for compatibility
 - Support for sending RFC5424 style remote syslog messages
 - Support for sending messages to a custom port on a remote server
+- Support for listening to a custom port
+- Support for remote peer filtering, from FreeBSD
+- Support for disabling DNS reverse lookups for each remote log message
+- Support for FreeBSD Secure Mode
 - Includes a `logger` tool with RFC5424 capabilities (`msgid` etc.)
-- Includes a library and system header replacement for logging
+- Includes a syslog library and system header replacement for logging
 - FreeBSD socket receive buffer size patch
 - Avoid blocking `syslogd` if console is backed up
 - Touch PID file on `SIGHUP`, for integration with [Finit][]
@@ -152,9 +159,10 @@ Origin & References
 -------------------
 
 This is the continuation of the original sysklogd by Dr. G.W. Wettstein
-and [Martin Schulze][].  Currently maintained, and heavily updated, by
-[Joachim Nilsson][].  Please file bug reports, or send pull requests for
-bug fixes and proposed extensions at [GitHub][].
+and [Martin Schulze][].  Currently maintained, and heavily updated with
+the latest features from NetBSD and FreeBSD, by [Joachim Nilsson][].
+Please file bug reports, or send pull requests for bug fixes and
+proposed extensions at [GitHub][].
 
 The project is licensed under the [GPL][License], but the main `syslogd`
 daemon and `syslogp()` API:s are [3-clause BSD][BSD License] licensed.
