@@ -67,7 +67,6 @@ and
 .Xr syslogp 3
 API in
 .Lb libsyslog ,
-this version of
 .Nm
 interacts transparently with the standard C library
 .Xr syslog 3
@@ -257,40 +256,44 @@ keep time properly or are unable to generate a correct timestamp.
 Print
 .Nm
 version and exit.
-.Sh CONFIGURATION FILE SYNTAX DIFFERENCES
+.Sh CONFIGURATION FILE DIFFERENCES
 .Nm
 uses a slightly different syntax for its configuration file than the
-original BSD sources.  First, rules may now also have a third field
+original BSD sources.
+.Pp
+First, rules may now also have a third field
 .Cm ;OPTION .
 Several options are supported, comma separated, that control formatting
 and log rotation, for more on this see
 .Xr syslog.conf 5 .
-Second, originally all messages of a specific priority and above were
-forwarded to the log file.
 .Pp
-For example the following line send all output from daemons using the
-daemon facilities (debug is the lowest priority, so every higher will
-also match) to go into
+Second, other files may be included using a
+.Xr glob 7
+style syntax, e.g.
+.Ql include /path/to/*.conf .
+.Pp
+Third, originally all messages of a specific priority and above were
+forwarded to the log file.  For example the following line send all
+output from daemons using the daemon facilities (debug is the lowest
+priority, so every higher will also match) to go into
 .Pa /var/log/daemons :
 .Bd -literal -offset indent
 # Sample syslog.conf
 daemon.debug		/var/log/daemons
 .Ed
 .Pp
-With
 .Nm
-this behavior remains the same.  The difference is the addition of four
-additional specifiers, the asterisk ('*') wildcard, the equation sign
-('='), the exclamation mark ('!'), and the minus sign ('-').
+still supports this, with the addition of four additional specifiers,
+the asterisk ('*') wildcard, the equation sign ('='), the exclamation
+mark ('!'), and the minus sign ('-').
 .Pp
 The '*' specifies that all messages for the specified facility are to be
 directed to the destination.  Note that this behavior is degenerate with
 specifying a priority level of debug.  Users have indicated that the
 asterisk notation is more intuitive.
 .Pp
-The '=' wildcard is used to restrict logging to the specified priority
-class.  This allows, for example, routing only debug messages to a
-particular logging source.
+The '=' restricts logging to the specified priority class.  This allows,
+for example, routing only debug messages to a particular logging source.
 .Pp
 For example, the following line in
 .Pa /etc/syslog.conf
@@ -452,6 +455,15 @@ programs or individuals on the local machine.
 There are a number of methods of protecting a machine:
 .Bl -enum
 .It
+Disabling inet domain sockets will limit risk to the local machine.  Use
+the secore mode flag
+.Fl s
+for this.
+.It
+Only allow certain remote peers using the
+.Fl a Ar PEER
+flag.
+.It
 Implement kernel firewalling to limit which hosts or networks have
 access to the 514/UDP socket.
 .It
@@ -460,15 +472,6 @@ if filled, will not impair the machine.
 .It
 The ext2 filesystem can be used which can be configured to limit a
 certain percentage of a filesystem to usage by root only.
-.Sy NOTE:
-this requires
-.Nm
-to be run as a non-root process.  Also, this prevents usage of remote
-logging since
-.Nm
-will be unable to bind to the 514/UDP socket.
-.It
-Disabling inet domain sockets will limit risk to the local machine.
 .El
 .Sh DEBUGGING
 When debug mode (
@@ -571,7 +574,9 @@ unauthenticated remote disk-filling service, and should probably be
 disabled
 .Fl ( s )
 by default.  (The shipped systemd unit file disables this by default.)
-A future version of
+See also
+.Sx SECURITY
+for more information on this.  A future version of
 .Nm
 may include support for TLS, RFC5425, which includes authentication of
 both senders and receivers.
@@ -584,19 +589,6 @@ transparently supports the standard C library
 API.  If a binary linked to the standard C libraries does not operate
 correctly, this should be reported as a bug to this project.  See below
 for contact details.
-.Pp
-.Nm
-doesn't change the file mode of opened log files at any stage.  If a
-file is created it is world readable.  If you want to avoid this, you
-have to create it and change permissions on your own.  This could be
-done in combination with rotating logfiles using the
-.Xr savelog 8
-program that is shipped in the 
-.Nm smail
-3.x distribution.  Remember that it might be a security hole if
-everybody is able to read
-.Ql auth.*
-messages as these might contain passwords.
 .Sh SEE ALSO
 .Xr syslog.conf 5 ,
 .Xr klogd  8 ,
