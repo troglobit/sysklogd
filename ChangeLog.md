@@ -12,29 +12,37 @@ venerable syslogd gets an infusion of new blood from NetBSD and FreeBSD
 to fully support RFC3164 and RFC5424.  Also included is a user library
 and a replacement for `syslog.h` to enable new features in RFC5424.
 
+> Note: as of this release `klogd` is disabled by default, `syslogd` can
+>       read Linux kernel messages on its own now.
+
 ### Changes
 - Support for true RFC3164 formatted log messages to remote log servers,
   including timestamp and hostname.  Use `;RFC3161` rule option
-- Support for RFC5424 from UNIX domain socket, from remote servers and
-  also to remote servers.  Requires new API `syslogp()` to unlock the
-  new features.  Still compatible with GLIBC/musl/uClibc
+- Support for RFC5424 from UNIX domain socket, from remote servers and also
+  to remote servers.  Requires new API `syslogp()` to unlock these features
+  on the UNIX socket.  Still compatible with GLIBC/musl/uClibc
 - Support for options to `syslog.conf` rules.  E.g. `;RFC5424` to enable
   sending/writing log messages with RFC3339 style timestamps, and more
 - Support for `include /etc/syslog.d/*.conf` in `syslog.conf`
+- New tool `logger` from the Finit project, BSD licensed.  Supports all the
+  features of RFC5424, so *very* useful for trying out the "new" standard
 - Support for reading from a custom UNIX domain socket path, `-p SOCK`,
   for unit testing with `logger -u /path/to/sock`
 - Support for sending to a custom port on a remote server, `@host:port`
-- New tool `logger` from the Finit project, BSD licensed
 - New `syslogp()` API from NetBSD, for applications wanting to use
   RFC5424 features like MsgID or structured data
-- Incompatible changes to command line options in `syslogd` and `klogd`
-  for compatiblity with FreeBSD and NetBSD syslogd:
+- Many *incompatible changes* to command line options in `syslogd` and
+  `klogd` for compatiblity with FreeBSD and NetBSD syslogd.  Examples:
   - In syslogd: `-b` and `-c` have been replaced with `-r` for global
     log rotation, `-a` has been replaced with the new `-p` support.  The
     `-r` flag and `-s HOST` has also been dropped in favor of the BSD
     `-s` flag to control two levels of _secure mode_.  The `-n` flag is
-	now `-F` and `-n` means something else entirely ...
+	now `-F` and `-n` means something else entirely ... there's more
   - In klogd: `-i` and `-I` have been removed
+- `klogd` is not built by default anymore, `syslogd` can read `/proc/kmsg`
+  on Linux on its own.  Reduces complexity and gives you one daemon less
+- When systemd support is detected by the configure script the unit file(s)
+  are now installed into the systemd system services folder
 - Update COPYING file to GPL 2 rev 2, with new FSF address and other minor stuff
 - Update license header in all files:
   - Sync 3-clause BSD license change with upstream NetBSD and FreeBSD sources
