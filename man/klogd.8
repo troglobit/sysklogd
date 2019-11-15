@@ -61,19 +61,35 @@ When symbols are expanded, print the line twice.  Once with addresses
 converted to symbols, once with the raw text.  This allows external
 programs such as ksymoops do their own processing on the original data.
 .Sh OVERVIEW
-The functionality of klogd has been typically incorporated into other
-versions of syslogd but this seems to be a poor place for it.  In the
-modern Linux kernel a number of kernel messaging issues such as
+The basic functionality of klogd is typically included in
+.Nm syslogd .
+In a modern Linux kernel a number of kernel messaging issues such as
 sourcing, prioritization and resolution of kernel addresses must be
-addressed.  Incorporating kernel logging into a separate process offers
-a cleaner separation of services.
+addressed.  This task was previously the role of
+.Nm ,
+but with the addition of features like
+.Ql CONFIG_KALLSYSMS
+the need for a separate
+.Nm
+has been greatly reduced, so the
+.Nm sysklogd
+project have disabled
+.Nm
+by default.
 .Pp
 In Linux there are two potential sources of kernel log information: the 
 .Pa /proc
-file system and the syscall,
+file system, specifically the file
+.Pa /proc/kmsg ,
+and the syscall,
 .Fn sys_syslog
-interface, although ultimately
-they are one and the same.
+interface, see
+.Xr syslog 2
+for details, although ultimately they are one and the same.
+.Nm syslogd
+reads from
+.Pa /proc/kmsg ,
+but
 .Nm
 is designed to choose whichever source of information is the most
 appropriate.  It does this by first checking for the presence of a
@@ -90,13 +106,7 @@ can be used to force
 .Nm
 to use the system call interface as its messaging source.
 .Pp
-If kernel messages are directed through the 
-.Nm syslogd
-daemon,
-.Nm ,
-as of version 1.1, has the ability to properly prioritize kernel
-messages.  Prioritization of kernel log messages was added around Linux
-version 0.99pl13.  The raw kernel messages are of the form:
+The raw kernel messages are of the form:
 .Bd -literal -offset indent
 <[0-7]>Something said by the kernel.
 .Ed
@@ -105,9 +115,13 @@ The priority of the kernel message is encoded as a single numeric
 digit enclosed inside the
 .Ql <>
 pair.  The definitions of these values is given in the kernel include
-file kernel.h.  When a message is received from the kernel the klogd
-daemon reads this priority level and assigns the appropriate priority
-level to the syslog message.  If file output,
+file kernel.h.  When a message is received from the kernel, by either
+.Nm syslogd
+or
+.Nm klogd ,
+the daemon reads this priority value and assigns the appropriate
+priority level and kernel facility to the syslog message.  If file
+output,
 .Fl f Ar FILE ,
 is used the prioritization sequence is left pre-pended to the kernel
 message.
