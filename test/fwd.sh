@@ -6,7 +6,7 @@ if [ x"${srcdir}" = x ]; then
 fi
 . ${srcdir}/test.rc
 
-export MSG="fwd and allow"
+MSG="fwd and allow"
 
 cat <<EOF >${CONFD}/fwd.conf
 ntp.*	@127.0.0.2:${PORT2}	;RFC5424
