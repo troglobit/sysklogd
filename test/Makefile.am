@@ -1,5 +1,5 @@
 EXTRA_DIST       = test.rc start.sh stop.sh
-EXTRA_DIST      += api.sh local.sh remote.sh
+EXTRA_DIST      += api.sh local.sh remote.sh fwd.sh
 CLEANFILES       = *~ *.trs *.log
 TEST_EXTENSIONS  = .sh
 
