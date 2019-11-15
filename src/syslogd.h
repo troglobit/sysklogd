@@ -223,7 +223,7 @@ struct logtime {
 /* message buffer container used for processing, formatting, and queueing */
 struct buf_msg {
 	int	 	 pri;
-	char		 pribuf[7];
+	char		 pribuf[8];
 	int	 	 flags;
 	struct logtime	 timestamp;
 	char		 timebuf[33];

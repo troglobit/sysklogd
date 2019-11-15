@@ -1533,7 +1533,7 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 		if (f->f_type == F_FILE)
 			logrotate(f);
 
-		if (writev(f->f_file, &iov[2], iovcnt - 2) < 0) {
+		if (writev(f->f_file, &iov[1], iovcnt - 1) < 0) {
 			int e = errno;
 
 			/* If a named pipe is full, just ignore it for now */
@@ -1580,7 +1580,7 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 		f->f_time = now;
 		logit("\n");
 		pushiov(iov, iovcnt, "\r\n");
-		wallmsg(f, &iov[2], iovcnt - 2);
+		wallmsg(f, &iov[1], iovcnt - 1);
 		break;
 	} /* switch */
 
@@ -1598,9 +1598,9 @@ static int fmt3164(struct buf_msg *buffer, char *fmt, struct iovec *iov, size_t 
 
 	fmtlogit(buffer);
 
+	/* Notice difference to RFC5424, in RFC3164 there is *no* space! */
 	snprintf(buffer->pribuf, sizeof(buffer->pribuf), "<%d>", buffer->pri);
 	pushiov(iov, i, buffer->pribuf);
-	pushsp(iov, i);
 
 	/*
 	 * sysklogd < 2.0 had the traditional BSD format for remote syslog
@@ -1653,10 +1653,9 @@ static int fmt5424(struct buf_msg *buffer, char *fmt, struct iovec *iov, size_t 
 		usec /= 10;
 	}
 
-	/* RFC 5424 defines itself as v1 */
-	snprintf(buffer->pribuf, sizeof(buffer->pribuf), "<%d>1", buffer->pri);
+	/* RFC 5424 defines itself as v1, notice space before time, c.f. RFC3164 */
+	snprintf(buffer->pribuf, sizeof(buffer->pribuf), "<%d>1 ", buffer->pri);
 	pushiov(iov, i, buffer->pribuf);
-	pushsp(iov, i);
 
 	pushiov(iov, i, buffer->timebuf);
 	pushsp(iov, i);
