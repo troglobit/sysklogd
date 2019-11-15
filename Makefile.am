@@ -42,3 +42,6 @@ release: distcheck
 		printf "$$file    \tDistribution tarball\n";			\
 		printf "$$file.md5\t"; cat ../$$file.md5 | cut -f1 -d' ';	\
 	done
+
+# Workaround for systemd unit file duing distcheck
+DISTCHECK_CONFIGURE_FLAGS = --with-systemd=$$dc_install_base/$(systemd)
