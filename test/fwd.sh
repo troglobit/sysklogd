@@ -16,7 +16,7 @@ cat <<EOF >${CONFD2}/50-default.conf
 *.*	${LOG2}			;RFC5424
 EOF
 
-../src/syslogd -a 127.0.0.2:${PORT} -b :${PORT2} -d -F -f ${CONF2} -p ${SOCK2} &
+../src/syslogd -a 127.0.0.2:* -b :${PORT2} -d -F -f ${CONF2} -p ${SOCK2} &
 echo "$!" > ${PID2}
 
 kill -HUP `cat ${PID}`
