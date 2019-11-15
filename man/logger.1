@@ -44,8 +44,14 @@
 .Sh DESCRIPTIOMN
 .Nm
 can be used to log messages to the system log daemon from a UNIX shell,
-or script.  Optionally a stand-alone log file can be used, which is the
-automatically log rotated.  Without a
+or script.  Optionally a stand-alone log file can be used, in which case
+the
+.Xr syslogp 3
+API is still used but
+.Nm syslogd
+is bypassed.  This log file can also be automatically log rotated.
+.Pp
+Without a
 .Ar MESSAGE
 argument
 .Nm
