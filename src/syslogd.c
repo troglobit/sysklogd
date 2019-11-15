@@ -1771,7 +1771,7 @@ void wallmsg(struct filed *f, struct iovec *iov, int iovcnt)
 
 		(void)snprintf(greetings, sizeof(greetings),
 		               "\r\n\7Message from syslogd@%s at %.24s ...\r\n",
-		               (char *)iov[2].iov_base, ctime(&now));
+		               (char *)iov[3].iov_base, ctime(&now));
 		len = strlen(greetings);
 
 		/* scan the user login file */
@@ -1804,15 +1804,19 @@ void wallmsg(struct filed *f, struct iovec *iov, int iovcnt)
 			snprintf(p, sizeof(p), "%s%s", _PATH_DEV, ut.ut_line);
 
 			if (f->f_type == F_WALL) {
-				iov[0].iov_base = greetings;
-				iov[0].iov_len = len;
-				iov[1].iov_len = 0;
+				/* Overwrite time, skip space */
+				iov[1].iov_base = greetings;
+				iov[1].iov_len = len;
+				iov[2].iov_len = 0;
+				/* Skip hostname and space, we know where we're at */
+				iov[3].iov_len = 0;
+				iov[4].iov_len = 0;
 			}
 			if (setjmp(ttybuf) == 0) {
 				(void)signal(SIGALRM, endtty);
 				(void)alarm(15);
 
-				/* open the terminal */
+				/* open terminal, skip <PRI> field for all cases */
 				ttyf = open(p, O_WRONLY | O_NOCTTY);
 				if (ttyf >= 0) {
 					struct stat st;
@@ -1820,7 +1824,7 @@ void wallmsg(struct filed *f, struct iovec *iov, int iovcnt)
 
 					rc = fstat(ttyf, &st);
 					if (rc == 0 && (st.st_mode & S_IWRITE))
-						(void)writev(ttyf, iov, iovcnt);
+						(void)writev(ttyf, &iov[1], iovcnt - 1);
 					close(ttyf);
 				}
 			}
@@ -2531,12 +2535,19 @@ static struct filed *cfline(char *line)
 		/* Remote syslog defaults to BSD style, i.e. no timestamp or hostname */
 		break;
 
+	case F_WALL:
+	case F_USERS:
+		/* Currently requires RFC3164 */
+		f->f_flags &= ~RFC5424;
+		f->f_flags |= RFC3164;
+		break;
+
 	default:
 		/* All other targets default to RFC3164 */
 		if (f->f_flags & (RFC3164 | RFC5424))
 			break;
 
-		f->f_flags = RFC3164;
+		f->f_flags |= RFC3164;
 		break;
 	}
 
