@@ -43,12 +43,10 @@ klogd_CPPFLAGS        = $(AM_CPPFLAGS)
 klogd_LDADD           = $(LIBS) $(LIBOBJS)
 klogd_LDADD          += libsyslog.la
 
-if ENABLE_LOGGER
 logger_SOURCES        = logger.c syslog.h
 logger_CPPFLAGS       = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
 logger_LDADD          = $(LIBS) $(LIBOBJS)
 logger_LDADD         += libsyslog.la
-endif
 
 # Convenience library for libsyslog instead of linking with $(LTLIBOBJS),
 # which would pull in pidfile() and other (strong) symbols as well.

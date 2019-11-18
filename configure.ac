@@ -66,7 +66,7 @@ AC_ARG_WITH(systemd,
      [with_systemd=auto])
 
 AC_ARG_WITH(logger,
-     AS_HELP_STRING([--without-logger], [Do not build/install logger binary and man page, default: enabled]),
+     AS_HELP_STRING([--without-logger], [Build without extended logger tool, default: enabled]),
      [logger=$withval], [logger='yes'])
 
 AS_IF([test "x$klogd" != "xno"],
@@ -82,6 +82,9 @@ AS_IF([test "x$klogd_delay" != "xno"],[
 	AC_DEFINE_UNQUOTED(KLOGD_DELAY, $klogd_delay, [Delay klogd startup N seconds, default: 0]),
 	klogd_delay=0)
 
+AS_IF([test "x$logger" != "xno"], with_logger="yes", with_logger="no")
+AM_CONDITIONAL([ENABLE_LOGGER], [test "x$with_logger" != "xno"])
+
 AS_IF([test "x$suspend_time" != "xno"],[
 	AS_IF([test "x$suspend_time" = "xyes"],[
 		AC_MSG_ERROR([Must supply argument])])
@@ -95,17 +98,10 @@ AS_IF([test "x$with_systemd" = "xyes" -o "x$with_systemd" = "xauto"], [
      AS_IF([test "x$def_systemd" = "x"],
          [AS_IF([test "x$with_systemd" = "xyes"],
 	     [AC_MSG_ERROR([systemd support requested but pkg-config unable to query systemd package])])
-	     with_systemd=no], [with_systemd="$def_systemd"])]
-)
+	     with_systemd=no], [with_systemd="$def_systemd"])])
 AS_IF([test "x$with_systemd" != "xno"],
      [AC_SUBST([systemddir], [$with_systemd])])
 AM_CONDITIONAL([HAVE_SYSTEMD], [test "x$with_systemd" != "xno"])
-
-AS_IF([test "x$logger" != "xno"], [
-	with_logger="yes"
-	AC_DEFINE(LOGGER, 1, [Build with logger])],
-	with_logger="no")
-AM_CONDITIONAL([ENABLE_LOGGER], [test "x$with_logger" != "xno"])
 
 # Expand $sbindir early, into $SBINDIR, for systemd unit file
 # NOTE: This does *not* take prefix/exec_prefix override at "make
@@ -130,6 +126,7 @@ cat <<EOF
  Optional features:
   klogd..........: $with_klogd
   klogd delay....: $klogd_delay sec
+  logger.........: $with_logger
   suspend time...: $suspend_time sec
   systemd........: $with_systemd
 
