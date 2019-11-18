@@ -16,13 +16,17 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-bin_PROGRAMS          = logger
+bin_PROGRAMS          =
 sbin_PROGRAMS         = syslogd
 lib_LTLIBRARIES       = libsyslog.la
 noinst_LTLIBRARIES    = libcompat.la
 
 if ENABLE_KLOGD
 sbin_PROGRAMS        += klogd
+endif
+
+if ENABLE_LOGGER
+bin_PROGRAMS	     += logger
 endif
 
 AM_CFLAGS             = -W -Wall -Wextra
@@ -39,10 +43,12 @@ klogd_CPPFLAGS        = $(AM_CPPFLAGS)
 klogd_LDADD           = $(LIBS) $(LIBOBJS)
 klogd_LDADD          += libsyslog.la
 
+if ENABLE_LOGGER
 logger_SOURCES        = logger.c syslog.h
 logger_CPPFLAGS       = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
 logger_LDADD          = $(LIBS) $(LIBOBJS)
 logger_LDADD         += libsyslog.la
+endif
 
 # Convenience library for libsyslog instead of linking with $(LTLIBOBJS),
 # which would pull in pidfile() and other (strong) symbols as well.
