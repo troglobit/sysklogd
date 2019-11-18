@@ -65,6 +65,10 @@ AC_ARG_WITH(systemd,
      [AS_HELP_STRING([--with-systemd=DIR], [Directory for systemd service files])],,
      [with_systemd=auto])
 
+AC_ARG_WITH(logger,
+     AS_HELP_STRING([--without-logger], [Do not build/install logger binary and man page, default: enabled]),
+     [logger=$withval], [logger='yes'])
+
 AS_IF([test "x$klogd" != "xno"],
         with_klogd="yes"
 	AC_DEFINE(KLOGD, 1, [Build with klogd, default: built-in /dev/kmsg support in syslogd]),
@@ -96,6 +100,12 @@ AS_IF([test "x$with_systemd" = "xyes" -o "x$with_systemd" = "xauto"], [
 AS_IF([test "x$with_systemd" != "xno"],
      [AC_SUBST([systemddir], [$with_systemd])])
 AM_CONDITIONAL([HAVE_SYSTEMD], [test "x$with_systemd" != "xno"])
+
+AS_IF([test "x$logger" != "xno"], [
+	with_logger="yes"
+	AC_DEFINE(LOGGER, 1, [Build with logger])],
+	with_logger="no")
+AM_CONDITIONAL([ENABLE_LOGGER], [test "x$with_logger" != "xno"])
 
 # Expand $sbindir early, into $SBINDIR, for systemd unit file
 # NOTE: This does *not* take prefix/exec_prefix override at "make
