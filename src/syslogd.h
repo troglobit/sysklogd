@@ -72,7 +72,7 @@
 #endif
 
 #ifndef _PATH_LOGPID
-#define _PATH_LOGPID LOCALSTATEDIR "/run/syslogd.pid"
+#define _PATH_LOGPID RUNSTATEDIR "/syslogd.pid"
 #endif
 
 #ifndef _PATH_DEV

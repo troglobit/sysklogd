@@ -45,7 +45,7 @@
 
 static struct syslog_data log = SYSLOG_DATA_INIT;
 
-static char *PidFile = LOCALSTATEDIR "/run/klogd.pid";
+static char *PidFile = RUNSTATEDIR "/klogd.pid";
 
 static int kmsg;
 static int change_state      = 0;
