@@ -265,7 +265,7 @@ int main(int argc, char *argv[])
 	KeepKernFac = 1;
 #endif
 
-	while ((ch = getopt(argc, argv, "46Aa:b:dHFf:m:nP:p:r:sv?")) != EOF) {
+	while ((ch = getopt(argc, argv, "46Aa:b:dHFf:km:nP:p:r:sTv?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
