@@ -4,6 +4,20 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.0.1][] - 2019-11-25
+-----------------------
+
+Minor bug fix release.
+
+### Changes
+- Make logger tool and man page optional in build, by Lars Wendler
+- Expand resulting directories in configure summary
+
+### Fixes
+- Add missing `-k` and `-T` command line flags to `getopt()`
+- Issue #3: Don't guess PID file location, use configre's `$runstatedir`
+
+
 [v2.0][] - 2019-11-15
 ---------------------
 
@@ -203,7 +217,8 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.0...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.0.1...HEAD
+[v2.0.1]:     https://github.com/troglobit/sysklogd/compare/v2.0...v2.0.1
 [v2.0]:       https://github.com/troglobit/sysklogd/compare/v1.6...v2.0
 [v1.6]:       https://github.com/troglobit/sysklogd/compare/v1.5...v1.6
 [v1.5.1]:     https://github.com/troglobit/sysklogd/compare/v1.5...v1.5.1
