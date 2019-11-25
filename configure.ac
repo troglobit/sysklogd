@@ -114,13 +114,20 @@ AC_SUBST(SBINDIR)
 
 AC_OUTPUT
 
+# Expand directories for configuration summary, unexpanded defaults:
+# sysconfdir  => ${prefix}/etc
+# runstatedir => ${localstatedir}/run
+SYSCONFDIR=`eval echo $sysconfdir`
+RUNSTATEDIR=`eval echo $runstatedir`
+RUNSTATEDIR=`eval echo $RUNSTATEDIR`
+
 cat <<EOF
 
 ------------------ Summary ------------------
  $PACKAGE_NAME version $PACKAGE_VERSION
   Prefix.........: $prefix
-  Sysconfdir.....: `eval echo $sysconfdir`
-  Runstatedir....: `eval echo $runstatedir`
+  Sysconfdir.....: $SYSCONFDIR
+  Runstatedir....: $RUNSTATEDIR
   C Compiler.....: $CC $CFLAGS $CPPFLAGS $LDFLAGS $LIBS
 
  Optional features:
