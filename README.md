@@ -122,11 +122,12 @@ files and cache files will also use that same prefix.  Most users have
 come to expect those files in `/etc/` and `/var/run/` and configure has
 a few useful options that are recommended to use:
 
-    $ ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var
+    $ ./configure --prefix=/usr --sysconfdir=/etc --runstatedir=/run
     $ make -j5
     $ sudo make install-strip
 
-You may want to remove the `--prefix=/usr` option.
+You may want to remove the `--prefix=/usr` option.  Most users prefer
+non-distro binaries in `/usr/local` or `/opt`.
 
 
 Building from GIT
@@ -153,6 +154,11 @@ installed on your system.
 
 GIT sources are a moving target and are not recommended for production
 systems, unless you know what you are doing!
+
+**Note:** some systems may have an older, or a vanilla, version of the
+  GNU autoconf package that does not support `--runstatedir` (above).
+  Users on such systems are recommended to use `--localstatedir`, the
+  `$runstatedir` used by sysklogd is derived from that if missing.
 
 
 Origin & References
