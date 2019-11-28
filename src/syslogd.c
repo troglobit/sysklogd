@@ -499,7 +499,7 @@ static void kernel_cb(int fd, void *arg)
 			line[i + len] = '\0';
 		} else {
 			if (i < 0 && errno != EINTR && errno != EAGAIN) {
-				ERR("klog");
+				ERR("klog read()");
 				socket_close(fd);
 			}
 			break;
@@ -547,7 +547,7 @@ static void unix_cb(int sd, void *arg)
 	logit("Message from UNIX socket #%d: %s\n", sd, msg);
 	if (msglen <= 0) {
 		if (msglen < 0 && errno != EINTR)
-			ERR("recv() UNIX");
+			ERR("UNIX recv()");
 		return;
 	}
 
@@ -617,7 +617,7 @@ static void inet_cb(int sd, void *arg)
 	len = recvfrom(sd, msg, sizeof(msg) - 1, 0, sa, &sslen);
 	if (len <= 0) {
 		if (len < 0 && errno != EINTR && errno != EAGAIN)
-			ERR("INET socket recvfrom()");
+			ERR("INET recvfrom()");
 		return;
 	}
 
@@ -1502,7 +1502,7 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 		if (err != -1) {
 			f->f_type = F_FORW_SUSP;
 			errno = err;
-			ERR("INET sendto()");
+			ERR("INET sendto(%s:%s)", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
 		}
 		break;
 
