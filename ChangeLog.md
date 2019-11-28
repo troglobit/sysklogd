@@ -4,6 +4,20 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.0.2][] - 2019-11-28
+-----------------------
+
+### Changes
+- Add missing remote:port info in error message when failing to send to
+  a remote syslog server.
+
+### Fixes
+- Fix `assert()` in `fprintlog_successive()`, caused by never being
+  reset in `fprintlog_first()`, found by Westermo
+- Issue #6: Workaround for systems with vanilla autoconf 2.69 that does
+  not support `--runstatedir=PATH`, e.g. CRUX <https://crux.nu/>
+
+
 [v2.0.1][] - 2019-11-25
 -----------------------
 
@@ -217,7 +231,8 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.0.1...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.0.2...HEAD
+[v2.0.2]:     https://github.com/troglobit/sysklogd/compare/v2.0.1...v2.0.2
 [v2.0.1]:     https://github.com/troglobit/sysklogd/compare/v2.0...v2.0.1
 [v2.0]:       https://github.com/troglobit/sysklogd/compare/v1.6...v2.0
 [v1.6]:       https://github.com/troglobit/sysklogd/compare/v1.5...v1.6

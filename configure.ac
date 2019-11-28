@@ -16,7 +16,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-AC_INIT([sysklogd], [2.0.1], [https://github.com/troglobit/sysklogd/issues],,
+AC_INIT([sysklogd], [2.0.2], [https://github.com/troglobit/sysklogd/issues],,
 	[https://github.com/troglobit/sysklogd])
 AM_INIT_AUTOMAKE([1.11 foreign subdir-objects])
 LT_INIT([pic-only])
