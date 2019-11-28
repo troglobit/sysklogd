@@ -106,7 +106,6 @@
 #ifndef INET_SUSPEND_TIME
 #define INET_SUSPEND_TIME 180 /* equal to 3 minutes */
 #endif
-#define INET_RETRY_MAX    10  /* maximum of retries for getaddrinfo() */
 
 #define LIST_DELIMITER    ':' /* delimiter between two hosts */
 

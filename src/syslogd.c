@@ -1427,17 +1427,7 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 			logit("Forwarding suspension to %s:%s over, retrying\n", host, serv);
 			err = nslookup(host, serv, &ai);
 			if (err) {
-				logit("Failure resolving %s:%s: %s\n", host, serv, gai_strerror(err));
-				logit("Retries: %d\n", f->f_prevcount);
-				if (--f->f_prevcount < 0) {
-					WARN("Still cannot find %s, giving up: %s",
-					     host, gai_strerror(err));
-					f->f_type = F_UNUSED;
-				} else {
-					WARN("Still cannot find %s, will try again later: %s",
-					     host, gai_strerror(err));
-					logit("Left retries: %d\n", f->f_prevcount);
-				}
+				WARN("Failure resolving %s:%s: %s", host, serv, gai_strerror(err));
 			} else {
 				NOTE("Found %s, resuming operation.", host);
 				f->f_un.f_forw.f_addr = ai;
@@ -2464,16 +2454,14 @@ static struct filed *cfline(char *line)
 
 		err = nslookup(p, bp, &ai);
 		if (err) {
-			WARN("Cannot find %s, will try again later: %s", p, gai_strerror(err));
 			/*
 			 * The host might be unknown due to an inaccessible
 			 * nameserver (perhaps on the same host). We try to
 			 * get the ip number later, like FORW_SUSP.
 			 */
 			f->f_type = F_FORW_UNKN;
-			f->f_prevcount = INET_RETRY_MAX;
 			f->f_time = time(NULL);
-			f->f_un.f_forw.f_addr = NULL;
+			WARN("Cannot find %s, will try again later: %s", p, gai_strerror(err));
 		} else {
 			f->f_type = F_FORW;
 			f->f_un.f_forw.f_addr = ai;
