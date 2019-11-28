@@ -449,12 +449,8 @@ int main(int argc, char *argv[])
 	/*
 	 * Tell system we're up and running by creating /run/syslogd.pid
 	 */
-	if (!Debug && pidfile(PidFile)) {
+	if (pidfile(PidFile))
 		logit("Failed creating %s: %s", PidFile, strerror(errno));
-		if (getpid() != ppid)
-			kill(ppid, SIGTERM);
-		exit(1);
-	}
 
 	/* Main loop begins here. */
 	for (;;) {
@@ -466,8 +462,9 @@ int main(int argc, char *argv[])
 			logit("\nReceived SIGHUP, reloading syslogd.\n");
 			init();
 
-			if (!Debug && pidfile(PidFile))
-				ERR("Failed writing %s", PidFile);
+			/* Acknowledge SIGHUP by touching our PID file */
+			if (pidfile(PidFile))
+				ERR("Failed touching %s", PidFile);
 			continue;
 		}
 
