@@ -1687,6 +1687,7 @@ static void fprintlog_first(struct filed *f, struct buf_msg *buffer)
 	int iovcnt;
 
 	logit("Called fprintlog_first(), ");
+	f->f_prevcount = 0;
 
 	if (!memcmp(&buffer->timestamp, &zero, sizeof(zero))) {
 		struct logtime timestamp_now;
