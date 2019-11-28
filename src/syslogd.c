@@ -1725,7 +1725,7 @@ static void fprintlog_successive(struct filed *f, int flags)
 	buffer.timestamp = f->f_lasttime;
 	buffer.flags = flags;
 
-	snprintf(msg, sizeof(msg), "last message buffered %d times",
+	snprintf(msg, sizeof(msg), "last message buffered %zd times",
 		 f->f_prevcount);
 	buffer.msg = msg;
 

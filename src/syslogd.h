@@ -264,7 +264,7 @@ struct filed {
 	char	 f_prevhost[MAXHOSTNAMELEN + 1]; /* host from which recd. */
 	int	 f_prevpri;                    /* pri of f_prevline */
 	size_t	 f_prevlen;                    /* length of f_prevline */
-	int	 f_prevcount;                  /* repetition cnt of prevline */
+	size_t	 f_prevcount;                  /* repetition cnt of prevline */
 	size_t	 f_repeatcount;                /* number of "repeated" msgs */
 	int	 f_flags;                      /* store some additional flags */
 	int	 f_rotatecount;
