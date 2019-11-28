@@ -221,7 +221,7 @@ int usage(int code)
 	       "              :port                 The port is either a UDP port number, or a\n"
 	       "                                    service name, default is 'syslog', port 514.\n"
 	       "\n"
-	       "  -d        Enable debug mode\n"
+	       "  -d        Enable debug mode, implicitly enables -F to prevent backgrounding\n"
 	       "  -F        Run in foreground, required when run from a modern init/supervisor\n"
 	       "  -f FILE   Alternate .conf file, default: /etc/syslog.conf\n"
 	       "  -k        Allow logging with facility 'kernel', otherwise remapped to 'user'.\n"
@@ -297,6 +297,7 @@ int main(int argc, char *argv[])
 
 		case 'd': /* debug */
 			Debug = 1;
+			Foreground = 1;
 			break;
 
 		case 'F': /* don't fork */
@@ -387,10 +388,10 @@ int main(int argc, char *argv[])
 		warn("Kernel logging disabled, failed opening %s", _PATH_KLOG);
 #endif
 
-	if ((!Foreground) && (!Debug)) {
-		signal(SIGTERM, doexit);
+	if (!Foreground) {
 		chdir("/");
 
+		signal(SIGTERM, doexit);
 		if (fork()) {
 			/*
 			 * Parent process
@@ -411,7 +412,7 @@ int main(int argc, char *argv[])
 		for (int i = 0; i < getdtablesize(); i++)
 			(void)close(i);
 		untty();
-	} else {
+	} else if (Debug) {
 		debugging_on = 1;
 		setlinebuf(stdout);
 	}
@@ -2952,7 +2953,7 @@ static void logit(char *fmt, ...)
 {
 	va_list ap;
 
-	if (!(Debug && debugging_on))
+	if (!debugging_on)
 		return;
 
 	va_start(ap, fmt);
