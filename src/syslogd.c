@@ -2088,11 +2088,6 @@ void init(void)
 	char *p;
 	int i;
 
-	/*
-	 *  Close all open log files and free log descriptor array.
-	 */
-	Initialized = 0;
-
 	/* Get hostname */
 	(void)gethostname(LocalHostName, sizeof(LocalHostName));
 	LocalDomain = emptystring;
