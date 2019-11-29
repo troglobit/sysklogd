@@ -1183,11 +1183,6 @@ static void logmsg(struct buf_msg *buffer)
 	      textpri(buffer->pri), buffer->flags, buffer->hostname, buffer->app_name,
 	      buffer->proc_id, buffer->msgid, buffer->sd, buffer->msg);
 
-	sigemptyset(&mask);
-	sigaddset(&mask, SIGHUP);
-	sigaddset(&mask, SIGALRM);
-	sigprocmask(SIG_BLOCK, &mask, NULL);
-
 	(void)gettimeofday(&tv, NULL);
 	now = tv.tv_sec;
 	if (!memcmp(&buffer->timestamp, &zero, sizeof(zero))) {
@@ -1207,6 +1202,11 @@ static void logmsg(struct buf_msg *buffer)
 		return;
 
 	prilev = LOG_PRI(buffer->pri);
+
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGALRM);
+	sigprocmask(SIG_BLOCK, &mask, NULL);
 
 	/* log the message to the particular outputs */
 	if (!Initialized) {
