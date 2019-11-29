@@ -1407,35 +1407,8 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 		}
 		break;
 
-	/*
-	 * The trick is to wait some time, then retry to get the
-	 * address. If that fails retry x times and then give up.
-	 *
-	 * You'll run into this problem mostly if the name server you
-	 * need for resolving the address is on the same machine, but
-	 * is started after syslogd. 
-	 */
 	case F_FORW_UNKN:
-		logit(" %s:%s\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
-		fwd_suspend = time(NULL) - f->f_time;
-		if (fwd_suspend >= INET_SUSPEND_TIME) {
-			char *host = f->f_un.f_forw.f_hname;
-			char *serv = f->f_un.f_forw.f_serv;
-
-			logit("Forwarding suspension to %s:%s over, retrying\n", host, serv);
-			err = nslookup(host, serv, &ai);
-			if (err) {
-				WARN("Failure resolving %s:%s: %s", host, serv, gai_strerror(err));
-			} else {
-				NOTE("Found %s, resuming operation.", host);
-				f->f_un.f_forw.f_addr = ai;
-				f->f_prevcount = 0;
-				f->f_type = F_FORW;
-				goto f_forw;
-			}
-		} else
-			logit("Forwarding suspension not over, time left: %d\n",
-			      (int)(INET_SUSPEND_TIME - fwd_suspend));
+		/* nslookup retry handled by domark() timer */
 		break;
 
 	case F_FORW:
@@ -1931,6 +1904,43 @@ void flog(int pri, char *fmt, ...)
 	logmsg(&buffer);
 }
 
+static void forw_lookup(struct filed *f)
+{
+	struct addrinfo *ai;
+	time_t diff;
+	char *host = f->f_un.f_forw.f_hname;
+	char *serv = f->f_un.f_forw.f_serv;
+	int err, init;
+
+	/* Called from cfline() for initial lookup? */
+	init = f->f_type == F_UNUSED ? 1 : 0;
+
+	diff = now - f->f_time;
+	if (!init && diff < INET_SUSPEND_TIME) {
+		logit("Forwarding suspension not over, time left: %d\n",
+		      (int)(INET_SUSPEND_TIME - diff));
+		return;
+	}
+
+	if (!init)
+		logit("Forwarding suspension to %s:%s over, retrying\n", host, serv);
+
+	err = nslookup(host, serv, &ai);
+	if (err) {
+		WARN("Failed resolving '%s:%s': %s", host, serv, gai_strerror(err));
+		f->f_type = F_FORW_UNKN;
+		f->f_time = now;
+		return;
+	}
+
+	if (!init)
+		NOTE("Successfully resolved '%s:%s', resuming operation.", host, serv);
+
+	f->f_type = F_FORW;
+	f->f_un.f_forw.f_addr = ai;
+	f->f_prevcount = 0;
+}
+
 void domark(int signo)
 {
 	struct filed *f;
@@ -1946,6 +1956,11 @@ void domark(int signo)
 	}
 
 	SIMPLEQ_FOREACH(f, &fhead, f_link) {
+		if (f->f_type == F_FORW_UNKN) {
+			forw_lookup(f);
+			continue;
+		}
+
 		if (f->f_prevcount && now >= REPEATTIME(f)) {
 			logit("flush %s: repeated %d times, %d sec.\n",
 			      TypeNames[f->f_type], f->f_prevcount,
@@ -2290,14 +2305,13 @@ static void cfopts(char *ptr, struct filed *f)
  */
 static struct filed *cfline(char *line)
 {
-	struct addrinfo *ai;
 	struct filed *f;
 	char buf[MAXLINE];
 	char *p, *q, *bp;
 	int ignorepri = 0;
 	int singlpri = 0;
 	int syncfile, pri;
-	int err, i, i2;
+	int i, i2;
 
 	logit("cfline(%s)\n", line);
 
@@ -2450,21 +2464,7 @@ static struct filed *cfline(char *line)
 		strlcpy(f->f_un.f_forw.f_hname, p, sizeof(f->f_un.f_forw.f_hname));
 		strlcpy(f->f_un.f_forw.f_serv, bp, sizeof(f->f_un.f_forw.f_serv));
 		logit("forwarding host: '%s:%s'\n", p, bp);
-
-		err = nslookup(p, bp, &ai);
-		if (err) {
-			/*
-			 * The host might be unknown due to an inaccessible
-			 * nameserver (perhaps on the same host). We try to
-			 * get the ip number later, like FORW_SUSP.
-			 */
-			f->f_type = F_FORW_UNKN;
-			f->f_time = time(NULL);
-			WARN("Cannot find %s, will try again later: %s", p, gai_strerror(err));
-		} else {
-			f->f_type = F_FORW;
-			f->f_un.f_forw.f_addr = ai;
-		}
+		forw_lookup(f);
 		break;
 
 	case '|':
