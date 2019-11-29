@@ -1648,7 +1648,6 @@ static void fprintlog_first(struct filed *f, struct buf_msg *buffer)
 	int iovcnt;
 
 	logit("Called fprintlog_first(), ");
-	f->f_prevcount = 0;
 
 	if (!memcmp(&buffer->timestamp, &zero, sizeof(zero))) {
 		struct logtime timestamp_now;
@@ -1661,6 +1660,9 @@ static void fprintlog_first(struct filed *f, struct buf_msg *buffer)
 		timestamp_now.usec = tv.tv_usec;
 		buffer->timestamp = timestamp_now;
 	}
+
+	f->f_time = now;
+	f->f_prevcount = 0;
 
 	if (f->f_flags & RFC5424)
 		iovcnt = fmt5424(buffer, RFC5424_DATEFMT, iov, NELEMS(iov));
