@@ -428,9 +428,7 @@ int main(int argc, char *argv[])
 	(void)signal(SIGUSR1, Debug ? debug_switch : SIG_IGN);
 	(void)signal(SIGXFSZ, SIG_IGN);
 	(void)signal(SIGHUP, sighup_handler);
-
-	LastAlarm = MarkInterval;
-	alarm(LastAlarm);
+	alarm(TIMERINTVL);
 
 	logit("Starting.\n");
 	init();
@@ -1270,7 +1268,7 @@ static void logmsg(struct buf_msg *buffer)
 				seconds = alarm(0);
 				MarkSeq += LastAlarm - seconds;
 				LastAlarm = seconds;
-				if (LastAlarm > TIMERINTVL)
+				if (LastAlarm > TIMERINTVL || LastAlarm <= 0)
 					LastAlarm = TIMERINTVL;
 				alarm(LastAlarm);
 			}
@@ -1295,6 +1293,8 @@ static void logmsg(struct buf_msg *buffer)
 
 					MarkSeq += LastAlarm - alarm(0);
 					LastAlarm = MarkInterval - MarkSeq;
+					if (LastAlarm > TIMERINTVL || LastAlarm <= 0)
+						LastAlarm = TIMERINTVL;
 					alarm(LastAlarm);
 				}
 			}
@@ -1935,8 +1935,9 @@ void domark(int signo)
 {
 	struct filed *f;
 
+	now = time(NULL);
+
 	if (MarkInterval > 0) {
-		now = time(0);
 		MarkSeq += LastAlarm;
 		if (MarkSeq >= MarkInterval) {
 			flog(INTERNAL_MARK | LOG_INFO, "-- MARK --");
@@ -1956,7 +1957,7 @@ void domark(int signo)
 	}
 
 	LastAlarm = MarkInterval - MarkSeq;
-	if (DupesPending && LastAlarm > TIMERINTVL)
+	if (LastAlarm > TIMERINTVL || LastAlarm <= 0)
 		LastAlarm = TIMERINTVL;
 
 	(void)alarm(LastAlarm);
