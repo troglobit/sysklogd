@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/sh -e
+
 if [ x"${srcdir}" = x ]; then
     srcdir=.
 fi
