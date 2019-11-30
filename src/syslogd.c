@@ -136,8 +136,6 @@ static int	  RemoteHostname;	  /* Log remote hostname from the message */
 
 static int	  KeepKernFac;		  /* Keep remotely logged kernel facility */
 
-static int	  LastAlarm = 0;	  /* last value passed to alarm() (seconds)  */
-static int	  DupesPending = 0;	  /* Number of unflushed duplicate messages */
 static off_t	  RotateSz = 0;		  /* Max file size (bytes) before rotating, disabled by default */
 static int	  RotateCnt = 5;	  /* Max number (count) of log files to keep, set with -c <NUM> */
 
@@ -1261,18 +1259,6 @@ static void logmsg(struct buf_msg *buffer)
 			      f->f_prevcount, now - f->f_time,
 			      repeatinterval[f->f_repeatcount]);
 
-			if (f->f_prevcount == 1 && DupesPending++ == 0) {
-				int seconds;
-				logit("setting alarm to flush duplicate messages\n");
-
-				seconds = alarm(0);
-				MarkSeq += LastAlarm - seconds;
-				LastAlarm = seconds;
-				if (LastAlarm > TIMERINTVL || LastAlarm <= 0)
-					LastAlarm = TIMERINTVL;
-				alarm(LastAlarm);
-			}
-
 			/*
 			 * If domark would have logged this by now,
 			 * flush it now (so we don't hold isolated messages),
@@ -1285,19 +1271,9 @@ static void logmsg(struct buf_msg *buffer)
 			}
 		} else {
 			/* new line, save it */
-			if (f->f_prevcount) {
+			if (f->f_prevcount)
 				fprintlog_successive(f, 0);
 
-				if (--DupesPending == 0) {
-					logit("unsetting duplicate message flush alarm\n");
-
-					MarkSeq += LastAlarm - alarm(0);
-					LastAlarm = MarkInterval - MarkSeq;
-					if (LastAlarm > TIMERINTVL || LastAlarm <= 0)
-						LastAlarm = TIMERINTVL;
-					alarm(LastAlarm);
-				}
-			}
 			f->f_prevpri = buffer->pri;
 			f->f_repeatcount = 0;
 			f->f_lasttime = buffer->timestamp;
@@ -1950,10 +1926,10 @@ void domark(int signo)
 	now = time(NULL);
 
 	if (MarkInterval > 0) {
-		MarkSeq += LastAlarm;
+		MarkSeq += TIMERINTVL;
 		if (MarkSeq >= MarkInterval) {
 			flog(INTERNAL_MARK | LOG_INFO, "-- MARK --");
-			MarkSeq -= MarkInterval;
+			MarkSeq = 0;
 		}
 	}
 
@@ -1969,15 +1945,10 @@ void domark(int signo)
 			      repeatinterval[f->f_repeatcount]);
 			fprintlog_successive(f, 0);
 			BACKOFF(f);
-			DupesPending--;
 		}
 	}
 
-	LastAlarm = MarkInterval - MarkSeq;
-	if (LastAlarm > TIMERINTVL || LastAlarm <= 0)
-		LastAlarm = TIMERINTVL;
-
-	(void)alarm(LastAlarm);
+	(void)alarm(TIMERINTVL);
 }
 
 void debug_switch(int signo)
