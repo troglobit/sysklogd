@@ -193,8 +193,8 @@ static int addpeer(struct peer *pe0)
 int usage(int code)
 {
 	printf("Usage:\n"
-	       "  syslogd [-46AdFknsTv?] [-a PEER] [-b :PORT] [-b ADDR[:PORT]] [-f FILE]\n"
-	       "                         [-m SEC] [-P PID_FILE] [-p SOCK_PATH] [-R SIZE[:NUM]]\n"
+	       "  syslogd [-46AdFknsTv?] [-a PEER] [-b NAME] [-f FILE] [-m INTERVAL]\n"
+	       "                         [-P PID_FILE] [-p SOCK_PATH] [-R SIZE[:NUM]]\n"
 	       "Options:\n"
 	       "  -4        Force IPv4 only\n"
 	       "  -6        Force IPv6 only\n"
@@ -223,7 +223,7 @@ int usage(int code)
 	       "  -F        Run in foreground, required when run from a modern init/supervisor\n"
 	       "  -f FILE   Alternate .conf file, default: /etc/syslog.conf\n"
 	       "  -k        Allow logging with facility 'kernel', otherwise remapped to 'user'.\n"
-	       "  -m SEC    Interval between MARK messages in log, 0 to disable, default: 20 min\n"
+	       "  -m MINS   Interval between MARK messages in log, 0 to disable, default: 20 min\n"
 	       "  -n        Disable DNS query for every request\n"
 	       "  -P FILE   File to store the process ID, default: %s\n"
 	       "  -p PATH   Path to UNIX domain socket, multiple -p create multiple sockets. If\n"

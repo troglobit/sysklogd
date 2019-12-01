@@ -19,7 +19,7 @@
 .Op Fl b Ar addr[:port]
 .Op Fl b Ar :port
 .Op Fl f Ar file
-.Op Fl m Ar sec
+.Op Fl m Ar interval
 .Op Fl P Ar file
 .Op Fl p Ar sock
 .Op Fl r Ar size[:count]
@@ -189,18 +189,16 @@ facility is reserved for kernel log messages.  When the
 daemon runs alongside
 .Nm ,
 this option is always set.
-.It Fl m Ar seconds
-.Nm
-logs a mark timestamp regularly.  The default interval between two
+.It Fl m Ar interval
+Specify interval in minutes between
 .Ql -- MARK --
-lines is 20 minutes.  This can be changed with this option.  Setting
-this to zero disables log marks entirely.
+log messages, default: 20 minutes.  Setting this to zero disables log marks
+entirely.
 .Pp
-Depending on other log messages generated these lines may not be written
-consecutively.  The
+Note, the
 .Ql -- MARK --
-message is only written if the log file hasn't been touched in
-.Ar (seconds * 60) / 2
+messages are only written when a log file has been without activity in
+.Ar interval / 2
 minutes.
 .It Fl n
 Disable DNS query for every request.
@@ -288,9 +286,8 @@ the asterisk ('*') wildcard, the equation sign ('='), the exclamation
 mark ('!'), and the minus sign ('-').
 .Pp
 The '*' specifies that all messages for the specified facility are to be
-directed to the destination.  Note that this behavior is degenerate with
-specifying a priority level of debug.  Users have indicated that the
-asterisk notation is more intuitive.
+directed to the destination, this is the same as specifying a priority
+level of debug.  Some users find the asterisk notation more intuitive.
 .Pp
 The '=' restricts logging to the specified priority class.  This allows,
 for example, routing only debug messages to a particular logging source.
