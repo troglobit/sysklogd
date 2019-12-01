@@ -4,6 +4,28 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.0.3][] - 2019-12-01
+-----------------------
+
+### Changes
+- Always run `domark()` timer, regardless of `-m interval` setting,
+  it is used for internal housekeeping, runs every 15 sec
+- Handle DNS lookup of unknown remote syslog hosts in `domark()`
+- Only enable debug mode when `-d` is given on the command line
+- Always create PID file, even in debug mode
+- Add `-F`, as alias for `-n`, to klogd for compat. with syslogd
+
+### Fixes
+- When logging to a remote host using @FQDN previous releases of syslogd
+  gave up after 10 tries.  In many industrial cases intermittent access
+  to the DNS is very likely, so this release includes a fix to retry the
+  IP address lookup forever.  The interval for retries is configurable
+- Fix accidental blocking of SIGHUP/SIGALRM when an invalid facility is
+  found in the internal `logmsg()` function
+- Fix leaking of internal error messages (like DNS lookup failure) to
+  `/dev/console` during reconfiguration, i.e. after initial start
+
+
 [v2.0.2][] - 2019-11-28
 -----------------------
 
@@ -231,7 +253,8 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.0.2...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.0.3...HEAD
+[v2.0.3]:     https://github.com/troglobit/sysklogd/compare/v2.0.2...v2.0.3
 [v2.0.2]:     https://github.com/troglobit/sysklogd/compare/v2.0.1...v2.0.2
 [v2.0.1]:     https://github.com/troglobit/sysklogd/compare/v2.0...v2.0.1
 [v2.0]:       https://github.com/troglobit/sysklogd/compare/v1.6...v2.0
