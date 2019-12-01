@@ -13,7 +13,7 @@
 .Nd Kernel Log Daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl 2ndnopsvx
+.Op Fl 2dFnopsvx
 .Op Fl c Ar NUM
 .Op Fl f Ar FILE
 .Op Fl k Ar FILE
@@ -31,7 +31,7 @@ Enable debugging mode.  This will generate potentially LOTS of output to
 stderr.
 .It Fl f Ar FILE
 Log messages to the specified filename rather than to the syslog facility.
-.It Fl n
+.It Fl n | Fl F
 Run in foreground, required when run from a modern init/supervisor.  See
 your system
 .Xr init 1

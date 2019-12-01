@@ -606,7 +606,7 @@ int usage(int code)
 	        "  -d        Enable debug mode\n"
 	        "  -f FILE   Log messages to FILE rather than the syslog facility\n"
 	        "  -k FILE   Location of kernel symbols (System.map), default: auto\n"
-	        "  -n        Run in foreground, required when run from a modern init/supervisor\n"
+	        "  -n | -F   Run in foreground, required when run from a modern init/supervisor\n"
 	        "  -o        Run once, read kernel log messages and syslog them, then exit\n"
 	        "  -p        Paranoia mode, forces klogd to reload all kernel symbols on Ooops\n"
 	        "  -s        Force use of system call interface to kernel message buffers\n"
@@ -629,7 +629,7 @@ int main(int argc, char *argv[])
 	pid_t ppid = getpid();
 
 	/* Parse the command-line. */
-	while ((ch = getopt(argc, argv, "c:df:k:nopsvx2?")) != EOF) {
+	while ((ch = getopt(argc, argv, "c:dFf:k:nopsvx2?")) != EOF) {
 		switch (ch) {
 		case '2': /* Print lines with symbols twice. */
 			symbols_twice = 1;
@@ -652,6 +652,7 @@ int main(int argc, char *argv[])
 			symfile = optarg;
 			break;
 
+		case 'F': /* compat with syslogd */
 		case 'n': /* don't fork */
 			no_fork++;
 			break;
