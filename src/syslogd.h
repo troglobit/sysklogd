@@ -50,7 +50,7 @@
 /*
  * Linux uses EIO instead of EBADFD (mrn 12 May 96)
  */
-#ifdef linux
+#ifdef __linux__
 #define EHANGUP EIO
 #else
 #define EHANGUP EBADFD
