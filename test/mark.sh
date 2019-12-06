@@ -6,5 +6,5 @@ if [ x"${srcdir}" = x ]; then
 fi
 . ${srcdir}/test.rc
 
-sleep 60
+sleep 120
 grep "MARK" ${LOG2}
