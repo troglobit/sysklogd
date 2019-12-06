@@ -46,3 +46,6 @@ release: distcheck
 # Workaround for systemd unit file duing distcheck
 DISTCHECK_CONFIGURE_FLAGS = --with-systemd=$$dc_install_base/$(systemd) --with-klogd
 
+# Disable parallel build in top Makefile, we might otherwise get a very
+# bizarre build problem with strlcpy.o in libcompat and for syslogd.
+.NOTPARALLEL:
