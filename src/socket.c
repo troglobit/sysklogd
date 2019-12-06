@@ -39,11 +39,10 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 
 #include "queue.h"
+#include "socket.h"
 #include "syslogd.h"
 
 struct sock {

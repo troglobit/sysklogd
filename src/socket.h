@@ -31,9 +31,12 @@
 #ifndef SYSKLOGD_SOCKET_H_
 #define SYSKLOGD_SOCKET_H_
 
+#include <netdb.h>
 #include <stdarg.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/types.h>
 
 int socket_register(int sd, struct addrinfo *ai, void (*cb)(int, void *), void *arg);
 int socket_create  (struct addrinfo *ai, void (*cb)(int, void *), void *arg);

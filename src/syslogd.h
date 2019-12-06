@@ -43,7 +43,8 @@
 #define MAXSVLINE      MAXLINE         /* maximum saved line length */
 #define DEFUPRI        (LOG_USER | LOG_NOTICE)
 #define DEFSPRI        (LOG_KERN | LOG_CRIT)
-#define TIMERINTVL     15              /* interval for checking flush, mark */
+#define TIMERINTVL     30              /* interval for checking flush, mark */
+#define FLUSHINTVL     10              /* interval for checking flush, mark */
 #define RCVBUF_MINSIZE (80 * MAXLINE)  /* minimum size of dgram rcv buffer */
 
 /*
