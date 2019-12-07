@@ -1228,15 +1228,10 @@ static void logmsg(struct buf_msg *buffer)
 		if (buffer->flags & MARK) {
 			time_t t_now = timer_now();
 
-			fprintf(stderr, "1) f_time: %zd + MarkInterval: %d => %ld, t_now: %zd\n",
-				f->f_time, MarkInterval, f->f_time + MarkInterval, t_now);
 			if (f->f_time + MarkInterval > t_now)
 				continue;
-			fprintf(stderr, "2) t_now: %zd - f_time: %zd => %ld < MarkInterval/2 : %d\n",
-				t_now, f->f_time, t_now - f->f_time, MarkInterval / 2);
 			if (t_now - f->f_time < MarkInterval / 2)
 				continue;
-			fprintf(stderr, "3) f_time: %zd, MarkInterval: %d, t_now: %zd\n", f->f_time, MarkInterval, t_now);
 		}
 
 		/*
