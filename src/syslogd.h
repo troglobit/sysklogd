@@ -32,7 +32,12 @@
 #ifndef SYSKLOGD_SYSLOGD_H_
 #define SYSKLOGD_SYSLOGD_H_
 
+#include "config.h"
+
 #include <netdb.h>		/* struct addrinfo */
+#ifdef __linux__
+#include <sys/klog.h>		/* When building w/o klogd */
+#endif
 #include <sys/param.h>		/* MAXHOSTNAMELEN */
 #include <sys/socket.h>
 #include <sys/un.h>		/* struct sockaddr_un */
@@ -140,6 +145,23 @@
 	(((d)->s6_addr32[1] ^ (a)->s6_addr32[1]) & (m)->s6_addr32[1]) == 0 && \
 	(((d)->s6_addr32[2] ^ (a)->s6_addr32[2]) & (m)->s6_addr32[2]) == 0 && \
 	(((d)->s6_addr32[3] ^ (a)->s6_addr32[3]) & (m)->s6_addr32[3]) == 0 )
+
+/*
+ * When building without klogd on Linux systems we use these klogctl(2)
+ * commands to control kernel log messages to console.
+ */
+#define SYSLOG_ACTION_CLOSE       0
+#define SYSLOG_ACTION_OPEN        1
+#define SYSLOG_ACTION_CONSOLE_OFF 6
+#define SYSLOG_ACTION_CONSOLE_ON  7
+
+#ifdef __linux__
+#define kern_console_off() klogctl(SYSLOG_ACTION_CONSOLE_OFF, NULL, 0)
+#define kern_console_on()  klogctl(SYSLOG_ACTION_CONSOLE_ON, NULL, 0)
+#else
+#define kern_console_off() do { } while (0)
+#define kern_console_on()  do { } while (0)
+#endif
 
 /*
  * Flags to logmsg().

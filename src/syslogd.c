@@ -385,6 +385,8 @@ int main(int argc, char *argv[])
 	/* Attempt to open kernel log pipe */
 	if (opensys(_PATH_KLOG))
 		warn("Kernel logging disabled, failed opening %s", _PATH_KLOG);
+	else
+		kern_console_off();
 #endif
 
 	if (!Foreground) {
@@ -2015,6 +2017,10 @@ void die(int signo)
 		}
 		free(pe);
 	}
+
+#ifndef KLOGD
+	kern_console_on();
+#endif
 
 	exit(0);
 }
