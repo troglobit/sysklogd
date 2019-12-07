@@ -167,7 +167,6 @@ void        domark(void *arg);
 void        doflush(void *arg);
 void        debug_switch();
 void        die(int sig);
-void        doexit(int sig);
 void        init();
 static int  strtobytes(char *arg);
 static int  cfparse(FILE *fp, struct files *newf);
@@ -175,6 +174,9 @@ int         decode(char *name, struct _code *codetab);
 static void logit(char *, ...);
 void        sighup_handler(int);
 static int  validate(struct sockaddr *sa, const char *hname);
+static int	waitdaemon(int);
+static void	timedout(int);
+
 
 static int addpeer(struct peer *pe0)
 {
@@ -248,7 +250,7 @@ int usage(int code)
 
 int main(int argc, char *argv[])
 {
-	pid_t ppid = getpid();
+	pid_t ppid = 1;
 	char *ptr;
 	int pflag = 0, bflag = 0;
 	int ch;
@@ -376,30 +378,10 @@ int main(int argc, char *argv[])
 	else
 		kern_console_off();
 
-	if (!Foreground) {
-		chdir("/");
-
-		signal(SIGTERM, doexit);
-		if (fork()) {
-			/*
-			 * Parent process
-			 */
-			sleep(300);
-			/*
-			 * Not reached unless something major went wrong.  5
-			 * minutes should be a fair amount of time to wait.
-			 * Please note that this procedure is important since
-			 * the father must not exit before syslogd isn't
-			 * initialized or the klogd won't be able to flush its
-			 * logs.  -Joey
-			 */
-			exit(1);
-		}
-
-		signal(SIGTERM, SIG_DFL);
-		for (int i = 0; i < getdtablesize(); i++)
-			(void)close(i);
-		untty();
+	if (!Foreground && !Debug) {
+		ppid = waitdaemon(30);
+		if (ppid < 0)
+			err(1, "Failed daemonizing");
 	} else if (Debug) {
 		debugging_on = 1;
 		setlinebuf(stdout);
@@ -435,16 +417,14 @@ int main(int argc, char *argv[])
 	}
 
 	/*
-	 * Send a signal to the parent to it can terminate.
-	 */
-	if (getpid() != ppid)
-		kill(ppid, SIGTERM);
-
-	/*
 	 * Tell system we're up and running by creating /run/syslogd.pid
 	 */
 	if (pidfile(PidFile))
 		logit("Failed creating %s: %s", PidFile, strerror(errno));
+
+	/* Tell parent we're up and running */
+	if (ppid != 1)
+		kill(ppid, SIGALRM);
 
 	/* Main loop begins here. */
 	for (;;) {
@@ -2009,11 +1989,73 @@ void die(int signo)
 }
 
 /*
- * Signal handler to terminate the parent process.
+ * fork off and become a daemon, but wait for the child to come online
+ * before returning to the parent, or we get disk thrashing at boot etc.
+ * Set a timer so we don't hang forever if it wedges.
  */
-void doexit(int signo)
+static int waitdaemon(int maxwait)
 {
-	exit(0);
+	int fd;
+	int status;
+	pid_t pid, childpid;
+
+	childpid = fork();
+	switch (childpid) {
+	case -1:
+		return -1;
+	case 0:
+		break;
+	default:
+		signal(SIGALRM, timedout);
+		alarm(maxwait);
+		while ((pid = wait3(&status, 0, NULL)) != -1) {
+			if (WIFEXITED(status))
+				errx(1, "child pid %d exited with return code %d",
+					pid, WEXITSTATUS(status));
+			if (WIFSIGNALED(status))
+				errx(1, "child pid %d exited on signal %d%s",
+					pid, WTERMSIG(status),
+					WCOREDUMP(status) ? " (core dumped)" :
+					"");
+			if (pid == childpid)	/* it's gone... */
+				break;
+		}
+		exit(0);
+	}
+
+	if (setsid() == -1)
+		return -1;
+
+	(void)chdir("/");
+	fd = open(_PATH_DEVNULL, O_RDWR, 0);
+	if (fd != -1) {
+		(void)dup2(fd, STDIN_FILENO);
+		(void)dup2(fd, STDOUT_FILENO);
+		(void)dup2(fd, STDERR_FILENO);
+		if (fd > STDERR_FILENO)
+			(void)close(fd);
+	}
+
+	return getppid();
+}
+
+/*
+ * We get a SIGALRM from the child when it's running and finished doing it's
+ * fsync()'s or O_SYNC writes for all the boot messages.
+ *
+ * We also get a signal from the kernel if the timer expires, so check to
+ * see what happened.
+ */
+static void timedout(int signo)
+{
+	int left;
+
+	left = alarm(0);
+	signal(SIGALRM, SIG_DFL);
+	if (left == 0)
+		errx(1, "timed out waiting for child");
+
+	_exit(0);
 }
 
 /* Create fallback .conf with err+panic sent to console */
