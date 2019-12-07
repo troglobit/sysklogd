@@ -24,9 +24,9 @@ Introduction
 
 This is the continuation of the original Debian/Ubuntu syslog daemon,
 updated with full [RFC3164][] and [RFC5424][] support from NetBSD and
-FreeBSD.  The package includes the `libsyslog.{a,so}` library and a
-`syslog.h` header file replacement, two system log daemons, `syslogd`
-and `klogd` (optional), and one command line tool called `logger`.
+FreeBSD.  The package includes the `libsyslog.{a,so}` library with a
+`syslog.h` header replacement, the `syslogd` daemon, and a command
+line tool called `logger`.
 
 `libsyslog` and `syslog/syslog.h`, derived directly from NetBSD, expose
 `syslogp()` and other new features available only in [RFC5424][]:
@@ -41,19 +41,13 @@ standard C-library implementations of the `syslog()` API (GLIBC, musl
 libc, uClibc), `libsyslog` must be used in your application to unlock
 the new [RFC5424][] `syslogp()` API.
 
-The optional `klogd` daemon, enabled with `configure --with-klogd`,
-supports the GLIBC `klogctl()` API to read kernel log messages and can
-also decode EIP addresses on Linux Oops, provided a `System.map` file.
-The `syslogd` daemon can run stand-alone without `klogd`, this is the
-default.
-
 The included `logger` tool can be used from the command line, or script,
 to send RFC5424 formatted messages using `libsyslog` to `syslogd` for
 local or remote logging.
 
 Main differences from the original sysklogd package are:
 
-- `klogd` no longer built by default (optional) `syslogd` is stand-alone
+- The separate `klogd` daemon is no longer part of the sysklogd project
 - *Major* command line changes to `syslogd`, for compatibilty with *BSD
 - Supports `include /etc/syslog.d/*.conf` directuve, see example .conf
 - Built-in log-rotation support, with compression by default, useful for
