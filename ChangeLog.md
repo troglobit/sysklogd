@@ -7,8 +7,16 @@ All relevant changes to the project are documented in this file.
 [v2.1][UNRELEASED]
 ------------------
 
+Relicensed under the 3-clause BSD license.
+
 ### Changes
 - `klogd` removed, replaced by native `syslogd` functionality
+- Import prisitine FreeBSD versions of `syslogd` and `syslog.conf` man
+  pages, both under the 3-clause BSD license.
+- With `klogd` removed and the original man pages replaced with FreeBSD
+  versions, the only remaining GPL'ed material was the build system,
+  which the copyright owner (undersigned) agrees to change to BSD as
+  well.  Hence, the GNU GPL could be dropped in favor of 3-clause BSD
 
 ### Fixes
 - Issue #8: Kernel messages duplicated to console.  `syslogd` on Linux
