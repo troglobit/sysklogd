@@ -22,9 +22,6 @@ EXTRA_DIST     = README.md ChangeLog.md syslog.conf
 
 if HAVE_SYSTEMD
 systemd_DATA   = syslogd.service
-if ENABLE_KLOGD
-systemd_DATA  += klogd.service
-endif
 endif
 
 #

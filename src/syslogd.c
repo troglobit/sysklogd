@@ -153,10 +153,8 @@ static SIMPLEQ_HEAD(, allowedpeer) aphead = SIMPLEQ_HEAD_INITIALIZER(aphead);
 static int  allowaddr(char *s);
 void        untty(void);
 static void parsemsg(const char *from, char *msg);
-#ifndef KLOGD
 static int  opensys(const char *file);
 static void printsys(char *msg);
-#endif
 static void logmsg(struct buf_msg *buffer);
 static void fprintlog_first(struct filed *f, struct buf_msg *buffer);
 static void fprintlog_successive(struct filed *f, int flags);
@@ -254,15 +252,6 @@ int main(int argc, char *argv[])
 	char *ptr;
 	int pflag = 0, bflag = 0;
 	int ch;
-
-#ifdef KLOGD
-	/*
-	 * When building with klogd enabled this works around filtering
-	 * of LOG_KERN messages in parsemsg().  Otherwise it needs to be
-	 * actively enabled to allow logging of remote kernel messages.
-	 */
-	KeepKernFac = 1;
-#endif
 
 	while ((ch = getopt(argc, argv, "46Aa:b:dHFf:km:nP:p:r:sTv?")) != EOF) {
 		switch ((char)ch) {
@@ -381,13 +370,11 @@ int main(int argc, char *argv[])
 				.pe_mode = 0666,
 			});
 
-#ifndef KLOGD
 	/* Attempt to open kernel log pipe */
 	if (opensys(_PATH_KLOG))
 		warn("Kernel logging disabled, failed opening %s", _PATH_KLOG);
 	else
 		kern_console_off();
-#endif
 
 	if (!Foreground) {
 		chdir("/");
@@ -480,7 +467,6 @@ int main(int argc, char *argv[])
 	}
 }
 
-#ifndef KLOGD
 /*
  * Read /dev/klog while data are available, split into lines.
  */
@@ -533,7 +519,6 @@ static int opensys(const char *file)
 
 	return 0;
 }
-#endif
 
 static void unix_cb(int sd, void *arg)
 {
@@ -2018,9 +2003,7 @@ void die(int signo)
 		free(pe);
 	}
 
-#ifndef KLOGD
 	kern_console_on();
-#endif
 
 	exit(0);
 }

@@ -36,7 +36,7 @@
 
 #include <netdb.h>		/* struct addrinfo */
 #ifdef __linux__
-#include <sys/klog.h>		/* When building w/o klogd */
+#include <sys/klog.h>
 #endif
 #include <sys/param.h>		/* MAXHOSTNAMELEN */
 #include <sys/socket.h>
@@ -147,11 +147,8 @@
 	(((d)->s6_addr32[3] ^ (a)->s6_addr32[3]) & (m)->s6_addr32[3]) == 0 )
 
 /*
- * When building without klogd on Linux systems we use these klogctl(2)
- * commands to control kernel log messages to console.
+ * klogctl(2) commands on Linux to control kernel logging to console.
  */
-#define SYSLOG_ACTION_CLOSE       0
-#define SYSLOG_ACTION_OPEN        1
 #define SYSLOG_ACTION_CONSOLE_OFF 6
 #define SYSLOG_ACTION_CONSOLE_ON  7
 

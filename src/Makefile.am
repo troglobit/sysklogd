@@ -21,10 +21,6 @@ sbin_PROGRAMS         = syslogd
 lib_LTLIBRARIES       = libsyslog.la
 noinst_LTLIBRARIES    = libcompat.la
 
-if ENABLE_KLOGD
-sbin_PROGRAMS        += klogd
-endif
-
 if ENABLE_LOGGER
 bin_PROGRAMS	     += logger
 endif
@@ -37,11 +33,6 @@ AM_CPPFLAGS          += -D_BSD_SOURCE -D_DEFAULT_SOURCE
 syslogd_SOURCES       = syslogd.c syslogd.h socket.c socket.h syslog.h timer.c timer.h queue.h compat.h
 syslogd_CPPFLAGS      = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
 syslogd_LDADD         = $(LIBS) $(LIBOBJS)
-
-klogd_SOURCES         = klogd.c klogd.h syslog.h compat.h ksym.c ksyms.h ksym_mod.c module.h
-klogd_CPPFLAGS        = $(AM_CPPFLAGS)
-klogd_LDADD           = $(LIBS) $(LIBOBJS)
-klogd_LDADD          += libsyslog.la
 
 logger_SOURCES        = logger.c syslog.h
 logger_CPPFLAGS       = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600

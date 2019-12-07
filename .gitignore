@@ -18,7 +18,6 @@ config.sub
 configure
 depcomp
 install-sh
-klogd.service
 libtool
 ltmain.sh
 missing

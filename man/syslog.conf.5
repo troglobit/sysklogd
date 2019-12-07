@@ -173,11 +173,6 @@ and
 in GLIBC does not allow logging to the
 .Ql kern
 facility.
-.Xr klogd 8
-circumvents this restriction when logging to
-.Xr syslogd 8
-by using the
-.Lb libsyslog
 .Pp
 The
 .I priority
@@ -543,7 +538,6 @@ intermediate whitespace.
 .Sh SEE ALSO
 .Xr mkfifo 1 ,
 .Xr sysklogd 8 ,
-.Xr klogd 8 , 
 .Xr logger 1 ,
 .Xr syslog 2 ,
 .Xr syslogp 3 .

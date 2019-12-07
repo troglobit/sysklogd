@@ -31,7 +31,6 @@ AC_CONFIG_FILES([Makefile
 		 src/Makefile
 		 src/libsyslog.pc
 		 test/Makefile
-		 klogd.service
 		 syslogd.service])
 
 AC_PROG_CC
@@ -49,14 +48,6 @@ AC_CONFIG_LIBOBJ_DIR([lib])
 AC_CHECK_FUNCS([getprogname strtobytes])
 
 # Command line options
-AC_ARG_WITH(klogd,
-        AS_HELP_STRING([--with-klogd], [Build a separate klogd, default: disabled]),
-	[klogd=$withval], [klogd='no'])
-
-AC_ARG_WITH(klogd-delay,
-        AS_HELP_STRING([--with-klogd-delay=SEC], [Delay before klogd connects to syslogd, default: 0]),
-	[klogd_delay=$withval], [klogd_delay='no'])
-
 AC_ARG_WITH(suspend-time,
         AS_HELP_STRING([--with-suspend-time=SEC], [Retry delay for sending to remote, default: 180]),
 	[suspend_time=$withval], [suspend_time='no'])
@@ -68,19 +59,6 @@ AC_ARG_WITH(systemd,
 AC_ARG_WITH(logger,
      AS_HELP_STRING([--without-logger], [Build without extended logger tool, default: enabled]),
      [logger=$withval], [logger='yes'])
-
-AS_IF([test "x$klogd" != "xno"],
-        with_klogd="yes"
-	AC_DEFINE(KLOGD, 1, [Build with klogd, default: built-in /dev/kmsg support in syslogd]),
-	with_klogd="no")
-AM_CONDITIONAL([ENABLE_KLOGD], [test "x$with_klogd" != "xno"])
-
-AS_IF([test "x$klogd_delay" != "xno"],[
-	AS_IF([test "x$klogd_delay" = "xyes"],[
-		AC_MSG_ERROR([Must supply argument])])
-	]
-	AC_DEFINE_UNQUOTED(KLOGD_DELAY, $klogd_delay, [Delay klogd startup N seconds, default: 0]),
-	klogd_delay=0)
 
 AS_IF([test "x$logger" != "xno"], with_logger="yes", with_logger="no")
 AM_CONDITIONAL([ENABLE_LOGGER], [test "x$with_logger" != "xno"])
@@ -136,8 +114,6 @@ cat <<EOF
   C Compiler.....: $CC $CFLAGS $CPPFLAGS $LDFLAGS $LIBS
 
  Optional features:
-  klogd..........: $with_klogd
-  klogd delay....: $klogd_delay sec
   logger.........: $with_logger
   suspend time...: $suspend_time sec
   systemd........: $with_systemd

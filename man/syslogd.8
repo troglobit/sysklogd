@@ -10,7 +10,7 @@
 .Os "sysklogd (2.0)"
 .Sh NAME
 .Nm syslogd
-.Nd System Log Daemon
+.Nd System and Kernel Log Daemon
 .Sh SYNOPSIS
 .Nm
 .Op Fl ?46AdFknsTv
@@ -27,14 +27,7 @@
 .Nm
 support RFC3164 and RFC5424 style log messages for both local and remote
 logging using Internet and UNIX domain sockets.  Differences in style is
-shown below.  The optional companion daemon,
-.Xr klogd 8 ,
-can be used to trap kernel messages and interpret events like Oops.  By
-default
-.Nm klogd
-is not built and
-.Nm
-handles reading and logging of kernel messages.
+shown below.
 .Pp
 .Bl -tag -compact -width "RFC3164:"
 .It RFC3164:
@@ -184,11 +177,7 @@ facility
 .Ql user .
 Usually the
 .Ql kern
-facility is reserved for kernel log messages.  When the
-.Nm klogd
-daemon runs alongside
-.Nm ,
-this option is always set.
+facility is reserved for kernel log messages.
 .It Fl m Ar interval
 Specify interval in minutes between
 .Ql -- MARK --
@@ -544,10 +533,9 @@ kill -SIGNAL `cat /var/run/syslogd.pid`
 .It Pa /dev/log
 The UNIX domain socket to from where local syslog messages are read.
 .It Pa /proc/kmsg
-The Linux kernel log file
+The kernel log file
 .Nm
-reads when built without the optional
-.Nm klogd .
+reads on Linux.
 .It Pa /etc/syslog.conf
 Configuration file for
 .Nm .
@@ -588,7 +576,6 @@ correctly, this should be reported as a bug to this project.  See below
 for contact details.
 .Sh SEE ALSO
 .Xr syslog.conf 5 ,
-.Xr klogd  8 ,
 .Xr logger 1 ,
 .Xr syslog 2 ,
 .Xr syslogp 3 ,
