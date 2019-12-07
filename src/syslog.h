@@ -221,7 +221,9 @@ struct syslog_data {
     .log_mask = 0xff, \
 }
 
-__BEGIN_DECLS
+#ifdef __cplusplus
+extern "C" {
+#endif
 void	openlog    (const char *, int, int);
 void	closelog   (void);
 
@@ -245,7 +247,9 @@ void	syslogp_r  (int, struct syslog_data *, const char *, const char *,
 		    const char *, ...);
 void	vsyslogp_r (int, struct syslog_data *, const char *, const char *,
 		    const char *, va_list);
-__END_DECLS
+#ifdef __cplusplus
+}
+#endif
 
 #else /* !__KERNEL__ */
 
