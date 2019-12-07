@@ -24,7 +24,7 @@ addons:
       name: "troglobit/sysklogd"
       description: "RFC5424 compliant syslog daemon and syslog()/syslogp() API for Linux"
     notification_email: troglobit@gmail.com
-    build_command_prepend: "./autogen.sh && ./configure --with-klogd"
+    build_command_prepend: "./autogen.sh && ./configure"
     build_command: "make"
     branch_pattern: dev
 
