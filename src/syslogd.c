@@ -372,12 +372,6 @@ int main(int argc, char *argv[])
 				.pe_mode = 0666,
 			});
 
-	/* Attempt to open kernel log pipe */
-	if (opensys(_PATH_KLOG))
-		warn("Kernel logging disabled, failed opening %s", _PATH_KLOG);
-	else
-		kern_console_off();
-
 	if (!Foreground && !Debug) {
 		ppid = waitdaemon(30);
 		if (ppid < 0)
@@ -386,6 +380,12 @@ int main(int argc, char *argv[])
 		debugging_on = 1;
 		setlinebuf(stdout);
 	}
+
+	/* Attempt to open kernel log pipe */
+	if (opensys(_PATH_KLOG))
+		warn("Kernel logging disabled, failed opening %s", _PATH_KLOG);
+	else
+		kern_console_off();
 
 	consfile.f_type = F_CONSOLE;
 	strlcpy(consfile.f_un.f_fname, ctty, sizeof(consfile.f_un.f_fname));
