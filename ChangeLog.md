@@ -4,6 +4,24 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.1][UNRELEASED]
+------------------
+
+### Changes
+- `klogd` removed, replaced by native `syslogd` functionality
+
+### Fixes
+- Issue #8: Kernel messages duplicated to console.  `syslogd` on Linux
+  now calls `klogctl()` to disable kernel logging to console
+- Earlier versions were slightly sensitive to time skips.  I.e., when
+  recording the last-change time on a log file and wall time changed
+  backwards, `syslogd` would consider that log file to have a date in
+  the future.  This only affected buffering of multiple messages, and
+  `-- MARK --` so most users never would have noticed
+- Fix nasty parallel build problem reported by Gentoo and Westermo
+- Use correct `#ifdef` for checking on Linux or not
+
+
 [v2.0.3][] - 2019-12-01
 -----------------------
 
