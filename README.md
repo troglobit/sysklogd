@@ -8,7 +8,7 @@
 <23>Aug 24 05:14:15 192.0.2.1 myproc[8710]: Kilroy was here.
 <23>1 2019-11-04T00:50:15.001234+01:00 troglobit myproc 8710 - - Kilroy was here.
 ```
-[![BSD Badge][]][BSD License] [![License Badge][]][License] [![Travis Status][]][Travis] [![Coverity Status][]][Coverity Scan]
+[![BSD Badge][]][BSD License] [![Travis Status][]][Travis] [![Coverity Status][]][Coverity Scan]
 
 Table of Contents
 -----------------
@@ -159,13 +159,13 @@ Origin & References
 -------------------
 
 This is the continuation of the original sysklogd by Dr. G.W. Wettstein
-and [Martin Schulze][].  Currently maintained, and heavily updated with
-the latest features from NetBSD and FreeBSD, by [Joachim Nilsson][].
-Please file bug reports, or send pull requests for bug fixes and
-proposed extensions at [GitHub][].
+and [Martin Schulze][].  Currently maintained, and almost completely
+rewritten with the latest DNA strands from NetBSD and FreeBSD, by
+[Joachim Nilsson][].  Please file bug reports, or send pull requests for
+bug fixes and proposed extensions at [GitHub][].
 
-The project is licensed under the [GPL][License], but the main `syslogd`
-daemon and `syslogp()` API:s are [3-clause BSD][BSD License] licensed.
+The project was previously licensed under the GNU GPL, since the removal
+of `klogd` the project is now [3-clause BSD][BSD License] licensed.
 
 [RFC3164]:          https://tools.ietf.org/html/rfc3164
 [RFC5424]:          https://tools.ietf.org/html/rfc5424
@@ -175,8 +175,6 @@ daemon and `syslogp()` API:s are [3-clause BSD][BSD License] licensed.
 [GitHub]:           https://github.com/troglobit/sysklogd
 [example]:          https://github.com/troglobit/sysklogd/tree/master/example
 [buildsystem]:      https://airs.com/ian/configure/
-[License]:          https://en.wikipedia.org/wiki/GPL_license
-[License Badge]:    https://img.shields.io/badge/License-GPL%20v2-blue.svg
 [BSD License]:      http://en.wikipedia.org/wiki/BSD_licenses
 [BSD Badge]:        https://img.shields.io/badge/License-BSD%203--Clause-blue.svg
 [Travis]:           https://travis-ci.org/troglobit/sysklogd
