@@ -26,8 +26,8 @@
 # SUCH DAMAGE.
 
 SUBDIRS        = example man src test
-doc_DATA       = README.md ChangeLog.md syslog.conf
-EXTRA_DIST     = README.md ChangeLog.md syslog.conf
+doc_DATA       = README.md LICENSE ChangeLog.md syslog.conf
+EXTRA_DIST     = README.md LICENSE ChangeLog.md syslog.conf
 
 if HAVE_SYSTEMD
 systemd_DATA   = syslogd.service
