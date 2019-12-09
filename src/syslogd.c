@@ -401,9 +401,14 @@ int main(int argc, char *argv[])
 	/*
 	 * Set up timer callbacks for -- MARK -- et al
 	 */
-	if (MarkInterval > 0)
-		timer_add(TIMERINTVL, domark, NULL);
-	timer_add(FLUSHINTVL, doflush, NULL);
+	if (MarkInterval > 0) {
+		int interval = MarkInterval / 2;
+
+		if (interval < 30)
+			interval = 30;
+		timer_add(interval, domark, NULL);
+	}
+	timer_add(TIMERINTVL, doflush, NULL);
 
 	/* Start 'em */
 	timer_start();
@@ -1896,7 +1901,14 @@ static void forw_lookup(struct filed *f)
 
 void domark(void *arg)
 {
-	flog(INTERNAL_MARK | LOG_INFO, "-- MARK --");
+	static time_t t_last = 0;
+	time_t t_now;
+
+	t_now = timer_now();
+	if (t_now >= t_last + MarkInterval) {
+		flog(INTERNAL_MARK | LOG_INFO, "-- MARK --");
+		t_last = t_now;
+	}
 }
 
 void doflush(void *arg)
