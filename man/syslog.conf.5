@@ -28,7 +28,7 @@
 .\"     @(#)syslog.conf.5	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2016
+.Dd December 9, 2019
 .Dt SYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -41,32 +41,83 @@ The
 .Nm
 file is the configuration file for the
 .Xr syslogd 8
-program.
-It consists of
-blocks of lines separated by
-.Em program
-and
-.Em hostname
-specifications (separations appear alone on their lines),
-with each line containing two fields: the
+program.  It consists of lines of rules for logging, with each line
+containing at least two fields: the
 .Em selector
 field which specifies the types of messages and priorities to which the
 line applies, and an
 .Em action
 field which specifies the action to be taken if a message
 .Xr syslogd 8
-receives matches the selection criteria.
+receives matches the selection criteria.  A rule may also have an
+.Em option
+field for a setting that applies only to that rule.
+.Pp
+The fields are separated by one or more tab characters or spaces.  A
+rule may be divided into several lines if the leading line ends with a
+single backslash ('\\') character.
+.Pp
+.Bd -literal -offset indent
+RULE     := SELECTOR  ACTION  [;OPTION]
+SELECTOR := [SELECTOR;]facility[,facility].[!=]severity
+ACTION   := /path/to/file
+         |= |/path/to/named/pipe
+	 |= @remote[.host.tld][:PORT]
+OPTION   := [OPTION,]
+	 |= RFC3164
+	 |= RFC5424
+         |= rotate=SIZE:COUNT
+.Ed
+.Pp
 The
 .Em selector
-field is separated from the
+field specifies a pattern of facilities and priorities belonging to the
+specified action.  The
 .Em action
-field by one or more tab characters or spaces.
+details where or what to do with the selected input.  The
+.Em option
+field, which must start with the semi-colon option delimiter (';'),
+currently supports log formatting and log rotation.  The default log
+format is the traditional RFC3164 (included here for completeness),
+.Sy except
+for remote syslog targets where the BSD format (without both timestamp
+and hostname) is the default.  The user must explicitly set RFC3164 on
+a remote logging target.  RFC5424 is the newest format with RFC3339 time
+stamps, msgid, structured data, and more.  The BSD format cannot be set,
+it is only the default for remote targets for compatibility reasons.
+.Pp
+.Bl -tag -compact -width "RFC3164:"
+.It BSD:
+.Cm myproc[8710]: Kilroy was here.
+.It RFC3164:
+.Cm Aug 24 05:14:15 192.0.2.1 myproc[8710]: Kilroy was here.
+.It RFC5424:
+.Cm 2003-08-24T05:14:15.000003-07:00 192.0.2.1 myproc 8710 - - Kilroy was here.
+.El
+.Pp
+The log rotation, which is only relevant for files, details the max
+.Ar SIZE:COUNT
+a file can reach before it is rotated, and later compressed.  This
+feature is mostly intended for embedded systems that do not want to have
+cron or a separate log rotate daemon.
+.Pp
+Comments, lines starting with a hash mark ('#'), and empty lines are
+ignored.  If an error occurs during parsing the whole line is ignored.
 .Pp
 A special
 .Em include
-keyword can be used to include all files with names ending in '.conf' and not
-beginning with a '.' contained in the directory following the keyword.
-This keyword can only be used in the first level configuration file.
+keyword can be used to include all files with names ending in '.conf'
+and not beginning with a '.' contained in the directory following the
+keyword.  This keyword can only be used in the first level configuration
+file.  The included example
+.Pa /etc/syslog.conf
+has the following at the end:
+.Bd -literal -offset indent
+#
+# Drop your subsystem .conf file in /etc/syslog.d/
+#
+include /etc/syslog.d/*.conf
+.Ed
 .Pp
 Note that if you use spaces as separators, your
 .Nm
@@ -79,361 +130,209 @@ This change however preserves
 backwards compatibility with the old style of
 .Nm
 (i.e., tab characters only).
-.Pp
-The
-.Em selectors
-are encoded as a
-.Em facility ,
-a period
-.Pq Dq \&. ,
-an optional set of comparison flags
-.Pq Oo \&! Oc Op <=> ,
-and a
-.Em level ,
-with no intervening white-space.
-Both the
+.Sh SELECTORS
+The selector field consists of two parts, a
 .Em facility
-and the
-.Em level
-are case insensitive.
+and a 
+.Em priority ,
+separated by a period ('.').  Both parts are case insensitive and can
+also be specified as decimal numbers corresponding to the definitions in
+.Pa /usr/include/syslog.h .
+It is safer to use symbolic names rather than decimal numbers.  Both
+facilities and priorities are described in
+.Xr syslogp 3 .
+The names mentioned below correspond to the similar 
+.Ql LOG_FOO
+values in
+.Pa /usr/include/syslog.h .
 .Pp
 The
 .Em facility
-describes the part of the system generating the message, and is one of
-the following keywords:
-.Cm auth , authpriv , console , cron , daemon , ftp , kern , lpr ,
-.Cm mail , mark , news , ntp , security , syslog , user , uucp ,
-and
-.Cm local0
-through
-.Cm local7 .
-These keywords (with the exception of mark) correspond to
-similar
-.Dq Dv LOG_
-values specified to the
+is one of the following keywords:
+.Bl -column "Code" "Facility" "Description" -offset indent
+.It Sy "Code" Ta Sy "Facility" Ta Sy "Description"
+.It        0  Ta         kern  Ta Kernel log messages
+.It        1  Ta         user  Ta User-level messages
+.It        2  Ta         mail  Ta Mail system
+.It        3  Ta       daemon  Ta General system daemons
+.It        4  Ta         auth  Ta Security/authorization messages
+.It        5  Ta       syslog  Ta Messages generated by syslogd
+.It        6  Ta          lpr  Ta Line printer subsystem
+.It        7  Ta         news  Ta Network news subsystem
+.It        8  Ta         uucp  Ta UNIX-to-UNIX copy
+.It        9  Ta         cron  Ta Clock/cron daemon (BSD, Linux)
+.It       10  Ta     authpriv  Ta Security/authorization messages (private)
+.It       11  Ta          ftp  Ta FTP daemon
+.It       12  Ta          ntp  Ta NTP subsystem
+.It       13  Ta     security  Ta Log audit
+.It       14  Ta      console  Ta Log alert
+.It       15  Ta       unused  Ta Clock/cron daemon (Solaris)
+.It       16  Ta       local0  Ta Reserved for local/system use
+.It       17  Ta       local1  Ta Reserved for local/system use
+.It       18  Ta       local2  Ta Reserved for local/system use
+.It       19  Ta       local3  Ta Reserved for local/system use
+.It       20  Ta       local4  Ta Reserved for local/system use
+.It       21  Ta       local5  Ta Reserved for local/system use
+.It       22  Ta       local6  Ta Reserved for local/system use
+.It       23  Ta       local7  Ta Reserved for local/system use
+.El
+.Pp
+Notice, several of the above listed facilities are not supported
+by the standard C library (GLIBC, musl libc, or uClibc) on Linux.
+The
+.Lb libsyslog
+shipped with
+.Nm sysklogd ,
+however, supports all the above facilities in full.  Also, the keyword
+.Ql mark
+is only for internal use and should therefore not be used in
+applications.  The
+.Em facility
+specifies the subsystem that produced the message, e.g. all mail
+programs log with the mail facility,
+.Ql LOG_MAIL ,
+if they log using syslog.
+.Pp
+In most cases anyone can log to any facility, so we rely on convention
+for the correct facility to be chosen.  However, generally only the
+kernel can log to the
+.Ql kern
+facility.  This because the implementation of
 .Xr openlog 3
 and
 .Xr syslog 3
-library routines.
+in GLIBC does not allow logging to the
+.Ql kern
+facility.
 .Pp
 The
-.Em comparison flags
-may be used to specify exactly what is logged.
-The default comparison is
-.Dq =>
-(or, if you prefer,
-.Dq >= ) ,
-which means that messages from the specified
-.Em facility
-list, and of a priority
-level equal to or greater than
-.Em level
-will be logged.
-Comparison flags beginning with
-.Dq Li \&!
-will have their logical sense inverted.
-Thus
-.Dq !=info
-means all levels except info and
-.Dq !notice
-has the same meaning as
-.Dq <notice .
-.Pp
-The
-.Em level
-describes the severity of the message, and is a keyword from the
-following ordered list (higher to lower):
-.Cm emerg , crit , alert , err , warning , notice , info
-and
-.Cm debug .
-These keywords correspond to
-similar
-.Dq Dv LOG_
-values specified to the
-.Xr syslog 3
-library routine.
-.Pp
-Each block of lines is separated from the previous block by a
-.Em program
-or
-.Em hostname
-specification.
-A block will only log messages corresponding to the most recent
-.Em program
-and
-.Em hostname
-specifications given.
-Thus, with a block which selects
-.Ql ppp
-as the
-.Em program ,
-directly followed by a block that selects messages from the
-.Em hostname
-.Ql dialhost ,
-the second block will only log messages
-from the
-.Xr ppp 8
-program on dialhost.
-.Pp
-A
-.Em program
-specification is a line beginning with
-.Ql #!prog
-or
-.Ql !prog
-(the former is for compatibility with the previous syslogd, if one is sharing
-.Nm
-files, for example)
-and the following blocks will be associated with calls to
-.Xr syslog 3
-from that specific program.
-A
-.Em program
-specification for
-.Ql foo
-will also match any message logged by the kernel with the prefix
-.Ql "foo: " .
-The
-.Ql #!+prog
-or
-.Ql !+prog
-specification works just like the previous one,
-and the
-.Ql #!-prog
-or
-.Ql !-prog
-specification will match any message but the ones from that
-program.
-Multiple programs may be listed, separated by commas:
-.Ql !prog1,prog2
-matches messages from either program, while
-.Ql !-prog1,prog2
-matches all messages but those from
-.Ql prog1
-or
-.Ql prog2 .
-.Pp
-A
-.Em hostname
-specification of the form
-.Ql #+hostname
-or
-.Ql +hostname
-means the following blocks will be applied to messages
-received from the specified hostname.
-Alternatively, the
-.Em hostname
-specification
-.Ql #-hostname
-or
-.Ql -hostname
-causes the following blocks to be applied to messages
-from any host but the one specified.
-If the hostname is given as
-.Ql @ ,
-the local hostname will be used.
-As for program specifications, multiple comma-separated
-values may be specified for hostname specifications.
-.Pp
-A
-.Em program
-or
-.Em hostname
-specification may be reset by giving the program or hostname as
-.Ql * .
-.Pp
-See
-.Xr syslog 3
-for further descriptions of both the
-.Em facility
-and
-.Em level
-keywords and their significance.
-It is preferred that selections be made on
-.Em facility
-rather than
-.Em program ,
-since the latter can easily vary in a networked environment.
-In some cases,
-though, an appropriate
-.Em facility
-simply does not exist.
-.Pp
-If a received message matches the specified
-.Em facility
-and is of the specified
-.Em level
-.Em (or a higher level) ,
-and the first word in the message after the date matches the
-.Em program ,
-the action specified in the
-.Em action
-field will be taken.
-.Pp
-Multiple
-.Em selectors
-may be specified for a single
-.Em action
-by separating them with semicolon
-.Pq Dq \&;
-characters.
-It is important to note, however, that each
-.Em selector
-can modify the ones preceding it.
-.Pp
-Multiple
-.Em facilities
-may be specified for a single
-.Em level
-by separating them with comma
-.Pq Dq \&,
-characters.
-.Pp
-An asterisk
-.Pq Dq *
-can be used to specify all
-.Em facilities ,
-all
-.Em levels ,
-or all
-.Em programs .
-.Pp
-The special
-.Em facility
-.Dq mark
-receives a message at priority
-.Dq info
-every 20 minutes
-(see
-.Xr syslogd 8 ) .
-This is not enabled by a
-.Em facility
-field containing an asterisk.
-.Pp
-The special
-.Em level
-.Dq none
-disables a particular
-.Em facility .
-.Pp
-The
-.Em action
-field of each line specifies the action to be taken when the
-.Em selector
-field selects a message.
-There are five forms:
-.Bl -bullet
-.It
-A pathname (beginning with a leading slash).
-Selected messages are appended to the file.
-.Pp
-To ensure that kernel messages are written to disk promptly,
-.Nm
-calls
-.Xr fsync 2
-after writing messages from the kernel.
-Other messages are not synced explicitly.
-You may prefix a pathname with the minus sign,
-.Dq - ,
-to forego syncing the specified file after every kernel message.
-Note that you might lose information if the system crashes
-immediately following a write attempt.
-Nevertheless, using the
-.Dq -
-option may improve performance,
-especially if the kernel is logging many messages.
-.It
-A hostname (preceded by an at
-.Pq Dq @
-sign).
-Selected messages are forwarded to the
-.Xr syslogd 8
-program on the named host.
-If a port number is added after a colon
-.Pq Ql :\&
-then that port will be used as the destination port
-rather than the usual syslog port.
-IPv6 addresses can be used
-by surrounding the address portion with
-square brackets
-.Po
-.Ql [\&
-and
-.Ql ]\&
-.Pc .
-.It
-A comma separated list of users.
-Selected messages are written to those users
-if they are logged in.
-.It
-An asterisk.
-Selected messages are written to all logged-in users.
-.It
-A vertical bar
-.Pq Dq \&| ,
-followed by a command to pipe the selected
-messages to.
-The command is passed to
-.Xr sh 1
-for evaluation, so usual shell metacharacters or input/output
-redirection can occur.
-(Note however that redirecting
-.Xr stdio 3
-buffered output from the invoked command can cause additional delays,
-or even lost output data in case a logging subprocess exited with a
-signal.)
-The command itself runs with
-.Em stdout
-and
-.Em stderr
-redirected to
-.Pa /dev/null .
-Upon receipt of a
-.Dv SIGHUP ,
-.Xr syslogd 8
-will close the pipe to the process.
-If the process did not exit
-voluntarily, it will be sent a
-.Dv SIGTERM
-signal after a grace period of up to 60 seconds.
-.Pp
-The command will only be started once data arrives that should be piped
-to it.
-If it exited later, it will be restarted as necessary.
-So if it
-is desired that the subprocess should get exactly one line of input only
-(which can be very resource-consuming if there are a lot of messages
-flowing quickly), this can be achieved by exiting after just one line of
-input.
-If necessary, a script wrapper can be written to this effect.
-.Pp
-Unless the command is a full pipeline, it is probably useful to
-start the command with
-.Em exec
-so that the invoking shell process does not wait for the command to
-complete.
-Warning: the process is started under the UID invoking
-.Xr syslogd 8 ,
-normally the superuser.
+.I priority
+is one of the following keywords, in ascending order:
+.Bl -column "Code" "Facility" "Description" -offset indent
+.It Sy "Value" Ta Sy "Severity" Ta Sy "Description"
+.It         0  Ta    emergency  Ta System is unusable
+.It         1  Ta        alert  Ta Action must be taken immediately
+.It         2  Ta     critical  Ta Critical conditions
+.It         3  Ta        error  Ta Error conditions
+.It         4  Ta      warning  Ta Warning conditions
+.It         5  Ta       notice  Ta Normal but significant conditions
+.It         6  Ta         info  Ta Informational messages
+.It         7  Ta        debug  Ta Debug-level messages
 .El
 .Pp
-Blank lines and lines whose first non-blank character is a hash
-.Pq Dq #
-character are ignored.
-If
-.Ql #
-is placed in the middle of the line, the
-.Ql #
-character and the rest of the line after it is ignored.
-To prevent special meaning, the
-.Ql #
-character may be escaped with
-.Ql \e ;
-in this case preceding
-.Ql \e
-is removed and
-.Ql #
-is treated as an ordinary character.
+The default log level of most applications is
+.Ql notice ,
+meaning only
+.Ql notice
+and above are forwarded to
+.Nm syslogd .
+See
+.Xr setlogmask 3
+for more information on how to change the default log level of your
+application.
+.Pp
+In addition to the above mentioned facility and priority names,
+.Xr syslogd 8
+understands the following extensions:
+.Pp
+.Bl -tag -compact -width "'none'"
+.It *
+An asterisk ('*') matches all facilities or all priorities, depending on
+where it is used (before or after the period).
+.It none
+The keyword
+.Ql none
+stands for no priority of the given facility.
+.It ,
+Multiple facilities may be specified for a single priority pattern in
+one statement using the comma (',') operator to separate the facilities.
+You may specify as many facilities as you want.  Please note that only
+the facility part from such a statement is taken, a priority part would
+be ignored.
+.It ;
+Multiple selectors may be specified for a single
+.Em action
+using the semicolon (';') separator.  Selectors are processed from left
+to right, with each selector being able to overwrite preceding ones.
+Using this behavior you are able to exclude some priorities from the
+pattern.
+.It =
+This version of
+.Xr syslogd 8
+has a syntax extension to the original BSD source, which makes its use
+more intuitive.  You may precede every priority with an equation sign
+('=') to specify that only this single priority should be matched,
+instead of the default: this priority and all higher priorities.
+.It !
+You may also precede the priority with an exclamation mark ('!') if you
+want to ignore this priority and all higher priorities.  You may even
+use both the exclamation mark and the equation sign if you want to
+ignore a single priority.  If both extensions are used, the exclamation
+mark must occur before the equation sign.
+.El
+.Sh ACTIONS
+The action field of a rule is the destination or target for a match.  It
+can be a file, a UNIX named pipe, the console, or a remote machine.
+.Ss Regular File
+Typically messages are logged to real files.  The filename is specified
+with an absolute path name.
+.Pp
+You may prefix each entry with a minus sign ('-') to avoid syncing the
+file after each log message.  Note that you might lose information if
+the system crashes right after a write attempt.  Nevertheless this might
+give you back some performance, especially if you run programs that use
+logging in a very verbose manner.
+.Ss Named Pipes
+This version of
+.Xr syslogd 8
+supports logging to named pipes (FIFOs).  A FIFO, or named pipe, can be
+used as a destination for log messages by prepending a pipe symbol ('|')
+to the name of the file.  This can be very handy for debugging.  Note
+that the FIFO must be created with the
+.Xr mkfifo 1
+command before
+.Nm syslogd
+is started.
+.Ss Terminal and Console
+If the file you specified is a tty, special tty-handling is done, same
+with
+.Pa /dev/console .
+.Ss Remote Machine
+Full remote logging support is available in
+.Nm syslogd ,
+i.e. to send messages to a remote syslog server, and and to receive
+messages from remote hosts.  To forward messages to another host,
+prepend the hostname with the at sign ('@').  If a port number is added
+after a colon (':') then that port will be used as the destination port
+rather than the usual syslog port.
+.Pp
+This feature makes it possible to collect all syslog messages in a
+network on a central host.  This reduces administration needs and
+can be really helpful when debugging distributed systems.
+.Pp
+Using a named pipe log method, messages from remote hosts can be sent to
+a log program.  By reading log messages line by line such a program is
+able to sort log messages by host name or program name on the central
+log host.  This way it is possible to split the log into separate files.
+.Pp
+By default messages to remote remote hosts were formatted in the original
+BSD style, without timestamp or hostname.  As of
+.Nm syslogd
+v2.0 the default includes timestamp and hostname.  It is also possible to
+enable the new RFC5424 style formatting, append ';RFC5424' after the
+hostname.
+.Ss List of Users
+Usually critical messages are also directed to
+.Ql root
+on that machine.  You can specify a list of users that ought to receive
+the log message on their terminal by writing their usernames.  You may
+specify more than one user by separating the usernames with commas
+(',').  Only logged in users will receive the log messages.
+.Ss Everyone logged on
+Emergency messages often go to all users currently online to notify them
+that something strange is happening with the system.  To specify this
+.Xr wall 1
+feature use an asterisk ('*').
 .Sh IMPLEMENTATION NOTES
 The
 .Dq kern
@@ -448,61 +347,204 @@ see
 .Xr syslogd 8
 for details.
 .Sh FILES
-.Bl -tag -width /etc/syslog.conf -compact
+.Bl -tag -width /etc/syslog.d/*.conf -compact
 .It Pa /etc/syslog.conf
 .Xr syslogd 8
 configuration file
+.It /etc/syslog.d/*.conf
+Recommended directory for .conf snippets
 .El
 .Sh EXAMPLES
-A configuration file might appear as follows:
-.Bd -literal
-# Log all kernel messages, authentication messages of
-# level notice or higher, and anything of level err or
-# higher to the console.
-# Don't log private authentication messages!
-*.err;kern.*;auth.notice;authpriv.none;mail.crit	/dev/console
-
-# Log anything (except mail) of level info or higher.
-# Don't log private authentication messages!
-*.info;mail.none;authpriv.none		/var/log/messages
-
-# Log daemon messages at debug level only
-daemon.=debug						/var/log/daemon.debug
-
-# The authpriv file has restricted access.
-authpriv.*						/var/log/secure
-
-# Log all the mail messages in one place.
-mail.*							/var/log/maillog
-
-# Everybody gets emergency messages, plus log them on another
-# machine.
-*.emerg							*
-*.emerg							@arpa.berkeley.edu
-
-# Root and Eric get alert and higher messages.
-*.alert							root,eric
-
-# Save mail and news errors of level err and higher in a
-# special file.
-uucp,news.crit						/var/log/spoolerr
-
-# Pipe all authentication messages to a filter.
-auth.*					|exec /usr/local/sbin/authfilter
-
-# Log all security messages to a separate file.
-security.*						/var/log/security
-
-# Log all writes to /dev/console to a separate file.
-console.*						/var/log/console.log
-
-# Save ftpd transactions along with mail and news
-!ftpd
-*.*							/var/log/spoolerr
-
-# Log ipfw messages without syncing after every message.
-!ipfw
-*.*							-/var/log/ipfw
+This section lists some examples, partially from actual site setups.
+.Ss Catch Everything
+This example matches all facilities and priorities and stores everything
+in the file
+.Pa /var/log/syslog
+in RFC5424 format.  Every time the file reaches 10 MiB it is rotated and
+five files in total are kept, including the non-rotated file.
+.Bd -literal -offset indent
+# Match all log messages, store in RC5424 format and rotate every 10 MiB
+#
+*.*                          /var/log/critical    ;rotate=10M:5,RFC5424
+.Ed
+.Ss Critical
+This stores all messages of priority
+.Ql crit
+in the file
+.Pa /var/log/critical ,
+with the exception of any kernel messages.
+.Bd -literal -offset indent
+# Store critical stuff in critical
+#
+*.=crit;kern.none            /var/log/critical
+.Ed
+.Ss Kernel
+This is an example of the 2nd selector overwriting part of the first
+one.  The first selector selects kernel messages of priority
+.Ql info
+and higher.  The second selector filters out kernel messages of priority
+.Ql error
+and higher.  This leaves just priorities
+.Ql info ,
+.Ql notice ,
+and
+.Ql warning
+to get logged.
+.Bd -literal -offset indent
+# Kernel messages are stored in the kernel file, critical messages and
+# higher ones also go to another host and to the console
+#
+kern.*                       /var/log/kernel
+kern.crit                    @arpa.berkeley.edu   ;RFC5424
+kern.crit                    /dev/console
+kern.info;kern.!err          /var/log/kernel.info
+.Ed
+.Pp
+The first rule directs any message that has the kernel facility to the
+file
+.Pa /var/log/kernel .
+Recall that only the kernel itself can log to this facility.
+.Pp
+The second statement directs all kernel messages of priority
+.Ql crit
+and higher to the remote host
+.Ql arpa.berkeley.edu
+in RFC5424 style formatting.  This is useful, because if the host
+crashes and the disks get irreparable errors you might not be able to
+read the stored messages.  If they're on a remote host, too, you still
+can try to find out the reason for the crash.
+.Pp
+The third rule directs kernel messages of priority
+.Ql crit
+and higher to the actual console, so the person who works on the machine
+will get them, too.
+.Pp
+The fourth line tells
+.Nm syslogd
+to save all kernel messages that come with priorities from
+.Ql info
+up to
+.Ql warning
+in the file
+.Pa /var/log/kernel.info .
+.Ss Redirecting to a TTY
+This directs all messages that use 
+.Ql mail.info
+(in source
+.Ql LOG_MAIL | LOG_INFO )
+to
+.IR /dev/tty12 , 
+the 12th console.  For example the tcpwrapper
+.BR tcpd (8)
+uses this as its default.
+.Bd -literal -offset indent
+# The tcp wrapper logs with mail.info, we display
+# all the connections on tty12
+#
+mail.=info                   /dev/tty12
+.Ed
+.Ss Redirecting to a file
+This pattern matches all messages that come with the
+.Ql mail
+facility, except for the
+.Ql info
+priority.  These will be stored in the file
+.Pa /var/log/mail .
+.Bd -literal -offset indent
+# Write all mail related logs to a file
+#
+mail.*;mail.!=info           /var/log/mail
+.Ed
+.Ss Single Priority from Two Facilities
+This will extract all messages that come either with
+.Ql mail.info
+or with
+.Ql news.info
+and store them in the file
+.Pa /var/log/info .
+.Bd -literal -offset indent
+# Log all mail.info and news.info messages to info
+#
+mail,news.=info              /var/log/info
+.Ed
+.Ss Advanced Filtering, part 1
+This logs all messages that come with either the
+.Ql info
+or the
+.Ql notice
+priority into the file
+.Pa /var/log/messages ,
+except for all messages that use the
+.Ql mail
+facility.
+.Bd -literal -offset indent
+# Log info and notice messages to messages file
+#
+*.=info;*.=notice;\\
+	mail.none            /var/log/messages
+.Ed
+.Ss Advanced Filtering, part 2
+This statement logs all messages that come with the
+.Ql info
+priority to the file
+.Pa /var/log/messages .
+But any message with either
+.Ql mail
+or the
+.Ql news
+facility  are not logged.
+.Bd -literal -offset indent
+# Log info messages to messages file
+#
+*.=info;\\
+	mail,news.none       /var/log/messages
+.Ed
+.Ss Wall Messages
+This rule tells
+.Nm syslogd
+to write all emergency messages to all currently logged in users.  This
+is the wall action.
+.Bd -literal -offset indent
+# Emergency messages will be displayed using wall
+#
+*.=emerg                     *
+.Ed
+.Ss Alerting Users
+This rule directs all messages of priority
+.Ql alert
+or higher to the terminals of the operator, i.e. of the users 'root'
+and 'eric', if they're logged in.
+.Bd -literal -offset indent
+# Any logged in root user and Eric get alert and higher messages.
+#
+*.alert                      root,eric
+.Ed
+.Ss Log Rotation
+This example logs all messages except kernel messages to the file
+.Pa /var/log/messages
+without syncing ('-') the file after each log message.  When the file
+reaches 100 kiB it is rotated.  In total are only 10 rotated files,
+including the main file itself and compressed files kept.  The size
+argument takes the same modifiers as the
+.Xr syslogd 8
+command line option,
+.Fl R .
+.Bd -literal -offset indent
+# Log all messages, including kernel, to the messages file rotate it
+# every 100 kiB and keep up to 10 aged out, and compressed, files.
+#
+*.*;kern.none               -/var/log/messages    ;rotate=100k:10
+.Ed
+.Ss Logging to Remote Syslog Server
+This rule redirects all messages to one remote host called
+.Ql finlandia ,
+with RFC5424 style formatting, and another remote host called
+.Ql sibelius ,
+but on a non-standard port and with RFC3164 formatting (i.e.,
+including timestamp and hostname).
+.Bd -literal -offset indent
+*.*                          @finlandia           ;RFC5424
+*.*                          @sibelius:5514       ;RFC3164
 .Ed
 .Sh SEE ALSO
 .Xr syslog 3 ,
