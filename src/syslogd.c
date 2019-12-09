@@ -2202,36 +2202,47 @@ void init(void)
 
 	if (Debug) {
 		SIMPLEQ_FOREACH(f, &fhead, f_link) {
-			if (f->f_type != F_UNUSED) {
-				for (i = 0; i <= LOG_NFACILITIES; i++)
-					if (f->f_pmask[i] == INTERNAL_INVPRI)
-						printf(" X ");
-					else
-						printf("%2X ", f->f_pmask[i]);
-				printf("%s: ", TypeNames[f->f_type]);
-				switch (f->f_type) {
-				case F_FILE:
-				case F_PIPE:
-				case F_TTY:
-				case F_CONSOLE:
-					printf("%s", f->f_un.f_fname);
-					if (f->f_file == -1)
-						printf(" (unused)");
-					break;
+			if (f->f_type == F_UNUSED)
+				continue;
 
-				case F_FORW:
-				case F_FORW_SUSP:
-				case F_FORW_UNKN:
-					printf("%s", f->f_un.f_forw.f_hname);
-					break;
+			for (i = 0; i <= LOG_NFACILITIES; i++)
+				if (f->f_pmask[i] == INTERNAL_INVPRI)
+					printf(" X ");
+				else
+					printf("%2X ", f->f_pmask[i]);
+			printf("%s: ", TypeNames[f->f_type]);
 
-				case F_USERS:
-					for (i = 0; i < MAXUNAMES && *f->f_un.f_uname[i]; i++)
-						printf("%s, ", f->f_un.f_uname[i]);
-					break;
-				}
-				printf("\n");
+			switch (f->f_type) {
+			case F_FILE:
+			case F_PIPE:
+			case F_TTY:
+			case F_CONSOLE:
+				printf("%s", f->f_un.f_fname);
+				if (f->f_file == -1)
+					printf(" (unused)");
+				break;
+
+			case F_FORW:
+			case F_FORW_SUSP:
+			case F_FORW_UNKN:
+				printf("%s:%s", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+				break;
+
+			case F_USERS:
+				for (i = 0; i < MAXUNAMES && *f->f_un.f_uname[i]; i++)
+					printf("%s%s", i > 0 ? ", " : "", f->f_un.f_uname[i]);
+				break;
 			}
+
+			if (f->f_flags & RFC5424)
+				printf("\t;RFC5424");
+			else if (f->f_flags & RFC3164)
+				printf("\t;RFC3164");
+			else
+				printf("\t;BSD");
+			if (f->f_rotatesz > 0)
+				printf(",rotate=%d:%d", f->f_rotatesz, f->f_rotatecount);
+			printf("\n");
 		}
 	}
 
