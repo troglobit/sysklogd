@@ -37,11 +37,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define SYSLOG_NAMES
-#include <syslog.h>
 #include <unistd.h>
 #include <sys/stat.h>
+
+#define SYSLOG_NAMES
 #include "compat.h"
+#include "syslog.h"
 
 static const char version_info[] = PACKAGE_NAME " v" PACKAGE_VERSION;
 static struct syslog_data log    = SYSLOG_DATA_INIT;
