@@ -2336,10 +2336,6 @@ static struct filed *cfline(char *line)
 		return NULL;
 	}
 
-	/* default rotate from command line */
-	f->f_rotatecount = RotateCnt;
-	f->f_rotatesz = RotateSz;
-
 	/* scan through the list of selectors */
 	for (p = line; *p && *p != '\t' && *p != ' ';) {
 
@@ -2543,6 +2539,14 @@ static struct filed *cfline(char *line)
 		f->f_flags &= ~RFC5424;
 		f->f_flags |= RFC3164;
 		break;
+
+	case F_FILE:
+		/* default rotate from command line */
+		if (f->f_rotatesz == 0) {
+			f->f_rotatecount = RotateCnt;
+			f->f_rotatesz = RotateSz;
+		}
+		/* fallthrough */
 
 	default:
 		/* All other targets default to RFC3164 */
