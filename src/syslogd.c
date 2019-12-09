@@ -61,21 +61,18 @@ static char sccsid[] __attribute__((unused)) =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 #include <utmp.h>
 
 #include <errno.h>
 #include <err.h>
-#include <fcntl.h>
 #include <fnmatch.h>
 #include <signal.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
 #include <sys/resource.h>
-#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
@@ -1319,7 +1316,7 @@ void logrotate(struct filed *f)
 			(void)rename(f->f_un.f_fname, newFile);
 			close(f->f_file);
 
-			f->f_file = open(f->f_un.f_fname, O_WRONLY | O_APPEND | O_CREAT | O_NONBLOCK | O_NOCTTY, 0644);
+			f->f_file = open(f->f_un.f_fname, O_CREATE | O_NONBLOCK | O_NOCTTY, 0644);
 			if (f->f_file < 0) {
 				f->f_type = F_UNUSED;
 				ERR("Failed re-opening log file %s after rotation", f->f_un.f_fname);
@@ -2497,8 +2494,7 @@ static struct filed *cfline(char *line)
 			f->f_file = open(++p, O_RDWR | O_NONBLOCK | O_NOCTTY);
 			f->f_type = F_PIPE;
 		} else {
-			f->f_file = open(p, O_WRONLY | O_APPEND | O_CREAT | O_NONBLOCK | O_NOCTTY,
-			                 0644);
+			f->f_file = open(p, O_CREATE | O_NONBLOCK | O_NOCTTY, 0644);
 			f->f_type = F_FILE;
 		}
 

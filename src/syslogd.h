@@ -34,12 +34,15 @@
 
 #include "config.h"
 
+#include <fcntl.h>
 #include <netdb.h>		/* struct addrinfo */
 #ifdef __linux__
 #include <sys/klog.h>
 #endif
 #include <sys/param.h>		/* MAXHOSTNAMELEN */
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/un.h>		/* struct sockaddr_un */
 #include "queue.h"
 #include "syslog.h"
@@ -116,6 +119,8 @@
 #define LIST_DELIMITER    ':' /* delimiter between two hosts */
 
 #define	AI_SECURE	0x8000	/* Tell socket_create() to not bind() */
+
+#define O_CREATE        O_WRONLY | O_APPEND | O_CREAT
 
 /* From The Practice of Programming, by Kernighan and Pike */
 #ifndef NELEMS
