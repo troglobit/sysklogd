@@ -27,6 +27,7 @@
 
 AC_INIT([sysklogd], [2.1-dev], [https://github.com/troglobit/sysklogd/issues],,
 	[https://github.com/troglobit/sysklogd])
+AC_CONFIG_AUX_DIR(aux)
 AM_INIT_AUTOMAKE([1.11 foreign subdir-objects])
 LT_INIT([pic-only])
 AM_SILENT_RULES([yes])
