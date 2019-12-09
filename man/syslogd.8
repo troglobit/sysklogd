@@ -28,7 +28,7 @@
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd July 2, 2018
+.Dd December 9, 2019
 .Dt SYSLOGD 8
 .Os
 .Sh NAME
@@ -127,24 +127,6 @@ to use IPv4 addresses only.
 Force
 .Nm
 to use IPv6 addresses only.
-.It Fl 8
-Tells
-.Nm
-not to interfere with 8-bit data.
-Normally
-.Nm
-will replace C1 control characters
-.Pq ISO 8859 and Unicode characters
-with their
-.Dq M- Ns Em x
-equivalent.
-Note, this option does not change the way
-.Nm
-alters control characters
-.Pq see Xr iscntrl 3 .
-They will always be replaced with their
-.Dq ^ Ns Em x
-equivalent.
 .It Fl A
 Ordinarily,
 .Nm
@@ -204,7 +186,7 @@ can contain special characters of a shell-style pattern such as
 .It Xo
 .Fl b
 .Sm off
-.Ar bind_address Op \&: Ar service
+.Ar address Op \&: Ar service
 .Sm on
 .Xc
 .It Xo
@@ -232,8 +214,11 @@ Put
 into debugging mode.
 This is probably only of use to developers working on
 .Nm .
-.It Fl f Ar config_file
-Specify the pathname of an alternate configuration file;
+See the
+.Sx DEBUGGING
+section for more information.
+.It Fl f Ar file
+Specify the path name of an alternate configuration file;
 the default is
 .Pa /etc/syslog.conf .
 .It Fl F
@@ -258,29 +243,50 @@ Usually the
 .Dq kern
 facility is reserved for messages read directly from
 .Pa /proc/kmsg .
-.It Fl m Ar mark_interval
+.It Fl m Ar interval
 Select the number of minutes between
 .Dq mark
-messages;
-the default is 20 minutes.
+messages; the default is 20 minutes.  Setting this to zero disables log
+marks.
 .It Fl n
 Disable DNS query for every request.
-.It Fl p Ar log_socket
-Specify the pathname of an alternate log socket to be used instead;
+.It Fl p Ar socket
+Specify the path name of an alternate log socket to be used instead;
 the default is
 .Pa /dev/log .
 When a single
 .Fl p
-option is specified,
-the default pathname is replaced with the specified one.
-When two or more
+option is specified, the default path name is replaced with the
+specified one.  When two or more
 .Fl p
-options are specified,
-the remaining pathnames are treated as additional log sockets.
-.It Fl P Ar pid_file
+options are specified, the remaining path names are treated as
+additional log sockets.
+.It Fl P Ar file
 Specify an alternative file in which to store the process ID.
 The default is
 .Pa /var/run/syslog.pid .
+.It Fl r Ar size[:count]
+Enable built-in support for log rotation of files listed in
+.Pa /etc/syslog.conf .
+This feature is particularly useful for small and embedded systems that
+do not want the overhead of
+.Xr cron 8
+and
+.Xr logrotate 8 .
+.Pp
+The option controls the max size and number of backup files kept by the
+built-in log-rotation.  When present on the command line it activates
+log rotation of all files with the given maximum size.  It is also
+possible to control log rotate per log file, see
+.Xr syslog.conf 5
+for details.
+.Pp
+The size argument takes optional modifiers; k, M, G.  E.g., 100M is
+100 MiB, 42k is 42 kiB, etc.
+.Pp
+The optional number of files kept include both gzipped files and the
+first rotated (not zipped) file.  The default for this, when omitted,
+is 5.
 .It Fl s
 Operate in secure mode.  Do not log messages from remote machines.  If
 specified twice, no network socket will be opened at all, which also
@@ -342,6 +348,98 @@ the timestamp field is incorrect, time obtained from the local host is
 used instead.  This can be overridden by the
 .Fl T
 flag.
+.Sh SECURITY
+There are a number of methods of protecting a machine:
+.Bl -enum
+.It
+Disabling inet domain sockets will limit risk to the local machine.  Use
+the secure mode flag
+.Fl s
+for this.
+.It
+When secure mode cannot be used, only allow certain remote peers using
+the
+.Fl a Ar PEER
+flag.
+.It
+Implement kernel firewalling to limit which hosts or networks have
+access to the 514/UDP socket.
+.It
+Logging can be directed to an isolated or non-root filesystem which,
+if filled, will not impair the machine.
+.It
+Most modern UNIX filesystems can be configured to limit a certain
+percentage of a filesystem to usage by root only.
+.El
+.Sh DEBUGGING
+When debug mode
+.Fl ( d )
+is enabled
+.Nm
+only the first
+.Fn init
+is shown.
+.Nm
+then prompts you to send
+.Ar SIGUSR1
+to continue debugging.  The output is very verbose and is probably only
+useful to developers.
+.Pp
+When
+.Nm
+receives
+.Ar SIGHUP
+it reloads its configuration file, and at the end of the
+.Fn init
+sequence all log targets are listed with their respective priority per
+facility, the action and the log format used:
+.Pp
+.Bl -tag -width priority
+.It priority
+Bit mapped priorities listed per facility, one priority per facility,
+starting with kernel as the left-most column.
+.It action
+FILE, remote sink (FORW), WALL, etc.  See
+.Xr syslog.conf 5
+for details.
+.It args
+The action argument and the log format used.  E.g., for FILE actions the
+log filename, for FORW action the remote host:port.  The format is one
+of; BSD, RFC5424, or RFC3164.  The latter is the default except for FORW
+actions.
+.El
+.Sh SIGNALS
+.Nm
+supports the following signals:
+.Pp
+.Bl -tag -width "TERM, QUIT"
+.It HUP
+This lets
+.Nm
+perform a re-initialization.  All open files are closed, the
+configuration file (see above) is reread and the
+.Xr syslog 3
+facility is started again.
+.It TERM
+This tells 
+.Nm
+to exit gracefully.  Flushing any log files to disk.
+.It INT, QUIT
+In debug mode these are ignored.  In normal operation they act as
+SIGTERM.
+.It USR1
+In debug mode this switches debugging on/off.  In normal operation
+it is ignored.
+.El
+.Pp
+For convenience the PID is by default stored in
+.Pa /var/run/syslogd.pid .
+A script can look for the existence of this file to determine if
+.Nm
+is running, and then send signals:
+.Bd -literal -offset indent
+kill -SIGNAL `cat /var/run/syslogd.pid`
+.Ed
 .Sh FILES
 .Bl -tag -width /etc/syslog.d/50-default.conf -compact
 .It Pa /etc/syslog.conf
@@ -371,14 +469,10 @@ kernel log device
 .Xr services 5 ,
 .Xr syslog.conf 5 ,
 .Sh HISTORY
-The
 .Nm
-utility first appeared in
-.Bx 4.3 .
-.Pp
-It was originally ported to Linux by
+was originally ported to Linux by
 .An Greg Wettstein Aq Mt greg@wind.enjellic.com
-and the project was renamed
+and the project was named
 .Nm sysklogd
 when a separate log daemon,
 .Nm klogd ,
@@ -394,21 +488,32 @@ with
 the project was abandoned.  In 2018
 .An Joachim Nilsson Aq Mt troglobit@gmail.com
 picked up maintenance.  In 2019 the project was revived with fresh DNA
-strands from both FreeBSD and NetBSD,
+strands from both
+.Fx
+and
+.Nx ,
 .Nm klogd
-was removed and the project was eventually relicensed under the 3-clause
-BSD license, like its bretheren.
+was removed and the project was eventually re-licensed under the 3-clause
+BSD license, like its brethren.
+.Pp
+The
+.Nm
+utility first appeared in
+.Bx 4.3 .
 .Sh BUGS
-The ability to log messages received in UDP packets is equivalent to
-an unauthenticated remote disk-filling service,
-and should probably be disabled by default.
-Some sort of
-.No inter- Ns Nm syslogd
-authentication mechanism ought to be worked out.
-To prevent the worst abuse,
-use of the
+The ability to log messages received in UDP packets is equivalent to an
+unauthenticated remote disk-filling service, and should probably be
+disabled
+.Fl ( s )
+by default.  (The shipped systemd unit file disables this by default.)
+See also
+.Sx SECURITY
+for more information on this.  A future version of
+.Nm
+may include support for TLS, RFC5425, which includes authentication of
+both senders and receivers.  For now there is the
 .Fl a
-option is therefore highly recommended.
+option, which is strongly recommended when operating as a remote sink.
 .Pp
 The
 .Fl a
@@ -419,3 +524,12 @@ peer groups where frequent messages are being anticipated
 from should be put early into the
 .Fl a
 list.
+.Pp
+As mentioned in the
+.Sx DESCRIPTION ,
+.Nm
+transparently supports the standard C library
+.Xr syslog 3
+API.  If a binary linked to the standard C libraries does not operate
+correctly, this should be reported as a bug to the
+.Lk https://github.com/troglobit/sysklogd/issues sysklogd issue tracker
