@@ -95,8 +95,8 @@ char *ConfFile = _PATH_LOGCONF;
 char *PidFile  = _PATH_LOGPID;
 char  ctty[]   = _PATH_CONSOLE;
 
-static int debugging_on = 0;
-static int restart = 0;
+static volatile sig_atomic_t debugging_on;
+static volatile sig_atomic_t restart;
 
 /*
  * Intervals at which we flush out "message repeated" messages,
@@ -164,12 +164,13 @@ void        domark(void *arg);
 void        doflush(void *arg);
 void        debug_switch();
 void        die(int sig);
-void        init();
+static void signal_init(void);
+static void init(void);
 static int  strtobytes(char *arg);
 static int  cfparse(FILE *fp, struct files *newf);
 int         decode(char *name, struct _code *codetab);
 static void logit(char *, ...);
-void        sighup_handler(int);
+void        reload(int);
 static int  validate(struct sockaddr *sa, const char *hname);
 static int	waitdaemon(int);
 static void	timedout(int);
@@ -386,15 +387,8 @@ int main(int argc, char *argv[])
 	consfile.f_type = F_CONSOLE;
 	strlcpy(consfile.f_un.f_fname, ctty, sizeof(consfile.f_un.f_fname));
 
-	(void)signal(SIGTERM, die);
-	(void)signal(SIGINT, Debug ? die : SIG_IGN);
-	(void)signal(SIGQUIT, Debug ? die : SIG_IGN);
-	(void)signal(SIGCHLD, reapchild);
-	(void)signal(SIGUSR1, Debug ? debug_switch : SIG_IGN);
-	(void)signal(SIGXFSZ, SIG_IGN);
-	(void)signal(SIGHUP, sighup_handler);
-
 	logit("Starting.\n");
+	signal_init();
 	init();
 
 	/*
@@ -1932,9 +1926,8 @@ void doflush(void *arg)
 
 void debug_switch(int signo)
 {
-	logit("Switching debugging_on to %s\n", (debugging_on == 0) ? "true" : "false");
+	logit("Switching debug %s ...\n", debugging_on == 0 ? "on" : "off");
 	debugging_on = (debugging_on == 0) ? 1 : 0;
-	signal(SIGUSR1, debug_switch);
 }
 
 void die(int signo)
@@ -1998,9 +1991,10 @@ void die(int signo)
  */
 static int waitdaemon(int maxwait)
 {
-	int fd;
-	int status;
+	struct sigaction sa;
 	pid_t pid, childpid;
+	int status;
+	int fd;
 
 	childpid = fork();
 	switch (childpid) {
@@ -2009,8 +2003,15 @@ static int waitdaemon(int maxwait)
 	case 0:
 		break;
 	default:
-		signal(SIGALRM, timedout);
+		memset(&sa, 0, sizeof(sa));
+		sa.sa_flags = SA_RESETHAND;
+		sa.sa_handler = timedout;
+		sigemptyset(&sa.sa_mask);
+		sigaction(SIGALRM, &sa, NULL);
+
+		/* Send SIGALRM to parent process */
 		alarm(maxwait);
+
 		while ((pid = wait3(&status, 0, NULL)) != -1) {
 			if (WIFEXITED(status))
 				errx(1, "child pid %d exited with return code %d",
@@ -2054,7 +2055,6 @@ static void timedout(int signo)
 	int left;
 
 	left = alarm(0);
-	signal(SIGALRM, SIG_DFL);
 	if (left == 0)
 		errx(1, "timed out waiting for child");
 
@@ -2089,10 +2089,35 @@ static FILE *cftemp(void)
 	return fp;
 }
 
+/* Set up signal callbacks, only done once in main() */
+static void signal_init(void)
+{
+	struct sigaction sa;
+#define SIGNAL(signo, cb)				\
+	sa.sa_handler = cb;				\
+	if (sigaction(signo, &sa, NULL)) {		\
+		warn("sigaction(%s)", xstr(signo));	\
+		return;					\
+	}
+
+	/* restart syscalls and allow signals in signal handlers */
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_flags = SA_RESTART | SA_NODEFER;
+	sigemptyset(&sa.sa_mask);
+
+	SIGNAL(SIGTERM, die);
+	SIGNAL(SIGINT,  Debug ? die : SIG_IGN);
+	SIGNAL(SIGQUIT, Debug ? die : SIG_IGN);
+	SIGNAL(SIGUSR1, Debug ? debug_switch : SIG_IGN);
+	SIGNAL(SIGXFSZ, SIG_IGN);
+	SIGNAL(SIGHUP,  reload);
+	SIGNAL(SIGCHLD, reapchild);
+}
+
 /*
  *  INIT -- Initialize syslogd from configuration table
  */
-void init(void)
+static void init(void)
 {
 	static int once = 1;
 	struct hostent *hent;
@@ -2999,7 +3024,7 @@ static void logit(char *fmt, ...)
  * doing this during a signal handler.  Instead this function simply sets
  * a flag variable which will tell the main loop to go through a restart.
  */
-void sighup_handler(int signo)
+void reload(int signo)
 {
 	restart = 1;
 }

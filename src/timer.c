@@ -172,6 +172,7 @@ int timer_init(void)
 		return -1;
 	}
 
+	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = sigalarm_handler;
 	sa.sa_flags = SA_RESTART;
 	sigemptyset(&sa.sa_mask);

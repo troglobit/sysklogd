@@ -126,6 +126,10 @@
 #define NELEMS(array) (sizeof(array) / sizeof(array[0]))
 #endif
 
+/* Stringification macros, see signal_init() for an example */
+#define xstr(s) str(s)
+#define str(s) #s
+
 /* Helper internal log macros */
 #define ERR(fmt,  args...)	flog(LOG_SYSLOG | LOG_ERR, fmt ": %m", ##args)
 #define ERRX(fmt, args...)	flog(LOG_SYSLOG | LOG_ERR, fmt, ##args)
