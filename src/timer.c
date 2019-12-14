@@ -29,6 +29,7 @@
  */
 
 #include <err.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <time.h>
@@ -177,6 +178,12 @@ int timer_init(void)
 	if (sigaction(SIGALRM, &sa, NULL)) {
 		warn("sigaction()");
 		goto err;
+	}
+
+	rc = fcntl(timer_fd[0], F_GETFL, 0);
+	if (rc != -1) {
+		if (fcntl(timer_fd[0], F_SETFL, rc | O_NONBLOCK) < 0)
+			warn("Failed setting pipe() descriptor non-blocking");
 	}
 
 	rc = socket_register(timer_fd[0], NULL, timer_cb, NULL);
