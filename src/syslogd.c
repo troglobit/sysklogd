@@ -185,7 +185,7 @@ static int addpeer(struct peer *pe0)
 	*pe = *pe0;
 	SIMPLEQ_INSERT_TAIL(&pqueue, pe, pe_link);
 
-	return (0);
+	return 0;
 }
 
 int usage(int code)
@@ -2868,12 +2868,12 @@ static int allowaddr(char *s)
 		printf("port = %d\n", ap->port);
 	}
 
-	return (0);
+	return 0;
 err:
 	if (res != NULL)
 		freeaddrinfo(res);
 	free(ap);
-	return (-1);
+	return -1;
 }
 
 /*
@@ -2890,13 +2890,13 @@ static int validate(struct sockaddr *sa, const char *hname)
 	u_short sport;
 	int i, num = 0;
 
-	SIMPLEQ_FOREACH(ap, &aphead, next) {
+	SIMPLEQ_FOREACH(ap, &aphead, next)
 		num++;
-	}
+
 	logit("# of validation rule: %d\n", num);
 	if (num == 0)
 		/* traditional behaviour, allow everything */
-		return (1);
+		return 1;
 
 	(void)strlcpy(name, hname, sizeof(name));
 	hints = (struct addrinfo){
@@ -2921,7 +2921,8 @@ static int validate(struct sockaddr *sa, const char *hname)
 #endif
 	if (getnameinfo(sa, len, ip, sizeof(ip), port, sizeof(port),
 			NI_NUMERICHOST | NI_NUMERICSERV) != 0)
-		return (0);	/* for safety, should not occur */
+		return 0;	/* for safety, should not occur */
+
 	logit("validate: dgram from IP %s, port %s, name %s;\n", ip, port, name);
 	sport = atoi(port);
 
@@ -2970,10 +2971,12 @@ static int validate(struct sockaddr *sa, const char *hname)
 				continue;
 			}
 		}
+
 		logit("accepted in rule %d.\n", i);
-		return (1);	/* hooray! */
+		return 1;	/* hooray! */
 	}
-	return (0);
+
+	return 0;
 }
 
 static void logit(char *fmt, ...)
