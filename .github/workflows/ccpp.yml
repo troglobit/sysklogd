@@ -13,7 +13,9 @@ jobs:
       run: ./autogen.sh && ./configure
     - name: build
       run: make
-    - name: clang-tidy check
-      uses: muxee/clang-tidy-action@0.0.1-rc1
-    - name: SonarCloud Scan
-      uses: SonarSource/sonarcloud-github-action@v1.1
+    - name: test
+      run: make check
+#    - name: clang-tidy check
+#      uses: muxee/clang-tidy-action@0.0.1-rc1
+#    - name: SonarCloud Scan
+#      uses: SonarSource/sonarcloud-github-action@v1.1
