@@ -426,8 +426,8 @@ int main(int argc, char *argv[])
 		int rc;
 
 		rc = socket_poll(NULL);
-		if (restart) {
-			restart = 0;
+		if (restart > 0) {
+			restart--;
 			logit("\nReceived SIGHUP, reloading syslogd.\n");
 			init();
 
@@ -3026,7 +3026,7 @@ static void logit(char *fmt, ...)
  */
 void reload(int signo)
 {
-	restart = 1;
+	restart++;
 }
 
 /**
