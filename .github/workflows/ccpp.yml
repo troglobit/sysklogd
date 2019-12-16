@@ -8,10 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      - name: Update packagage cache ...
+        run: sudo apt-get update
       - name: Install build dependencies ...
-        run: 
-          - sudo apt-get update
-          - sudo apt-get -y install tree tshark
+        run: sudo apt-get -y install tree tshark
       - uses: actions/checkout@v1
       - name: Generate and run configure script ...
         run: ./autogen.sh && ./configure
