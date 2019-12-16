@@ -8,19 +8,21 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Build dependencies
-        run: sudo apt-get -y install tree tshark
+      - name: Install build dependencies ...
+        run: 
+          - sudo apt-get update
+          - sudo apt-get -y install tree tshark
       - uses: actions/checkout@v1
-      - name: Generate and run configure script
+      - name: Generate and run configure script ...
         run: ./autogen.sh && ./configure
-      - name: Build daemon
+      - name: Build project ...
         run: make
-      - name: Unit tests
+      - name: Run project unit tests ...
         run: make check || (cat test/test-suite.log; cat test/start.log; cat test/remote.log; false)
 #      - name: clang-tidy check
 #        uses: muxee/clang-tidy-action@0.0.1-rc1
 #      - name: SonarCloud Scan
 #        uses: SonarSource/sonarcloud-github-action@v1.1
-      - name: Installation
+      - name: Check project installation ...
         run: make install DESTDIR=/tmp/tok; tree /tmp/tok
         
