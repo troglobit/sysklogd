@@ -1297,8 +1297,8 @@ void logrotate(struct filed *f)
 
 			/* rename: f.8 -> f.9; f.7 -> f.8; ... */
 			for (i = 1; i > 0; i--) {
-				sprintf(oldFile, "%s.%d", f->f_un.f_fname, i - 1);
-				sprintf(newFile, "%s.%d", f->f_un.f_fname, i);
+				snprintf(oldFile, len, "%s.%d", f->f_un.f_fname, i - 1);
+				snprintf(newFile, len, "%s.%d", f->f_un.f_fname, i);
 
 				if (!rename(oldFile, newFile) && i > 0) {
 					size_t len = 18 + strlen(newFile) + 1;
@@ -1310,7 +1310,7 @@ void logrotate(struct filed *f)
 			}
 
 			/* newFile == "f.0" now */
-			sprintf(newFile, "%s.0", f->f_un.f_fname);
+			snprintf(newFile, len, "%s.0", f->f_un.f_fname);
 			(void)rename(f->f_un.f_fname, newFile);
 			close(f->f_file);
 
