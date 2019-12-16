@@ -4,18 +4,23 @@ on: [push]
 
 jobs:
   build:
-
+    name: sysklogd ci
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v1
-    - name: configure
-      run: ./autogen.sh && ./configure
-    - name: build
-      run: make
-    - name: test
-      run: make check || (cat test/test-suite.log; cat test/start.log; cat test/remote.log; false)
-#    - name: clang-tidy check
-#      uses: muxee/clang-tidy-action@0.0.1-rc1
-#    - name: SonarCloud Scan
-#      uses: SonarSource/sonarcloud-github-action@v1.1
+      - name: Build dependencies
+        run: sudo apt install tree tshark
+      - uses: actions/checkout@v1
+      - name: Generate and run configure script
+        run: ./autogen.sh && ./configure
+      - name: Build daemon
+        run: make
+      - name: Unit tests
+        run: make check || (cat test/test-suite.log; cat test/start.log; cat test/remote.log; false)
+#      - name: clang-tidy check
+#        uses: muxee/clang-tidy-action@0.0.1-rc1
+#      - name: SonarCloud Scan
+#        uses: SonarSource/sonarcloud-github-action@v1.1
+      - name: Installation
+        run: make install DESTDIR=/tmp/tok; tree /tmp/tok
+        
