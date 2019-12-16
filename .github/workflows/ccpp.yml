@@ -14,7 +14,7 @@ jobs:
     - name: build
       run: make
     - name: test
-      run: make check
+      run: make check || (cat test/test-suite.log; cat test/start.log; cat test/remote.log; false)
 #    - name: clang-tidy check
 #      uses: muxee/clang-tidy-action@0.0.1-rc1
 #    - name: SonarCloud Scan
