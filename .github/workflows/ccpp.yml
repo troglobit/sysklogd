@@ -9,7 +9,7 @@ jobs:
     
     steps:
       - name: Build dependencies
-        run: sudo apt install tree tshark
+        run: sudo apt-get -y install tree tshark
       - uses: actions/checkout@v1
       - name: Generate and run configure script
         run: ./autogen.sh && ./configure
