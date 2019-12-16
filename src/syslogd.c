@@ -1301,8 +1301,8 @@ void logrotate(struct filed *f)
 				snprintf(newFile, len, "%s.%d", f->f_un.f_fname, i);
 
 				if (!rename(oldFile, newFile) && i > 0) {
-					size_t len = 18 + strlen(newFile) + 1;
-					char cmd[len];
+					size_t clen = 18 + strlen(newFile) + 1;
+					char cmd[clen];
 
 					snprintf(cmd, sizeof(cmd), "gzip -f %s", newFile);
 					system(cmd);
@@ -1566,8 +1566,8 @@ static int fmt5424(struct buf_msg *buffer, char *fmt, struct iovec *iov, size_t 
 
 	/* Overwrite space for microseconds with actual value */
 	usec = buffer->timestamp.usec;
-	for (int i = 25; i >= 20; --i) {
-		buffer->timebuf[i] = usec % 10 + '0';
+	for (int j = 25; j >= 20; --j) {
+		buffer->timebuf[j] = usec % 10 + '0';
 		usec /= 10;
 	}
 
@@ -1861,19 +1861,19 @@ static void forw_lookup(struct filed *f)
 	time_t diff;
 	char *host = f->f_un.f_forw.f_hname;
 	char *serv = f->f_un.f_forw.f_serv;
-	int err, init;
+	int err, first;
 
-	/* Called from cfline() for initial lookup? */
-	init = f->f_type == F_UNUSED ? 1 : 0;
+	/* Called from cfline() for firstial lookup? */
+	first = f->f_type == F_UNUSED ? 1 : 0;
 
 	diff = timer_now() - f->f_time;
-	if (!init && diff < INET_SUSPEND_TIME) {
+	if (!first && diff < INET_SUSPEND_TIME) {
 		logit("Forwarding suspension not over, time left: %d\n",
 		      (int)(INET_SUSPEND_TIME - diff));
 		return;
 	}
 
-	if (!init)
+	if (!first)
 		logit("Forwarding suspension to %s:%s over, retrying\n", host, serv);
 
 	err = nslookup(host, serv, &ai);
@@ -1884,7 +1884,7 @@ static void forw_lookup(struct filed *f)
 		return;
 	}
 
-	if (!init)
+	if (!first)
 		NOTE("Successfully resolved '%s:%s', resuming operation.", host, serv);
 
 	f->f_type = F_FORW;
