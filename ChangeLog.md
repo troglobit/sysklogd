@@ -26,7 +26,14 @@ Relicensed under the 3-clause BSD license.
   backwards, `syslogd` would consider that log file to have a date in
   the future.  This only affected buffering of multiple messages, and
   `-- MARK --` so most users never would have noticed
-- Fix nasty parallel build problem reported by Gentoo and Westermo
+- Issue #9: Kernel logging broken if `syslogd` started without `-F`
+- Issue #10: Fix build on non-GLIBC Linux systems, by Khem Raj
+- Issue #11: Fix nasty parallel build problem.  Also reported by the
+  Gentoo project, and Westermo
+- Make sure log rotation cannot be enabled for non-file targets
+- Use `snprintf()` rather than `sprintf()` in log rotation
+- Fix variable names shadowing global/local defs, found by clang-tidy
+- Handle multiple invocations of SIGHUP, respond to all of them
 - Use correct `#ifdef` for checking on Linux or not
 
 
