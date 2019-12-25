@@ -37,12 +37,12 @@ line tool called `logger`.
 - https://netbsd.gw.com/cgi-bin/man-cgi?syslog+3+NetBSD-current
 
 The `syslogd` daemon is an enhanced version of the standard Berkeley
-utility program, updated with DNA from FreeBSD.  It is responsible for
-providing logging of messages received from programs and facilities on
-the local host as well as from remote hosts.  Although compatible with
-standard C-library implementations of the `syslog()` API (GLIBC, musl
-libc, uClibc), `libsyslog` must be used in your application to unlock
-the new [RFC5424][] `syslogp()` API.
+utility program, updated with DNA from FreeBSD.  It provides logging of
+messages received from the kernel, programs and facilities on the local
+host as well as messages from remote hosts.  Although fully compatible
+with standard C-library implementations of the `syslog()` API (GLIBC,
+musl libc, uClibc), `libsyslog` must be used in your application to
+unlock the new [RFC5424][] `syslogp()` API.
 
 The included `logger` tool can be used from the command line, or script,
 to send RFC5424 formatted messages using `libsyslog` to `syslogd` for
@@ -50,11 +50,12 @@ local or remote logging.
 
 Main differences from the original sysklogd package are:
 
-- The separate `klogd` daemon is no longer part of the sysklogd project
+- The separate `klogd` daemon is no longer part of the sysklogd project,
+  syslogd now natively supports logging kernel messages as well
 - *Major* command line changes to `syslogd`, for compatibilty with *BSD
-- Supports `include /etc/syslog.d/*.conf` directuve, see example .conf
+- Supports `include /etc/syslog.d/*.conf` directive, see example .conf
 - Built-in log-rotation support, with compression by default, useful for
-  embedded systems.  No need for cron and a separate log rotate daemon
+  embedded systems.  No need for cron and/or a separate log rotate daemon
 - Full [RFC3164][] and [RFC5424][] support from NetBSD and FreeBSD
 - Support for sending RFC3164 style remote syslog messages, including
   timestamp and hostname.  Defaults to send w/o for compatibility
@@ -63,7 +64,7 @@ Main differences from the original sysklogd package are:
 - Support for listening to a custom port
 - Support for remote peer filtering, from FreeBSD
 - Support for disabling DNS reverse lookups for each remote log message
-- Support for FreeBSD Secure Mode
+- Support for FreeBSD Secure Mode, remote logging enabled by default(!)
 - Includes a `logger` tool with RFC5424 capabilities (`msgid` etc.)
 - Includes a syslog library and system header replacement for logging
 - FreeBSD socket receive buffer size patch
@@ -92,14 +93,15 @@ $ pkg-config --libs --static --cflags libsyslog
 The prefix path `/usr/local/` shown here is only the default.  Use the
 `configure` script to select a different prefix when installing libsyslog.
 
-For GNU autotools based projects, use the following in `configure.ac`:
+For GNU autotools based projects, instead of issuing the `pkg-config`
+command manually, use the following in `configure.ac`:
 
 ```sh
 # Check for required libraries
 PKG_CHECK_MODULES([syslog], [libsyslog >= 2.0])
 ```
 
-and in your `Makefile.am`:
+and for your "proggy" in `Makefile.am`:
 
 ```sh
 proggy_CFLAGS = $(syslog_CFLAGS)
@@ -119,9 +121,11 @@ files and cache files will also use that same prefix.  Most users have
 come to expect those files in `/etc/` and `/var/run/` and configure has
 a few useful options that are recommended to use:
 
-    $ ./configure --prefix=/usr --sysconfdir=/etc --runstatedir=/run
-    $ make -j5
-    $ sudo make install-strip
+```sh
+./configure --prefix=/usr --sysconfdir=/etc --runstatedir=/run
+make -j5
+sudo make install-strip
+```
 
 You may want to remove the `--prefix=/usr` option.  Most users prefer
 non-distro binaries in `/usr/local` or `/opt`.
@@ -144,10 +148,12 @@ To build from GIT you first need to clone the repository and run the
 `autogen.sh` script.  This requires `automake` and `autoconf` to be
 installed on your system.
 
-    git clone https://github.com/troglobit/sysklogd.git
-    cd sysklogd/
-    ./autogen.sh
-    ./configure && make
+```sh
+git clone https://github.com/troglobit/sysklogd.git
+cd sysklogd/
+./autogen.sh
+./configure && make
+```
 
 GIT sources are a moving target and are not recommended for production
 systems, unless you know what you are doing!
