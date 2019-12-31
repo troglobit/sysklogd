@@ -28,7 +28,12 @@
 bin_PROGRAMS          =
 sbin_PROGRAMS         = syslogd
 lib_LTLIBRARIES       = libsyslog.la
-noinst_LTLIBRARIES    = libcompat.la
+
+# Convenience library for libsyslog instead of linking with $(LTLIBOBJS),
+# which would pull in pidfile() and other (strong) symbols as well.
+noinst_LTLIBRARIES    = libstrlcpy.la libstrlcat.la
+libstrlcat_la_SOURCES  =
+libstrlcpy_la_SOURCES  =
 
 if ENABLE_LOGGER
 bin_PROGRAMS	     += logger
@@ -46,11 +51,7 @@ syslogd_LDADD         = $(LIBS) $(LIBOBJS)
 logger_SOURCES        = logger.c syslog.h
 logger_CPPFLAGS       = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
 logger_LDADD          = $(LIBS) $(LIBOBJS)
-logger_LDADD         += libsyslog.la
-
-# Convenience library for libsyslog instead of linking with $(LTLIBOBJS),
-# which would pull in pidfile() and other (strong) symbols as well.
-libcompat_la_SOURCES  = ../lib/strlcpy.c ../lib/strlcat.c
+logger_LDADD         += libsyslog.la libstrlcpy.la libstrlcat.la
 
 pkgconfigdir          = $(libdir)/pkgconfig
 pkgincludedir         = $(includedir)/syslog
@@ -59,4 +60,4 @@ pkginclude_HEADERS    = syslog.h
 libsyslog_la_SOURCES  = syslog.c syslog.h compat.h
 libsyslog_la_CPPFLAGS = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
 libsyslog_la_LDFLAGS  = $(AM_LDFLAGS) -version-info 0:0:0
-libsyslog_la_LIBADD   = libcompat.la
+libsyslog_la_LIBADD   = libstrlcpy.la libstrlcat.la
