@@ -1236,7 +1236,7 @@ static void logmsg(struct buf_msg *buffer)
 		    !strcmp(saved, f->f_prevline)) {
 			f->f_lasttime = buffer->timestamp;
 			f->f_prevcount++;
-			logit("msg repeated %d times, %ld sec of %d.\n",
+			logit("msg repeated %lu times, %ld sec of %d.\n",
 			      f->f_prevcount, timer_now() - f->f_time,
 			      repeatinterval[f->f_repeatcount]);
 
@@ -1915,7 +1915,7 @@ void doflush(void *arg)
 		}
 
 		if (f->f_prevcount && timer_now() >= REPEATTIME(f)) {
-			logit("flush %s: repeated %d times, %d sec.\n",
+			logit("flush %s: repeated %lu times, %d sec.\n",
 			      TypeNames[f->f_type], f->f_prevcount,
 			      repeatinterval[f->f_repeatcount]);
 			fprintlog_successive(f, 0);
