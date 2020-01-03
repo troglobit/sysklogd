@@ -2036,8 +2036,7 @@ static int waitdaemon(int maxwait)
 		(void)dup2(fd, STDIN_FILENO);
 		(void)dup2(fd, STDOUT_FILENO);
 		(void)dup2(fd, STDERR_FILENO);
-		if (fd > STDERR_FILENO)
-			(void)close(fd);
+		(void)close(fd);
 	}
 
 	return getppid();
