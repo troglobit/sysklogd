@@ -4,14 +4,14 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
-[v2.1][UNRELEASED]
-------------------
+[v2.1][] - 2020-01-05
+---------------------
 
 Relicensed under the 3-clause BSD license.
 
 ### Changes
 - `klogd` removed, replaced by native `syslogd` functionality
-- Import prisitine FreeBSD versions of `syslogd` and `syslog.conf` man
+- Import pristine FreeBSD versions of `syslogd` and `syslog.conf` man
   pages, both under the 3-clause BSD license.
 - With `klogd` removed and the original man pages replaced with FreeBSD
   versions, the only remaining GPL'ed material was the build system,
@@ -286,7 +286,8 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.0.3...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.1...HEAD
+[v2.1]:       https://github.com/troglobit/sysklogd/compare/v2.0.3...v2.1
 [v2.0.3]:     https://github.com/troglobit/sysklogd/compare/v2.0.2...v2.0.3
 [v2.0.2]:     https://github.com/troglobit/sysklogd/compare/v2.0.1...v2.0.2
 [v2.0.1]:     https://github.com/troglobit/sysklogd/compare/v2.0...v2.0.1
