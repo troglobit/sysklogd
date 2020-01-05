@@ -5,14 +5,15 @@ compiler:
   - gcc
   - clang
 
+# The secure: declaration is the encrypted COVERITY_SCAN_TOKEN, created
+# using the project repo's public key:
+#   travis encrypt COVERITY_SCAN_TOKEN="foo"
 env:
   global:
-   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
-   #   via the "travis encrypt" command using the project repo's public key
    - secure: "RHZDmXeTezxGvT1XjxnW2VzpqIJJMhbjgmm+iotVcPUWRH4KqNTZV75p0K4bPmEsO4WkQEstW4+c6VZHeU51Pt9KzlgQqzefRS02szdZcaFqzLQJPIDOPbn39YM7TAmf2+QEIJNKy0uH60eqKX2v2gMMP3ddM5SDXJsRamkZb0mB3+9pZbInrXJlNDM1EumHA/t/vjXnIBkdkm1r1GBds4iW51eW2kIgrmbtVC8IF6uRL8qVpxlEfcVKIJ9RiTktefoXwdrFSPonyqWbKDwrC6wo9HyEM9PEY7dXobysUWss6mnWFruefveUEAampwUVk+DLLlW3ZMSG83xDsKZqmzhG74OW9xRBbi5OUphnVJ9J7bbLSBapGHmQcwEKQtAVh1UjnWcZfkK940x7CYWni9z+3gsqcrihmIyAz+iQbgGp8e9CWvf3y9mrRVFPsLhu9z1rf1P0C8+3IM33P2Ll//l3NGOl3R9bNoewMXi9VVvuDgnHeGCzVKsgXG4BtnWZ/8Vr6Cot0spCPuKRTzSThnKx0PuoWLM8NeJFAyF3B4RnFOxL03BHBuNLs083KiLz7Z4GZClZFAgC79O32uy6ZzYcUP7EwOK1fh6miX7+TinFT1Ue31dtVc9XnJq98jUS8L7UKSZMJhZtj1PpaVBXfS4uYdaBkeDVAzwTbu28HIU="
 
 before_install:
-  - echo -n | openssl s_client -connect https://scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
+  - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
 
 addons:
   apt:
@@ -25,7 +26,7 @@ addons:
       description: "RFC5424 compliant syslog daemon and syslog()/syslogp() API for Linux"
     notification_email: troglobit@gmail.com
     build_command_prepend: "./autogen.sh && ./configure"
-    build_command: "make"
+    build_command: "make clean all"
     branch_pattern: dev
 
 # Build test programs as regular user, or clang build may fail
