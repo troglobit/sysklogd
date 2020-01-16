@@ -31,6 +31,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <config.h>
+#ifndef HAVE_PIDFILE
+
 #define _GNU_SOURCE		/* Needed with GLIBC to get asprintf() */
 #include <sys/stat.h>		/* utimensat() */
 #include <sys/time.h>		/* utimensat() on *BSD */
@@ -54,7 +57,7 @@ const  char *__pidfile_path = RUNSTATEDIR;
 const  char *__pidfile_name = NULL;
 
 int
-pidfile(const char *basename)
+__pidfile(const char *basename)
 {
 	int save_errno;
 	int atexit_already;
@@ -136,3 +139,6 @@ pidfile_cleanup(void)
 		pidfile_path = NULL;
 	}
 }
+
+weak_alias(__pidfile, pidfile);
+#endif /* HAVE_PIDFILE */

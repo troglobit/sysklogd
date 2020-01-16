@@ -15,7 +15,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "config.h"
+#include <config.h>
+#ifndef HAVE_UTIMENSAT
 
 #include <errno.h>
 #ifdef HAVE_FCNTL_H
@@ -23,7 +24,8 @@
 #endif
 #include <sys/time.h>		/* lutimes(), utimes(), utimensat() */
 
-int utimensat(int dirfd, const char *pathname, const struct timespec ts[2], int flags)
+int
+__utimensat(int dirfd, const char *pathname, const struct timespec ts[2], int flags)
 {
 	int ret = -1;
 	struct timeval tv[2];
@@ -45,3 +47,7 @@ int utimensat(int dirfd, const char *pathname, const struct timespec ts[2], int 
 
 	return ret;
 }
+
+weak_alias(__utimensat, utimensat);
+
+#endif /* HAVE_UTIMENSAT */
