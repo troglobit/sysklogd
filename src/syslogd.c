@@ -1342,8 +1342,8 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 	struct addrinfo *ai;
 	struct msghdr msg;
 	ssize_t len = 0;
+	ssize_t lsent;
 	time_t fwd_suspend;
-	int err;
 
 	switch (f->f_type) {
 	case F_UNUSED:
@@ -1382,14 +1382,13 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 			len += iov[i].iov_len;
 		}
 
-		err = -1;
+		lsent = 0;
 		for (ai = f->f_un.f_forw.f_addr; ai; ai = ai->ai_next) {
 			int sd;
 
 			sd = socket_ffs(ai->ai_family);
 			if (sd != -1) {
 				char buf[64] = { 0 };
-				ssize_t lsent;
 
 				msg.msg_name = ai->ai_addr;
 				msg.msg_namelen = ai->ai_addrlen;
@@ -1408,19 +1407,34 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 				}
 
 				logit("Sent %zd bytes to %s on socket %d ...\n", lsent, buf, sd);
-				if (lsent == len) {
-					err = -1;
+				if (lsent == len)
 					break;
-				}
-				err = errno;
 			}
-			if (err == -1 && !send_to_all)
+			if (lsent == len && !send_to_all)
 				break;
 		}
-		if (err != -1) {
-			f->f_type = F_FORW_SUSP;
-			errno = err;
-			ERR("INET sendto(%s:%s)", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+		if (lsent != len) {
+			switch (errno) {
+			case ENOBUFS:
+			case ENETDOWN:
+			case ENETUNREACH:
+			case EHOSTUNREACH:
+			case EHOSTDOWN:
+			case EADDRNOTAVAIL:
+				/* Ignore and try again later, with the next message */
+				break;
+			/* case EBADF: */
+			/* case EACCES: */
+			/* case ENOTSOCK: */
+			/* case EFAULT: */
+			/* case EMSGSIZE: */
+			/* case EAGAIN: */
+			/* case ENOBUFS: */
+			/* case ECONNREFUSED: */
+			default:
+				f->f_type = F_FORW_SUSP;
+				ERR("INET sendto(%s:%s)", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+			}
 		}
 		break;
 
