@@ -4,6 +4,26 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.1.1][] - 2020-01-17
+-----------------------
+
+Bug fix release.
+
+### Fixes
+- Issue #11: Some users still reported problems with parallel build,
+  which was worked-around with `.NOTPARALLEL` in [v2.1][].  This v2 fix
+  is a refactor of `src/Makefile.am` which removes `libcompat` and use
+  the same objects for linking both `syslogd` and the user `libsyslog`
+  API.  Yet still protecting against symbol poisoning
+- A Westermo customer reported problems sending to remove syslog sinks
+  at startup.  Turns out the handling if `sendmsg()` fails was the same
+  as that if `syslogd` fails to resolve the IP from a DNS name.  The fix
+  is to just let `sendmsg()` retry on the next syslog message for all
+  benign/common network errors; `EHOSTUNREACHABLE`, `ENETUNREACH`, etc.
+- Fix timer reset for suspended remote sinks.  For all new incoming syslog
+  messages all suspended (remote) sinks had their timeout mistakenly reset
+
+
 [v2.1][] - 2020-01-05
 ---------------------
 
@@ -286,7 +306,8 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.1...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.1.1...HEAD
+[v2.1.1]:     https://github.com/troglobit/sysklogd/compare/v2.1...v2.1.1
 [v2.1]:       https://github.com/troglobit/sysklogd/compare/v2.0.3...v2.1
 [v2.0.3]:     https://github.com/troglobit/sysklogd/compare/v2.0.2...v2.0.3
 [v2.0.2]:     https://github.com/troglobit/sysklogd/compare/v2.0.1...v2.0.2
