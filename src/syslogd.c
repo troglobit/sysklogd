@@ -2335,7 +2335,7 @@ static int cfopt(char **ptr, const char *opt)
  */
 static void cfopts(char *ptr, struct filed *f)
 {
-	char *opt;
+	char *opt, *origptr;
 
 	/* First locate any whitespace between action and option */
 	ptr = strpbrk(ptr, "\t ;");
@@ -2346,11 +2346,17 @@ static void cfopts(char *ptr, struct filed *f)
 	if (*ptr != ';')
 		*ptr++ = 0;
 
-	opt = strtok(ptr, ";");
-	if (!opt)
+	origptr = ptr;
+	ptr = strtok(ptr, ";");
+	if (!ptr)
 		return;
 
-	while (opt) {
+	for (;;) {
+		opt = strtok(ptr, ",");
+		if (!opt)
+			break;
+		ptr = NULL;
+
 		if (cfopt(&opt, "RFC5424")) {
 			f->f_flags |=  RFC5424;
 			f->f_flags &= ~RFC3164;
@@ -2360,9 +2366,7 @@ static void cfopts(char *ptr, struct filed *f)
 		} else if (cfopt(&opt, "rotate="))
 			cfrot(opt, f);
 		else
-			cfrot(ptr, f); /* Compat v1.6 syntax */
-
-		opt = strtok(NULL, ",");
+			cfrot(origptr, f); /* Compat v1.6 syntax */
 	}
 }
 
