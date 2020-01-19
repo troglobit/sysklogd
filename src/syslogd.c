@@ -2142,12 +2142,10 @@ static void signal_init(void)
 static void init(void)
 {
 	static int once = 1;
-	struct hostent *hent;
 	struct filed *f;
 	struct files newf = SIMPLEQ_HEAD_INITIALIZER(newf);
 	FILE *fp;
 	char *p;
-	int i;
 
 	/* Set up timer framework */
 	if (timer_init())
@@ -2160,6 +2158,8 @@ static void init(void)
 		*p++ = '\0';
 		LocalDomain = p;
 	} else {
+		struct hostent *hent;
+
 		/*
 		 * It's not clearly defined whether gethostname()
 		 * should return the simple hostname or the fqdn. A
@@ -2239,7 +2239,7 @@ static void init(void)
 			if (f->f_type == F_UNUSED)
 				continue;
 
-			for (i = 0; i <= LOG_NFACILITIES; i++)
+			for (int i = 0; i <= LOG_NFACILITIES; i++)
 				if (f->f_pmask[i] == INTERNAL_INVPRI)
 					printf(" X ");
 				else
@@ -2263,7 +2263,7 @@ static void init(void)
 				break;
 
 			case F_USERS:
-				for (i = 0; i < MAXUNAMES && *f->f_un.f_uname[i]; i++)
+				for (int i = 0; i < MAXUNAMES && *f->f_un.f_uname[i]; i++)
 					printf("%s%s", i > 0 ? ", " : "", f->f_un.f_uname[i]);
 				break;
 			}
