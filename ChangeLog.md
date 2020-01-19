@@ -4,10 +4,14 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
-[v2.1.1][] - 2020-01-17
+[v2.1.1][] - 2020-01-19
 -----------------------
 
 Bug fix release.
+
+### Changes
+- Add unit test to verify rule option parsing
+- Minor code cleanup and code de-duplication
 
 ### Fixes
 - Issue #11: Some users still reported problems with parallel build,
