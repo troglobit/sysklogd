@@ -31,9 +31,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <config.h>
-#ifndef HAVE_PIDFILE
-
 #define _GNU_SOURCE		/* Needed with GLIBC to get asprintf() */
 #include <sys/stat.h>		/* utimensat() */
 #include <sys/time.h>		/* utimensat() on *BSD */
@@ -42,11 +39,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "compat.h"
-
-#ifndef HAVE_UTIMENSAT
-int utimensat(int dirfd, const char *pathname, const struct timespec ts[2], int flags);
-#endif
+#include "compat.h"		/* For utimensat() if missing */
 
 static char *pidfile_path = NULL;
 static pid_t pidfile_pid  = 0;
@@ -139,6 +132,3 @@ pidfile_cleanup(void)
 		pidfile_path = NULL;
 	}
 }
-
-weak_alias(__pidfile, pidfile);
-#endif /* HAVE_PIDFILE */

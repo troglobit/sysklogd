@@ -15,9 +15,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <config.h>
-#ifndef HAVE_UTIMENSAT
-
 #include <errno.h>
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
@@ -47,7 +44,3 @@ __utimensat(int dirfd, const char *pathname, const struct timespec ts[2], int fl
 
 	return ret;
 }
-
-weak_alias(__utimensat, utimensat);
-
-#endif /* HAVE_UTIMENSAT */

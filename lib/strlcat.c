@@ -16,10 +16,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <config.h>
-#include <compat.h>
-#ifndef HAVE_STRLCAT
-
 #include <sys/types.h>
 #include <string.h>
 
@@ -57,7 +53,3 @@ __strlcat(char *dst, const char *src, size_t dsize)
 
 	return(dlen + (src - osrc));	/* count does not include NUL */
 }
-
-weak_alias(__strlcat, strlcat);
-
-#endif /* HAVE_STRLCAT */
