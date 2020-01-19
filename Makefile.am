@@ -51,3 +51,4 @@ release: distcheck
 
 # Workaround for systemd unit file duing distcheck
 DISTCHECK_CONFIGURE_FLAGS = --with-systemd=$$dc_install_base/$(systemd)
+DISTCLEANFILES = lib/.libs/*
