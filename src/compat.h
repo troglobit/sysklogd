@@ -56,8 +56,8 @@ typedef pthread_mutex_t    mutex_t;
 #define mutex_unlock(m)    pthread_mutex_unlock(m)
 #endif
 
-/* BSD have sa_len, Linux/GNU doesn't */
-#if defined(_AIX) || (defined(BSD) && (BSD >= 199006)) /* sa_len was added with 4.3-Reno */
+/* BSD have sa_len, Linux/GNU doesn't, added with 4.3-Reno */
+#if defined(_AIX) || (defined(BSD) && (BSD >= 199006))
 #define HAVE_SA_LEN
 #endif
 

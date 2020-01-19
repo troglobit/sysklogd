@@ -38,7 +38,8 @@ AM_CFLAGS            += -Wno-unused-result -Wno-unused-parameter -fno-strict-ali
 AM_CPPFLAGS           = -DSYSCONFDIR=\"@sysconfdir@\" -DRUNSTATEDIR=\"@runstatedir@\"
 AM_CPPFLAGS          += -D_BSD_SOURCE -D_DEFAULT_SOURCE
 
-syslogd_SOURCES       = syslogd.c syslogd.h socket.c socket.h syslog.h timer.c timer.h queue.h compat.h
+syslogd_SOURCES       = syslogd.c syslogd.h socket.c socket.h syslog.h
+syslogd_SOURCES      += timer.c timer.h queue.h compat.h
 syslogd_CPPFLAGS      = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
 syslogd_LDADD         = $(LIBS) $(LIBOBJS)
 
