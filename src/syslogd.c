@@ -1946,26 +1946,18 @@ void debug_switch(int signo)
 	debugging_on = (debugging_on == 0) ? 1 : 0;
 }
 
-void die(int signo)
+/*
+ * Called by die() and init()
+ */
+static void close_open_log_files(void)
 {
-	struct filed *f, *next;
-	struct peer *pe, *penext;
+	struct filed *f = NULL, *next = NULL;
 
-	SIMPLEQ_FOREACH(f, &fhead, f_link) {
+	SIMPLEQ_FOREACH_SAFE(f, &fhead, f_link, next) {
 		/* flush any pending output */
 		if (f->f_prevcount)
 			fprintlog_successive(f, 0);
-	}
 
-	if (signo) {
-		logit("syslogd: exiting on signal %d\n", signo);
-		flog(LOG_SYSLOG | LOG_INFO, "exiting on signal %d", signo);
-	}
-
-	/*
-	 * Close all open log files.
-	 */
-	SIMPLEQ_FOREACH_SAFE(f, &fhead, f_link, next) {
 		switch (f->f_type) {
 		case F_FILE:
 		case F_TTY:
@@ -1983,11 +1975,26 @@ void die(int signo)
 
 		free(f);
 	}
+}
+
+void die(int signo)
+{
+	struct peer *pe = NULL, *next = NULL;
+
+	if (signo) {
+		logit("syslogd: exiting on signal %d\n", signo);
+		flog(LOG_SYSLOG | LOG_INFO, "exiting on signal %d", signo);
+	}
+
+	/*
+	 * Close all open log files.
+	 */
+	close_open_log_files();
 
 	/*
 	 * Close all UNIX and inet sockets
 	 */
-	SIMPLEQ_FOREACH_SAFE(pe, &pqueue, pe_link, penext) {
+	SIMPLEQ_FOREACH_SAFE(pe, &pqueue, pe_link, next) {
 		for (size_t i = 0; i < pe->pe_socknum; i++) {
 			logit("Closing socket %d ...\n", pe->pe_sock[i]);
 			socket_close(pe->pe_sock[i]);
@@ -2136,8 +2143,8 @@ static void init(void)
 {
 	static int once = 1;
 	struct hostent *hent;
+	struct filed *f;
 	struct files newf = SIMPLEQ_HEAD_INITIALIZER(newf);
-	struct filed *f, *next;
 	FILE *fp;
 	char *p;
 	int i;
@@ -2222,28 +2229,7 @@ static void init(void)
 	/*
 	 * Close all open log files.
 	 */
-	SIMPLEQ_FOREACH_SAFE(f, &fhead, f_link, next) {
-		/* flush any pending output */
-		if (f->f_prevcount)
-			fprintlog_successive(f, 0);
-
-		switch (f->f_type) {
-		case F_FILE:
-		case F_TTY:
-		case F_CONSOLE:
-		case F_PIPE:
-			if (f->f_file >= 0)
-				(void)close(f->f_file);
-			break;
-
-		case F_FORW:
-			if (f->f_un.f_forw.f_addr)
-				freeaddrinfo(f->f_un.f_forw.f_addr);
-			break;
-		}
-
-		free(f);
-	}
+	close_open_log_files();
 	fhead = newf;
 
 	Initialized = 1;
