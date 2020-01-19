@@ -55,4 +55,4 @@ pkginclude_HEADERS    = syslog.h
 libsyslog_la_SOURCES  = syslog.c syslog.h compat.h
 libsyslog_la_CPPFLAGS = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
 libsyslog_la_LDFLAGS  = $(AM_LDFLAGS) -version-info 0:0:0
-libsyslog_la_LIBADD   = $(LTLIBOJBS)
+libsyslog_la_LIBADD   = $(LTLIBOBJS)
