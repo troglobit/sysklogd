@@ -57,12 +57,15 @@ libsyslog_la_CPPFLAGS = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
 libsyslog_la_LDFLAGS  = $(AM_LDFLAGS) -version-info 0:0:0
 libsyslog_la_LIBADD   = $(LTLIBOBJS)
 
-# Both libsyslog_la and syslogd/logger requires objects like lib/pidfile.o, for
-# libsyslog_la, the objects should be compiled with -fPIC, but for
-# syslogd/logger, it doesn't need -fPIC, so there is a race issue when the two
-# different lib/pidfile.o are compiled at the same time, which would cause errors like:
-# ld: syslogd-syslogd.o: in function `main':
-# syslogd.c:417: undefined reference to `__pidfile'
+# Both libsyslog and syslogd/logger require objects like lib/pidfile.o.
+# For libsyslog_la, the object files should be compiled with -fPIC, but
+# for syslogd and logger these object files should not be compled with
+# -fPIC.  There is a race issue when the two different lib/pidfile.o are
+# compiled at the same time, which cause errors like:
 #
-# Make LIBOBJS depend on LTLIBOBJS to fix the problem.
+#  ld: syslogd-syslogd.o: in function `main': syslogd.c:417: undefined
+#      reference to `__pidfile'
+#
+# Work around the problem by building one .o from lib at a time, this
+# can be achieved by making LIBOBJS depend on LTLIBOBJS.
 $(LIBOBJS): $(LTLIBOBJS)
