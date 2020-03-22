@@ -4,6 +4,17 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.1.2][] - 2020-03-22
+-----------------------
+
+Bug fix release.
+
+### Fixes
+- Issue #17: Windriver found and fixed a race between building lib/*.o
+  files with and without `-fPIC`.  This should be the final parallel
+  build issue.
+
+
 [v2.1.1][] - 2020-01-19
 -----------------------
 
@@ -310,7 +321,8 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.1.1...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.1.2...HEAD
+[v2.1.2]:     https://github.com/troglobit/sysklogd/compare/v2.1.1...v2.1.2
 [v2.1.1]:     https://github.com/troglobit/sysklogd/compare/v2.1...v2.1.1
 [v2.1]:       https://github.com/troglobit/sysklogd/compare/v2.0.3...v2.1
 [v2.0.3]:     https://github.com/troglobit/sysklogd/compare/v2.0.2...v2.0.3
