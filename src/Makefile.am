@@ -66,6 +66,7 @@ libsyslog_la_LIBADD   = $(LTLIBOBJS)
 #  ld: syslogd-syslogd.o: in function `main': syslogd.c:417: undefined
 #      reference to `__pidfile'
 #
-# Work around the problem by building one .o from lib at a time, this
-# can be achieved by making LIBOBJS depend on LTLIBOBJS.
-$(LIBOBJS): $(LTLIBOBJS)
+# Work around the problem by make LIBOBJS depend on libsyslog.la,
+# so that LIBOBJS/syslogd/logger will start compile after libsyslog.la
+# is completed
+$(LIBOBJS): $(lib_LTLIBRARIES)
