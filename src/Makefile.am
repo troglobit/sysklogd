@@ -36,7 +36,7 @@ endif
 AM_CFLAGS             = -W -Wall -Wextra
 AM_CFLAGS            += -Wno-unused-result -Wno-unused-parameter -fno-strict-aliasing
 AM_CPPFLAGS           = -DSYSCONFDIR=\"@sysconfdir@\" -DRUNSTATEDIR=\"@runstatedir@\"
-AM_CPPFLAGS          += -D_BSD_SOURCE -D_DEFAULT_SOURCE
+AM_CPPFLAGS          += -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_GNU_SOURCE
 
 syslogd_SOURCES       = syslogd.c syslogd.h socket.c socket.h syslog.h
 syslogd_SOURCES      += timer.c timer.h queue.h compat.h

@@ -31,7 +31,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define _GNU_SOURCE		/* Needed with GLIBC to get asprintf() */
 #include <sys/stat.h>		/* utimensat() */
 #include <sys/time.h>		/* utimensat() on *BSD */
 #include <sys/types.h>
