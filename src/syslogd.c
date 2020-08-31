@@ -76,6 +76,9 @@ static char sccsid[] __attribute__((unused)) =
 #include <sys/time.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
+#ifdef __linux__
+#include <sys/sysinfo.h>
+#endif
 
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
@@ -117,6 +120,7 @@ struct filed consfile;
 
 static int	  Debug;		/* debug flag */
 static int	  Foreground = 0;	/* don't fork - don't run in daemon mode */
+static time_t	  boot_time;		/* Offset for printsys() */
 static int	  resolve = 1;		/* resolve hostname */
 static char	  LocalHostName[MAXHOSTNAMELEN + 1]; /* our hostname */
 static char	 *LocalDomain;			     /* our local domain name */
@@ -165,6 +169,7 @@ void        doflush(void *arg);
 void        debug_switch();
 void        die(int sig);
 static void signal_init(void);
+static void boot_time_init(void);
 static void init(void);
 static int  strtobytes(char *arg);
 static int  cfparse(FILE *fp, struct files *newf);
@@ -378,16 +383,24 @@ int main(int argc, char *argv[])
 		setlinebuf(stdout);
 	}
 
-	/* Attempt to open kernel log pipe */
-	if (opensys(_PATH_KLOG))
-		warn("Kernel logging disabled, failed opening %s", _PATH_KLOG);
-	else
+	/*
+	 * Attempt to open kernel log pipe.  On Linux we prefer
+	 * /dev/kmsg and fall back to _PROC_KLOG, which on GLIBC
+	 * systems is /proc/kmsg, and /dev/klog on *BSD.
+	 */
+	if (opensys("/dev/kmsg")) {
+		if (opensys(_PATH_KLOG))
+			warn("Kernel logging disabled, failed opening %s", _PATH_KLOG);
+		else
+			kern_console_off();
+	} else
 		kern_console_off();
 
 	consfile.f_type = F_CONSOLE;
 	strlcpy(consfile.f_un.f_fname, ctty, sizeof(consfile.f_un.f_fname));
 
 	logit("Starting.\n");
+	boot_time_init();
 	signal_init();
 	init();
 
@@ -1066,7 +1079,8 @@ parsemsg(const char *from, char *msg)
 }
 
 /*
- * Take a raw input line from /dev/klog, split and format similar to syslog().
+ * Take a raw input line from /dev/klog, Linux /proc/klog, or Linux
+ * /dev/kmsg, split and format similar to syslog().
  */
 void printsys(char *msg)
 {
@@ -1084,11 +1098,35 @@ void printsys(char *msg)
 		buffer.msg = line;
 
 		if (*p == '<') {
+			/* /proc/klog or *BSD /dev/klog */
 			buffer.pri = 0;
 			while (isdigit(*++p))
 				buffer.pri = 10 * buffer.pri + (*p - '0');
 			if (*p == '>')
 				++p;
+		} else if (isdigit(*p)) {
+			/* Linux /dev/kmsg: "pri,seq#,msec,flag[,..];msg" */
+			time_t now = boot_time;
+
+			while (isdigit(*++p))
+				buffer.pri = 10 * buffer.pri + (*p - '0');
+			++p;
+			/* skip sequence number for now */
+			while (isdigit(*++p))
+				;
+			++p;
+			while (isdigit(*++p))
+				buffer.timestamp.usec = 10 * buffer.timestamp.usec + (*p - '0');
+			now += buffer.timestamp.usec / 1000000;
+			buffer.timestamp.usec = buffer.timestamp.usec % 1000000;
+			localtime_r(&now, &buffer.timestamp.tm);
+			/* skip flags for now */
+			q = strchr(p, ';');
+			if (q)
+				p = ++q;
+		} else if (*p == ' ') {
+			/* Linux /dev/kmsg continuation line w/ SUBSYSTEM= DEVICE=, skip */
+			return;
 		} else {
 			/* kernel printf's come out on console */
 			buffer.flags |= IGN_CONS;
@@ -1098,8 +1136,18 @@ void printsys(char *msg)
 			buffer.pri = DEFSPRI;
 
 		q = lp;
-		while (*p != '\0' && (c = *p++) != '\n' && q < &line[MAXLINE])
+		while (*p != '\0' && (c = *p++) != '\n' && q < &line[MAXLINE]) {
+			/* Linux /dev/kmsg C-style hex encoding. */
+			if (c == '\\' && *p == 'x') {
+				char code[5] = "0x\0\0\0";
+
+				p++;
+				code[2] = *p++;
+				code[3] = *p++;
+				c = (int)strtol(code, NULL, 16);
+			}
 			*q++ = c;
+		}
 		*q = '\0';
 
 		logmsg(&buffer);
@@ -2134,6 +2182,18 @@ static void signal_init(void)
 	SIGNAL(SIGXFSZ, SIG_IGN);
 	SIGNAL(SIGHUP,  reload);
 	SIGNAL(SIGCHLD, reapchild);
+}
+
+static void boot_time_init(void)
+{
+#ifdef __linux__
+	struct sysinfo si;
+	struct timeval tv;
+
+	gettimeofday(&tv, NULL);
+	sysinfo(&si);
+	boot_time = tv.tv_sec - si.uptime;
+#endif
 }
 
 /*

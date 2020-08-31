@@ -114,7 +114,7 @@ domain socket
 from an Internet domain socket specified in
 .Pa /etc/services ,
 and from
-.Pa /proc/kmsg
+.Pa /dev/kmsg
 .Pq to read kernel messages .
 The command line options defined below can be used to change this
 behavior.
@@ -244,7 +244,7 @@ to facility
 Usually the
 .Dq kern
 facility is reserved for messages read directly from
-.Pa /proc/kmsg .
+.Pa /dev/kmsg .
 .It Fl m Ar interval
 Select the number of minutes between
 .Dq mark
@@ -461,7 +461,7 @@ default process ID file
 name of the
 .Ux
 domain datagram log socket
-.It Pa /proc/kmsg
+.It Pa /dev/kmsg
 kernel log device
 .El
 .Sh SEE ALSO
