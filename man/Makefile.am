@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2019  Joachim Nilsson <troglobit@gmail.com>
+# Copyright (c) 2018-2020  Joachim Wiberg <troglobit@gmail.com>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without

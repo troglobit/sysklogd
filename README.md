@@ -172,7 +172,7 @@ Origin & References
 This is the continuation of the original sysklogd by Dr. G.W. Wettstein
 and [Martin Schulze][].  Currently maintained, and almost completely
 rewritten with the latest DNA strands from NetBSD and FreeBSD, by
-[Joachim Nilsson][].  Please file bug reports, or send pull requests for
+[Joachim Wiberg][].  Please file bug reports, or send pull requests for
 bug fixes and proposed extensions at [GitHub][].
 
 The project was previously licensed under the GNU GPL, since the removal
@@ -181,12 +181,12 @@ of `klogd` the project is now [3-clause BSD][BSD License] licensed.
 [RFC3164]:          https://tools.ietf.org/html/rfc3164
 [RFC5424]:          https://tools.ietf.org/html/rfc5424
 [Martin Schulze]:   http://www.infodrom.org/projects/sysklogd/
-[Joachim Nilsson]:  http://troglobit.com
+[Joachim Wiberg]:   https://troglobit.com
 [Finit]:            https://github.com/troglobit/finit
 [GitHub]:           https://github.com/troglobit/sysklogd
 [example]:          https://github.com/troglobit/sysklogd/tree/master/example
 [buildsystem]:      https://airs.com/ian/configure/
-[BSD License]:      http://en.wikipedia.org/wiki/BSD_licenses
+[BSD License]:      https://en.wikipedia.org/wiki/BSD_licenses
 [BSD Badge]:        https://img.shields.io/badge/License-BSD%203--Clause-blue.svg
 [Travis]:           https://travis-ci.org/troglobit/sysklogd
 [Travis Status]:    https://travis-ci.org/troglobit/sysklogd.png?branch=master
