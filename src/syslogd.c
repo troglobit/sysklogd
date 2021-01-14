@@ -1174,10 +1174,11 @@ char *textpri(int pri)
 
 static void check_timestamp(struct buf_msg *buffer)
 {
-	struct logtime zero = { 0 };
+	struct logtime zero;
 	struct logtime now;
 	struct timeval tv;
 
+	memset(&zero, 0, sizeof(zero));
 	if (memcmp(&buffer->timestamp, &zero, sizeof(zero)))
 		return;
 
