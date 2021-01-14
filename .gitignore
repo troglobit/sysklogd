@@ -1,6 +1,8 @@
 *~
-m4
+.config
 .deps
+.unpacked
+m4/
 GTAGS
 GPATH
 GRTAGS
@@ -10,6 +12,7 @@ Makefile.in
 aclocal.m4
 autom4te.cache
 compile
+compile_commands.json
 config.h*
 config.guess
 config.log
