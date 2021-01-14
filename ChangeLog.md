@@ -3,6 +3,21 @@ Change Log
 
 All relevant changes to the project are documented in this file.
 
+[v2.2.0][UNRELEASED]
+--------------------
+
+Minor feature and bug fix release.
+
+### Changes
+- Issue #19: use `/dev/kmsg` instead of `/proc/kmsg` on Linux
+
+### Fixes
+- Issue #17: Finally fix long-standing parallel build issue, thanks to
+  Windriver for sticking with it and finding a really good fix!
+- Issue #24: `O_CLOEXEC` not available on all systems
+- Fix build error; allow loop initial declarations, enable C99
+- Fix build warning; missing initializer for field 'usec'
+
 
 [v2.1.2][] - 2020-03-22
 -----------------------
@@ -322,6 +337,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 
 
 [UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.1.2...HEAD
+[v2.2.0]:     https://github.com/troglobit/sysklogd/compare/v2.1.2...v2.2.0
 [v2.1.2]:     https://github.com/troglobit/sysklogd/compare/v2.1.1...v2.1.2
 [v2.1.1]:     https://github.com/troglobit/sysklogd/compare/v2.1...v2.1.1
 [v2.1]:       https://github.com/troglobit/sysklogd/compare/v2.0.3...v2.1
