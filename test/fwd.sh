@@ -13,7 +13,8 @@ ntp.*	@127.0.0.2:${PORT2}	;RFC5424
 EOF
 
 cat <<EOF >${CONFD2}/50-default.conf
-*.*	${LOG2}			;RFC5424
+kern.*		/dev/null
+*.*;kern.none	${LOG2}		;RFC5424
 EOF
 
 ../src/syslogd -a 127.0.0.2:* -b :${PORT2} -d -F -f ${CONF2} -p ${SOCK2} -m1 &
