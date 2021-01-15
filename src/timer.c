@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (C) 2017-2020  Joachim Wiberg <troglobit@gmail.com>
+ * Copyright (C) 2017-2021  Joachim Wiberg <troglobit@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
