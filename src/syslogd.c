@@ -469,9 +469,21 @@ static void kernel_cb(int fd, void *arg)
 		if (i > 0) {
 			line[i + len] = '\0';
 		} else {
-			if (i < 0 && errno != EINTR && errno != EAGAIN) {
-				ERR("klog read()");
-				socket_close(fd);
+			if (i < 0) {
+				switch (errno) {
+				case EPIPE: /* linux, log buffer overrun */
+					ERRX("Kernel log buffer filling up too quick, "
+					     "or too small log buffer, "
+					     "adjust kernel CONFIG_LOG_BUF_SHIFT");
+				case EINTR:
+				case EAGAIN:
+					break;
+
+				default:
+					ERR("klog read()");
+					socket_close(fd);
+					break;
+				}
 			}
 			break;
 		}
