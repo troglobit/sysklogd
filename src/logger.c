@@ -297,7 +297,7 @@ int main(int argc, char *argv[])
 			log_opts |= LOG_NLOG;
 			fp = fopen(logfile, "a");
 			if (!fp)
-				err(1, "Failed opening %s for writing: %m", logfile);
+				err(1, "Failed opening %s for writing", logfile);
 		} else {
 			log_opts |= LOG_STDOUT;
 			fp = stdout;
