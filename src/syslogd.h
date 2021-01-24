@@ -34,8 +34,10 @@
 
 #include "config.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>		/* struct addrinfo */
+#include <string.h>
 #ifdef __linux__
 #include <sys/klog.h>
 #endif
@@ -131,7 +133,7 @@
 #define str(s) #s
 
 /* Helper internal log macros */
-#define ERR(fmt,  args...)	flog(LOG_SYSLOG | LOG_ERR, fmt ": %m", ##args)
+#define ERR(fmt,  args...)	flog(LOG_SYSLOG | LOG_ERR, fmt ": %s", ##args, strerror(errno))
 #define ERRX(fmt, args...)	flog(LOG_SYSLOG | LOG_ERR, fmt, ##args)
 #define WARN(fmt, args...)	flog(LOG_SYSLOG | LOG_WARN, fmt, ##args)
 #define NOTE(fmt, args...)	flog(LOG_SYSLOG | LOG_NOTICE, fmt, ##args)
