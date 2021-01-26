@@ -1120,8 +1120,9 @@ void printsys(char *msg)
 			/* Linux /dev/kmsg: "pri,seq#,msec,flag[,..];msg" */
 			time_t now = boot_time;
 
-			while (isdigit(*++p))
-				buffer.pri = 10 * buffer.pri + (*p - '0');
+			buffer.pri = 0;
+			while (isdigit(*p))
+				buffer.pri = 10 * buffer.pri + (*p++ - '0');
 			++p;
 			/* skip sequence number for now */
 			while (isdigit(*++p))
