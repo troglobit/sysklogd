@@ -3,6 +3,24 @@ Change Log
 
 All relevant changes to the project are documented in this file.
 
+[v2.2.1][UNRELEASED] - 2021-01-30
+-----------------------
+
+Bug fix release.
+
+### Fixes
+- Issue #26: Liunx sends `EPIPE` when reading from `/dev/kmsg` if the
+  kernel internal buffers are overrun.  `EPIPE` is a heads-up message to
+  userspace that at least one log message has been lost.  Usually caused
+  by a too small CONFIG_LOG_BUF_SHIFT value.  sysklogd v2.2.0 treated
+  the descriptor as faulty and closed it.  The fix is to log the event
+  and restart polling for more messages
+- Issue #27: Linux log messages read from `/dev/kmsg` are formatted in a
+  different way than its predecessor `/proc/kmsg`.  sysklogd v2.2.0
+  failed to parse the priority field correctly, which caused matching
+  problems with rules in `/etc/syslog.conf`
+
+
 [v2.2.0][] - 2021-01-15
 -----------------------
 
@@ -337,6 +355,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 
 
 [UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.2.0...HEAD
+[v2.2.1]:     https://github.com/troglobit/sysklogd/compare/v2.2.0...v2.2.1
 [v2.2.0]:     https://github.com/troglobit/sysklogd/compare/v2.1.2...v2.2.0
 [v2.1.2]:     https://github.com/troglobit/sysklogd/compare/v2.1.1...v2.1.2
 [v2.1.1]:     https://github.com/troglobit/sysklogd/compare/v2.1...v2.1.1
