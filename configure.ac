@@ -94,7 +94,7 @@ AM_CONDITIONAL([HAVE_SYSTEMD], [test "x$with_systemd" != "xno"])
 # Expand $sbindir early, into $SBINDIR, for systemd unit file
 # NOTE: This does *not* take prefix/exec_prefix override at "make
 #       install" into account, unfortunately.
-test "x$prefix" = xNONE && prefix=/usr/local
+test "x$prefix" = xNONE && prefix=$ac_default_prefix
 test "x$exec_prefix" = xNONE && exec_prefix='${prefix}'
 SBINDIR=`eval echo $sbindir`
 SBINDIR=`eval echo $SBINDIR`
