@@ -3,7 +3,7 @@ Change Log
 
 All relevant changes to the project are documented in this file.
 
-[v2.2.1][UNRELEASED] - 2021-01-30
+[v2.2.1][] - 2021-01-30
 -----------------------
 
 Bug fix release.
@@ -19,6 +19,10 @@ Bug fix release.
   different way than its predecessor `/proc/kmsg`.  sysklogd v2.2.0
   failed to parse the priority field correctly, which caused matching
   problems with rules in `/etc/syslog.conf`
+- Restore default install prefix, from `/` to `/usr/local`, which is
+  the default for GNU configure based applications
+- Drop `%m` gnuism from internal log macro (portability)
+- logger: drop extra error message string, on error logging to a file
 
 
 [v2.2.0][] - 2021-01-15
@@ -354,7 +358,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.2.0...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.2.1...HEAD
 [v2.2.1]:     https://github.com/troglobit/sysklogd/compare/v2.2.0...v2.2.1
 [v2.2.0]:     https://github.com/troglobit/sysklogd/compare/v2.1.2...v2.2.0
 [v2.1.2]:     https://github.com/troglobit/sysklogd/compare/v2.1.1...v2.1.2
