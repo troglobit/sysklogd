@@ -59,6 +59,7 @@ static char sccsid[] __attribute__((unused)) =
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -1098,6 +1099,7 @@ void printsys(char *msg)
 {
 	struct buf_msg buffer;
 	char line[MAXLINE + 1];
+	uint64_t seqno = 0;
 	char *lp, *p, *q;
 	int c;
 
@@ -1120,19 +1122,26 @@ void printsys(char *msg)
 			/* Linux /dev/kmsg: "pri,seq#,msec,flag[,..];msg" */
 			time_t now = boot_time;
 
+			/* pri */
 			buffer.pri = 0;
 			while (isdigit(*p))
 				buffer.pri = 10 * buffer.pri + (*p++ - '0');
-			++p;
-			/* skip sequence number for now */
-			while (isdigit(*++p))
-				;
-			++p;
+
+			p++;	      /* skip ',' */
+
+			/* seq# */
+			while (isdigit(*p))
+				seqno = 10 * seqno + (*p++ - '0');
+
+			p++;	      /* skip ',' */
+
+			/* timestamp */
 			while (isdigit(*p))
 				buffer.timestamp.usec = 10 * buffer.timestamp.usec + (*p++ - '0');
 			now += buffer.timestamp.usec / 1000000;
 			buffer.timestamp.usec = buffer.timestamp.usec % 1000000;
 			localtime_r(&now, &buffer.timestamp.tm);
+
 			/* skip flags for now */
 			q = strchr(p, ';');
 			if (q)
