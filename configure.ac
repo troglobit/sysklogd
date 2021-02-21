@@ -91,7 +91,7 @@ AS_IF([test "x$with_systemd" != "xno"],
      [AC_SUBST([systemddir], [$with_systemd])])
 AM_CONDITIONAL([HAVE_SYSTEMD], [test "x$with_systemd" != "xno"])
 
-# Expand $sbindir early, into $SBINDIR, for systemd unit file
+# Expand $sbindir and @$sysconfdir early, for systemd unit file
 # NOTE: This does *not* take prefix/exec_prefix override at "make
 #       install" into account, unfortunately.
 test "x$prefix" = xNONE && prefix=$ac_default_prefix
@@ -99,6 +99,8 @@ test "x$exec_prefix" = xNONE && exec_prefix='${prefix}'
 SBINDIR=`eval echo $sbindir`
 SBINDIR=`eval echo $SBINDIR`
 AC_SUBST(SBINDIR)
+SYSCONFDIR=`eval echo $sysconfdir`
+AC_SUBST(SYSCONFDIR)
 
 # Workaround for as-of-yet unreleased runstatedir support, planned for
 # autoconf 2.70, which some major distros have backported.
@@ -108,9 +110,7 @@ AC_SUBST(runstatedir)
 AC_OUTPUT
 
 # Expand directories for configuration summary, unexpanded defaults:
-# sysconfdir  => ${prefix}/etc
 # runstatedir => ${localstatedir}/run
-SYSCONFDIR=`eval echo $sysconfdir`
 RUNSTATEDIR=`eval echo $runstatedir`
 RUNSTATEDIR=`eval echo $RUNSTATEDIR`
 

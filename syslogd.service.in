@@ -5,8 +5,8 @@ Documentation=man:syslog.conf
 Requires=syslog.socket
 
 [Service]
-Type=simple
-ExecStart=@SBINDIR@/syslogd -sF
+EnvironmentFile=-@SYSCONFDIR@/default/syslogd
+ExecStart=@SBINDIR@/syslogd -F $SYSLOGD_OPTS
 StandardOutput=null
 Restart=on-failure
 
