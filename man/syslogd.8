@@ -88,8 +88,7 @@ behavior, 2) despite having a stand-alone
 .Xr syslog 3 ,
 and
 .Xr syslogp 3
-API in
-.Lb libsyslog ,
+API in libsyslog,
 .Nm
 interacts transparently with the standard C library
 .Xr syslog 3
@@ -336,9 +335,8 @@ This priority code should map into the priorities defined in the
 include file
 .In sys/syslog.h .
 To log with RFC5424 style messages the priority code must be directly
-followed by the version number, this is all handled by the
-.Lb libsyslog ,
-which is the
+followed by the version number, this is all handled by libsyslog, which
+is the
 .Nx
 .Xr syslogp 3
 API included with the
