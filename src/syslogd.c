@@ -2281,6 +2281,11 @@ static void init(void)
 	}
 
 	/*
+	 * Load / reload timezone data (in case it changed)
+	 */
+	tzset();
+
+	/*
 	 * Read configuration file(s)
 	 */
 	fp = fopen(ConfFile, "r");
