@@ -208,7 +208,7 @@ in GLIBC does not allow logging to the
 facility.
 .Pp
 The
-.I priority
+.Em priority
 is one of the following keywords, in ascending order:
 .Bl -column "Code" "Facility" "Description" -offset indent
 .It Sy "Value" Ta Sy "Severity" Ta Sy "Description"
@@ -435,9 +435,9 @@ This directs all messages that use
 (in source
 .Ql LOG_MAIL | LOG_INFO )
 to
-.IR /dev/tty12 , 
+.Pa /dev/tty12 , 
 the 12th console.  For example the tcpwrapper
-.BR tcpd (8)
+.Xr tcpd 8 
 uses this as its default.
 .Bd -literal -offset indent
 # The tcp wrapper logs with mail.info, we display
