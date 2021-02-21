@@ -1,0 +1,7 @@
+#
+# syslogd defaults
+#
+
+# Secure mode enabled, forwarding to remote servers allowed, disable
+# with another '-s', logging from remote servers disallowed.
+SYSLOGD_OPTS="-s"
