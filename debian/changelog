@@ -1,5 +1,8 @@
 sysklogd (2.2.2) stable; urgency=low
 
   * Initial release.
+  * Fix issue with parsing /dev/kmsg time
+  * Fix spelling issues in syslogd and man pages, found by lintian
+  * Load and reload timezone, with tzset(), on init/SIGHUP.
 
  -- Joachim Wiberg <troglobit@gmail.com>  Sun, 21 Feb 2021 13:43:49 +0100

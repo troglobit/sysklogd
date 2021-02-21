@@ -3,6 +3,23 @@ Change Log
 
 All relevant changes to the project are documented in this file.
 
+
+[v2.2.2][UNRELEASED]
+-----------------------
+
+Bug fix release.
+
+### Changes
+- Load and reload timezone, with `tzset()`, on init/SIGHUP
+- Logging from remote servers enabled by default in `syslogd.service`
+  use `/etc/default/syslogd` to disable
+- Initial Debian/Ubuntu packaging
+
+### Fixes
+- Fix issue with parsing /dev/kmsg time, off by one error
+- Fix spelling issues in syslogd and man pages, found by lintian
+
+
 [v2.2.1][] - 2021-01-30
 -----------------------
 
@@ -359,6 +376,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 
 
 [UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.2.1...HEAD
+[v2.2.2]:     https://github.com/troglobit/sysklogd/compare/v2.2.1...v2.2.2
 [v2.2.1]:     https://github.com/troglobit/sysklogd/compare/v2.2.0...v2.2.1
 [v2.2.0]:     https://github.com/troglobit/sysklogd/compare/v2.1.2...v2.2.0
 [v2.1.2]:     https://github.com/troglobit/sysklogd/compare/v2.1.1...v2.1.2
