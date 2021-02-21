@@ -1,5 +1,5 @@
 syslog.conf etc
-lib/systemd/system/syslogd.service
+syslogd.service lib/systemd/system/
 usr/sbin/syslogd
 usr/share/man/man5/syslog.conf.5
 usr/share/man/man8/syslogd.8
