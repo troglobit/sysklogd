@@ -13,7 +13,6 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, lsb-base (>= 3.0-6)
 Provides: syslogd, linux-kernel-log-daemon, system-log-daemon
 Conflicts: syslogd, linux-kernel-log-daemon, system-log-daemon
-Recommends: logrotate
 Description: system logging daemon
  Continuation of the original syslog daemon for Linux, based on the *BSD
  syslog daemon.  Now with kernel logging and log rotation built-in.  It

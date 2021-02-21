@@ -4,4 +4,5 @@
 
 # Secure mode enabled, forwarding to remote servers allowed, disable
 # with another '-s', logging from remote servers disallowed.
-SYSLOGD_OPTS="-s"
+# Default log rotation at 10 MiB, keeping 10 backlog copies.
+SYSLOGD_OPTS="-s -r 10M:10"
