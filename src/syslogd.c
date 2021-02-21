@@ -1128,8 +1128,8 @@ void printsys(char *msg)
 			while (isdigit(*++p))
 				;
 			++p;
-			while (isdigit(*++p))
-				buffer.timestamp.usec = 10 * buffer.timestamp.usec + (*p - '0');
+			while (isdigit(*p))
+				buffer.timestamp.usec = 10 * buffer.timestamp.usec + (*p++ - '0');
 			now += buffer.timestamp.usec / 1000000;
 			buffer.timestamp.usec = buffer.timestamp.usec % 1000000;
 			localtime_r(&now, &buffer.timestamp.tm);
