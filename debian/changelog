@@ -5,4 +5,4 @@ sysklogd (2.2.2) stable; urgency=low
   * Fix spelling issues in syslogd and man pages, found by lintian
   * Load and reload timezone, with tzset(), on init/SIGHUP.
 
- -- Joachim Wiberg <troglobit@gmail.com>  Sun, 21 Feb 2021 13:43:49 +0100
+ -- Joachim Wiberg <troglobit@gmail.com>  Mon, 08 Mar 2021 11:36:46 +0100

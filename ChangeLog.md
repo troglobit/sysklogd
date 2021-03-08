@@ -4,7 +4,7 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
-[v2.2.2][UNRELEASED]
+[v2.2.2][] - 2021-03-08
 -----------------------
 
 Bug fix release.
