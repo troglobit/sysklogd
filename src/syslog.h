@@ -72,7 +72,7 @@
 #define	LOG_PRIMASK	0x07	/* mask to extract priority part (internal) */
 				/* extract priority */
 #define	LOG_PRI(p)	((p) & LOG_PRIMASK)
-#define	LOG_MAKEPRI(fac, pri)	(((fac) << 3) | (pri))
+#define	LOG_MAKEPRI(fac, pri)	((fac) | (pri))
 
 #ifdef SYSLOG_NAMES
 #define INTERNAL_INVPRI 0x00    /* Value to indicate no priority in f_pmask */
