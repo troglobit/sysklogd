@@ -85,6 +85,10 @@
 #define _PATH_LOGPID RUNSTATEDIR "/syslogd.pid"
 #endif
 
+#ifndef _PATH_CACHE
+#define _PATH_CACHE  RUNSTATEDIR "/syslogd.cache"
+#endif
+
 #ifndef _PATH_DEV
 #define _PATH_DEV      "/dev/"
 #endif

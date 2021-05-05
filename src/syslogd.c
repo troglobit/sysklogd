@@ -60,6 +60,7 @@ static char sccsid[] __attribute__((unused)) =
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -122,6 +123,7 @@ struct filed consfile;
 static int	  Debug;		/* debug flag */
 static int	  Foreground = 0;	/* don't fork - don't run in daemon mode */
 static time_t	  boot_time;		/* Offset for printsys() */
+static uint64_t	  sys_seqno = 0;	/* Last seen kernel log message */
 static int	  resolve = 1;		/* resolve hostname */
 static char	  LocalHostName[MAXHOSTNAMELEN + 1]; /* our hostname */
 static char	 *LocalDomain;			     /* our local domain name */
@@ -193,6 +195,54 @@ static int addpeer(struct peer *pe0)
 	SIMPLEQ_INSERT_TAIL(&pqueue, pe, pe_link);
 
 	return 0;
+}
+
+static void sys_seqno_load(void)
+{
+	char buf[32], *str;
+	FILE *fp;
+
+	fp = fopen(_PATH_CACHE, "r");
+	if (!fp)
+		return;
+
+	while ((str = fgets(buf, sizeof(buf), fp))) {
+		uint64_t val;
+		char *end;
+
+		if (str[strlen(str) - 1] == '\n')
+			str[strlen(str) - 1] = 0;
+
+		errno = 0;
+		val = strtoull(str, &end, 10);
+		if (val == 0 && end == str)
+			break;	/* str was not a number */
+		else if (val == ULLONG_MAX && errno)
+			break; /* the value of str does not fit in unsigned long long */
+		else if (*end)
+			break; /* str began with a number but has junk left over at the end */
+
+		sys_seqno = val;
+	}
+	fclose(fp);
+}
+
+static void sys_seqno_save(void)
+{
+	static uint64_t prev = 0;
+	FILE *fp;
+
+	if (prev == sys_seqno)
+		return;		/* no changes since last save */
+
+	fp = fopen(_PATH_CACHE, "w");
+	if (!fp)
+		return;		/* best effort, ignore any errors */
+
+	fprintf(fp, "%" PRIu64 "\n", sys_seqno);
+	fclose(fp);
+
+	prev = sys_seqno;
 }
 
 int usage(int code)
@@ -389,6 +439,7 @@ int main(int argc, char *argv[])
 	 * /dev/kmsg and fall back to _PROC_KLOG, which on GLIBC
 	 * systems is /proc/kmsg, and /dev/klog on *BSD.
 	 */
+	sys_seqno_load();
 	if (opensys("/dev/kmsg")) {
 		if (opensys(_PATH_KLOG))
 			warn("Kernel logging disabled, failed opening %s", _PATH_KLOG);
@@ -453,6 +504,8 @@ int main(int argc, char *argv[])
 
 		if (rc < 0 && errno != EINTR)
 			ERR("select()");
+
+		sys_seqno_save();
 	}
 }
 
@@ -1133,6 +1186,11 @@ void printsys(char *msg)
 			/* seq# */
 			while (isdigit(*p))
 				seqno = 10 * seqno + (*p++ - '0');
+
+			/* Check if logged already (we've been restarted) */
+			if (sys_seqno > 0 && seqno <= sys_seqno)
+				return;
+			sys_seqno = seqno;
 
 			p++;	      /* skip ',' */
 
