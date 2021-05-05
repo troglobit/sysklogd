@@ -131,7 +131,7 @@ static int checksz(FILE *fp, off_t sz)
 	return 0;
 }
 
-char *chomp(char *str)
+static char *chomp(char *str)
 {
         char *p;
 
