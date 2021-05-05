@@ -17,6 +17,7 @@ Bug fix release.
 - Issue #29: kernel messages repeated if syslogd is restarted at runtime
 - Issue #31: time calculation issue on 32-bit systems
 - Issue #32: remote kernel messages being mapped to uucp instead of user
+- Fix `syslogd(8)` manual page name of the syslogd PID file
 
 
 [v2.2.2][] - 2021-03-08

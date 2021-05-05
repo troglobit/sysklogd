@@ -30,7 +30,7 @@
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2021
+.Dd May 5, 2021
 .Dt SYSLOGD 8
 .Os sysklogd
 .Sh NAME
@@ -265,7 +265,7 @@ additional log sockets.
 .It Fl P Ar file
 Specify an alternative file in which to store the process ID.
 The default is
-.Pa /var/run/syslog.pid .
+.Pa /var/run/syslogd.pid .
 .It Fl r Ar size[:count]
 Enable built-in support for log rotation of files listed in
 .Pa /etc/syslog.conf .
@@ -320,7 +320,7 @@ The
 .Nm
 utility creates its process ID file,
 by default
-.Pa /var/run/syslog.pid ,
+.Pa /var/run/syslogd.pid ,
 and stores its process ID there.  This can be used to kill or
 reconfigure
 .Nm .
@@ -447,14 +447,17 @@ configuration file. See
 .Xr syslog.conf 5
 for more information.
 .It Pa /etc/syslog.d/*.conf
-Conventional sub-directory of
+conventional sub-directory of
 .Pa .conf
 files read by
 .Nm .
 .It Pa /etc/syslog.d/50-default.conf
-Conventional name for default rules.
-.It Pa /var/run/syslog.pid
+conventional name for default rules.
+.It Pa /var/run/syslogd.pid
 default process ID file
+.It Pa /var/run/syslogd.cache
+cache of last read sequence number from
+.Pa /dev/kmsg
 .It Pa /dev/log
 name of the
 .Ux
