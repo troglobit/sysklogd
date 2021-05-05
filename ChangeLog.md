@@ -4,6 +4,20 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.2.3][UNRELEASED]
+-----------------------
+
+Bug fix release.
+
+### Fixes
+- Issue #28: log messages stuck in 1969.  When not using libsyslog, or
+  the bundled logger, the `syslog()` API in the C library is used, which
+  may not necessarily set the timestamp.  When sysklogd infers timestamp
+  it was offset by the number of years since 1969, i.e., `boot_time`
+- Issue #31: time calculation issue on 32-bit systems
+- Issue #32: remote kernel messages being mapped to uucp instead of user
+
+
 [v2.2.2][] - 2021-03-08
 -----------------------
 
@@ -375,7 +389,8 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.2.1...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.2.2...HEAD
+[v2.2.3]:     https://github.com/troglobit/sysklogd/compare/v2.2.2...v2.2.3
 [v2.2.2]:     https://github.com/troglobit/sysklogd/compare/v2.2.1...v2.2.2
 [v2.2.1]:     https://github.com/troglobit/sysklogd/compare/v2.2.0...v2.2.1
 [v2.2.0]:     https://github.com/troglobit/sysklogd/compare/v2.1.2...v2.2.0

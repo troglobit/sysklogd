@@ -1,3 +1,14 @@
+sysklogd (2.2.3) stable; urgency=medium
+
+  * Fix problem with log messages stuck in 1969.  When not using libsyslog,
+    or the bundled logger, the syslog() API in the C library is used, which
+    may not necessarily set the timestamp.  When sysklogd infers timestamp
+    it was offset by the number of years since 1969, i.e., boot_time.
+  * Fix time calculation issue on 32-bit systems.
+  * Fix remote kernel messages being mapped to uucp instead of user
+
+ -- Joachim Wiberg <troglobit@gmail.com>  Wed, 05 May 2021 03:36:37 +0200
+
 sysklogd (2.2.2) stable; urgency=low
 
   * Initial release.
