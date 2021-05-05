@@ -20,8 +20,10 @@ rm -f ${LOGV1}
 rm -f ${LOG2}
 rm -f ${LOGCONS}
 rm -f ${PID}
+rm -f ${PID2}
 rm -f ${CAP}
 rm -f ${SOCK}
 rm -f ${CONF}
+rm -f ${CONF2}
 rm -rf ${CONFD}
 rm -rf ${CONFD2}
