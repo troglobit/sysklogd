@@ -1099,6 +1099,7 @@ void printsys(char *msg)
 {
 	struct buf_msg buffer;
 	char line[MAXLINE + 1];
+	uint64_t ustime = 0;
 	uint64_t seqno = 0;
 	char *lp, *p, *q;
 	int c;
@@ -1137,9 +1138,9 @@ void printsys(char *msg)
 
 			/* timestamp */
 			while (isdigit(*p))
-				buffer.timestamp.usec = 10 * buffer.timestamp.usec + (*p++ - '0');
-			now += buffer.timestamp.usec / 1000000;
-			buffer.timestamp.usec = buffer.timestamp.usec % 1000000;
+				ustime = 10 * ustime + (*p++ - '0');
+			now += ustime / 1000000;
+			buffer.timestamp.usec = ustime % 1000000;
 			localtime_r(&now, &buffer.timestamp.tm);
 
 			/* skip flags for now */
