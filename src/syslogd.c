@@ -521,7 +521,7 @@ static void kernel_cb(int fd, void *arg)
 	for (;;) {
 		i = read(fd, line + len, MAXLINE - 1 - len);
 		if (i > 0) {
-			line[i + len] = '\0';
+			line[i + len] = 0;
 		} else {
 			if (i < 0) {
 				switch (errno) {
@@ -543,7 +543,7 @@ static void kernel_cb(int fd, void *arg)
 		}
 
 		for (p = line; (q = strchr(p, '\n')) != NULL; p = q + 1) {
-			*q = '\0';
+			*q = 0;
 			printsys(p);
 		}
 		len = strlen(p);
@@ -586,6 +586,7 @@ static void unix_cb(int sd, void *arg)
 			ERR("UNIX recv()");
 		return;
 	}
+	msg[msglen] = 0;
 
 	parsemsg(LocalHostName, msg);
 }
@@ -656,6 +657,7 @@ static void inet_cb(int sd, void *arg)
 			ERR("INET recvfrom()");
 		return;
 	}
+	msg[len] = 0;
 
 	hname = cvthname((struct sockaddr *)&ss, sslen);
 	unmapped(sa);
