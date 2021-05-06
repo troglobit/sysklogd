@@ -554,8 +554,11 @@ static void kernel_cb(int fd, void *arg)
 		if (len > 0)
 			memmove(line, p, len + 1);
 	}
-	if (len > 0)
+
+	if (len > 0) {
+		line[len] = 0;
 		printsys(line);
+	}
 }
 
 static int opensys(const char *file)
