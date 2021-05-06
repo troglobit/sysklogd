@@ -1187,9 +1187,15 @@ void printsys(char *msg)
 			while (isdigit(*p))
 				seqno = 10 * seqno + (*p++ - '0');
 
-			/* Check if logged already (we've been restarted) */
-			if (sys_seqno > 0 && seqno <= sys_seqno)
-				return;
+			/*
+			 * Check if logged already (we've been restarted)
+			 * Account for wrap-around at 18446744073709551615
+			 */
+			if (sys_seqno > 0 && seqno <= sys_seqno) {
+				/* allow dupes around the edge */
+				if (sys_seqno < 18446744073709551000)
+					return;
+			}
 			sys_seqno = seqno;
 
 			p++;	      /* skip ',' */
