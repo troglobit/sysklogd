@@ -15,7 +15,7 @@ Bug fix release.
   may not necessarily set the timestamp.  When sysklogd infers timestamp
   it was offset by the number of years since 1969, i.e., `boot_time`
 - Issue #29: kernel messages repeated if syslogd is restarted at runtime
-- Issue #31: time calculation issue on 32-bit systems
+- Issue #31: log message time calculation issue on 32-bit systems
 - Issue #32: remote kernel messages being mapped to uucp instead of user
 - Fix `syslogd(8)` manual page name of the syslogd PID file
 
