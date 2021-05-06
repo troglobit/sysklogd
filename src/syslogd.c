@@ -1193,7 +1193,7 @@ void printsys(char *msg)
 			 */
 			if (sys_seqno > 0 && seqno <= sys_seqno) {
 				/* allow dupes around the edge */
-				if (sys_seqno < 18446744073709551000)
+				if (sys_seqno < 18446744073709551000ULL)
 					return;
 			}
 			sys_seqno = seqno;
