@@ -890,7 +890,7 @@ parsemsg_rfc5424(const char *from, int pri, char *msg)
 	const char *start;						\
 									\
 	start = msg;							\
-	while (*msg >= '!' && *msg <= '~' && *msg != '=' &&		\
+	while (*msg && *msg >= '!' && *msg <= '~' && *msg != '=' &&	\
 	    *msg != ']' && *msg != '"')					\
 		++msg;							\
 	FAIL_IF("STRUCTURED-NAME", start == msg);			\
