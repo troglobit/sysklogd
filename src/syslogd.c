@@ -898,18 +898,18 @@ parsemsg_rfc5424(const char *from, int pri, char *msg)
 	IF_NOT_NILVALUE(buffer.sd) {
 		buffer.sd = msg;
 		/* SD-ELEMENT. */
-		while (*msg == '[') {
+		while (*msg && *msg == '[') {
 			++msg;
 			/* SD-ID. */
 			PARSE_SD_NAME();
 			/* SD-PARAM. */
-			while (*msg == ' ') {
+			while (*msg && *msg == ' ') {
 				++msg;
 				/* PARAM-NAME. */
 				PARSE_SD_NAME();
 				PARSE_CHAR("STRUCTURED-NAME", '=');
 				PARSE_CHAR("STRUCTURED-NAME", '"');
-				while (*msg != '"') {
+				while (*msg && *msg != '"') {
 					FAIL_IF("STRUCTURED-NAME",
 					    *msg == '\0');
 					if (*msg++ == '\\') {
