@@ -3,6 +3,7 @@ sudo: required
 
 compiler:
   - gcc
+  - clang
 
 # The secure: declaration is the encrypted COVERITY_SCAN_TOKEN, created
 # using the project repo's public key:
