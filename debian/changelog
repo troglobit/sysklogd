@@ -4,12 +4,14 @@ sysklogd (2.2.3) stable; urgency=medium
     or the bundled logger, the syslog() API in the C library is used, which
     may not necessarily set the timestamp.  When sysklogd infers timestamp
     it was offset by the number of years since 1969, i.e., boot_time.
-  * Fix problem with repeating kernel messages if syslogd is restarted
+  * Fix problem with repeating kernel messages if syslogd is restarted.
+    This introduces a new state file, /var/run/syslogd.cache, which saves
+    the last seen/logged sequence id read from `/dev/kmsg`
   * Fix log message time calculation issue on 32-bit systems.
   * Fix remote kernel messages being mapped to uucp instead of user
-  * Fix syslogd(8) name of PID file (syslog.pid -> syslogd.pid)
+  * Fix man page syslogd(8), name of PID file (syslog.pid -> syslogd.pid)
 
- -- Joachim Wiberg <troglobit@gmail.com>  Wed, 05 May 2021 03:36:37 +0200
+ -- Joachim Wiberg <troglobit@gmail.com>  Tue, 11 May 2021 11:20:25 +0200
 
 sysklogd (2.2.2) stable; urgency=low
 
