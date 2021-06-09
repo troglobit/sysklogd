@@ -320,7 +320,7 @@ int main(int argc, char *argv[])
 
 	closelog_r(&log);
 
-	if (rotate && checksz(fp, size))
+	if (logfile && rotate && checksz(fp, size))
 		logrotate(logfile, num, size);
 
 	return 0;
