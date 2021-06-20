@@ -31,6 +31,7 @@
 
 #include "config.h"
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <getopt.h>
@@ -112,6 +113,15 @@ static int logrotate(char *file, int num, off_t sz)
 	return 0;
 }
 
+static void log_kmsg(FILE *fp, char *ident, int pri, int opts, char *buf)
+{
+	while (isspace(*buf))
+		buf++;
+
+	/* Always add [PID] so syslogd can find this later on */
+	fprintf(fp, "<%d>%s[%d]:%s\n", pri, ident, getpid(), buf);
+}
+
 static int checksz(FILE *fp, off_t sz)
 {
 	struct stat st;
@@ -187,6 +197,9 @@ static int usage(int code)
 	       "  -d SD     Log SD as RFC5424 style 'structured data' in message\n"
 	       "  -f FILE   Log file to write messages to, instead of syslog daemon\n"
 	       "  -i        Log process ID of the logger process with each line (LOG_PID)\n"
+#ifdef __linux__
+	       "  -k        Log to kernel /dev/kmsg if /dev/log doesn't exist yet\m"
+#endif
 	       "  -m MSGID  Log message using this RFC5424 style MSGID\n"
 	       "  -n        Open log file immediately (LOG_NDELAY)\n"
 	       "  -p PRIO   Log message priority (numeric or facility.severity pair)\n"
@@ -213,13 +226,14 @@ int main(int argc, char *argv[])
 	int severity = LOG_INFO;
 	int log_opts = 0;
 	int rotate = 0;
+	int allow_kmsg = 0;
 	off_t size = 200 * 1024;
 	char *ident = NULL, *logfile = NULL;
 	char *msgid = NULL, *sd = NULL;
 	char *sockpath = NULL;
 	char buf[512] = "";
 
-	while ((c = getopt(argc, argv, "?cd:f:im:np:r:st:u:v")) != EOF) {
+	while ((c = getopt(argc, argv, "?cd:f:ikm:np:r:st:u:v")) != EOF) {
 		switch (c) {
 		case 'c':
 			log_opts |= LOG_CONS;
@@ -235,6 +249,14 @@ int main(int argc, char *argv[])
 
 		case 'i':
 			log_opts |= LOG_PID;
+			break;
+
+		case 'k':
+#ifdef __linux__
+			allow_kmsg = 1;
+#else
+			errx(1, "-k is not supported on non-Linux systems.");
+#endif
 			break;
 
 		case 'm':
@@ -308,6 +330,27 @@ int main(int argc, char *argv[])
 		if (access(sockpath, W_OK))
 			err(1, "Socket path %s", sockpath);
 		log.log_sockpath = sockpath;
+	} else if (allow_kmsg && access(_PATH_LOG, W_OK)) {
+		/*
+		 * -k and /dev/log is not yet up, user wants to prevent
+		 * logging to console and instead use the detour around
+		 * the kernel logger until syslogd has started.
+		 */
+		while (!access("/dev/kmsg", W_OK)) {
+			int pri = facility | severity;
+
+			fp = fopen("/dev/kmsg", "w");
+			if (!fp)
+				break;	/* fall back to log syslogp_r() */
+
+			if (!buf[0]) {
+				while ((fgets(buf, sizeof(buf), stdin)))
+					log_kmsg(fp, ident, pri, log_opts, chomp(buf));
+			} else
+				log_kmsg(fp, ident, pri, log_opts, buf);
+
+			return fclose(fp);
+		}
 	}
 
 	openlog_r(ident, log_opts, facility, &log);
