@@ -1230,6 +1230,33 @@ void printsys(char *msg)
 		if (buffer.pri & ~(LOG_FACMASK | LOG_PRIMASK))
 			buffer.pri = DEFSPRI;
 
+		/*
+		 * Check for user writing to /dev/kmsg before /dev/log
+		 * is up.  Syntax to write: <PRI>APP_NAME[PROC_ID]:msg
+		 */
+		if (buffer.pri & LOG_FACMASK) {
+			for (q = p; *q && !isspace(*q) && *q != '['; q++)
+				;
+
+			if (*q == '[') {
+				char *ptr = &q[1];
+
+				while (*ptr && isdigit(*ptr))
+					ptr++;
+
+				if (ptr[0] == ']' && ptr[1] == ':') {
+					*ptr++ = 0;
+					*q++   = 0;
+
+					buffer.app_name = p;
+					buffer.proc_id  = q;
+
+					/* user log message cont. here */
+					p = &ptr[1];
+				}
+			}
+		}
+
 		q = lp;
 		while (*p != '\0' && (c = *p++) != '\n' && q < &line[MAXLINE]) {
 			/* Linux /dev/kmsg C-style hex encoding. */
