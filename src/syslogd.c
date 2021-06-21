@@ -533,6 +533,9 @@ static void kernel_cb(int fd, void *arg)
 				case EAGAIN:
 					break;
 
+				case EINVAL:
+					break;
+
 				default:
 					ERR("klog read()");
 					socket_close(fd);
