@@ -33,7 +33,7 @@
 .Nd Send messages to system log, or a log file
 .Sh SYNOPSIS
 .Nm
-.Op Fl chinsv
+.Op Fl chiknsv
 .Op Fl d Ar SD
 .Op Fl f Ar FILE
 .Op Fl m Ar MSGID
@@ -86,6 +86,24 @@ as an alias for
 .It Fl i
 Log the process id of the logger process with each line
 .Ql ( LOG_PID ) .
+.It Fl k
+Log to kernel
+.Pa /dev/kmsg
+if
+.Pa /dev/log
+doesn't exist yet.  Only works on Linux systems and only if
+.Fl u Ar SOCK
+and
+.Fl f Ar FILE
+are
+.Sy not used .
+When
+.Nm syslogd
+eventually starts, it will recognize these messages, due to not having
+kernel facility, and log them properly.  Highly useful for userspace
+scripts and applications running before
+.Nm syslogd
+has started.  E.g., mount helpers and similar.
 .It Fl m Ar MSGID
 The MSGID used for the message.  Requires RFC5424 support in
 .Xr syslogd 8
