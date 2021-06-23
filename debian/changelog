@@ -1,3 +1,11 @@
+sysklogd (2.3.0) stable; urgency=medium
+
+  * PREVIEW BUILD
+  * Use systemd KillMode=process
+  * Let syslogd use another socket when journald is active (systemd systems)
+
+ -- Joachim Wiberg <troglobit@gmail.com>  Wed, 23 Jun 2021 15:24:00 +0200
+
 sysklogd (2.2.3) stable; urgency=medium
 
   * Fix problem with log messages stuck in 1969.  When not using libsyslog,
