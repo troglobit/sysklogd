@@ -198,7 +198,7 @@ static int usage(int code)
 	       "  -f FILE   Log file to write messages to, instead of syslog daemon\n"
 	       "  -i        Log process ID of the logger process with each line (LOG_PID)\n"
 #ifdef __linux__
-	       "  -k        Log to kernel /dev/kmsg if /dev/log doesn't exist yet\m"
+	       "  -k        Log to kernel /dev/kmsg if /dev/log doesn't exist yet\n"
 #endif
 	       "  -m MSGID  Log message using this RFC5424 style MSGID\n"
 	       "  -n        Open log file immediately (LOG_NDELAY)\n"
