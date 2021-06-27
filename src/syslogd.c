@@ -2027,7 +2027,7 @@ void flog(int pri, char *fmt, ...)
 	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	logit("%s\n", buf);
+	logit("flog<%d>: %s\n", pri, buf);
 
 	(void)snprintf(proc_id, sizeof(proc_id), "%d", getpid());
 	memset(&buffer, 0, sizeof(buffer));
