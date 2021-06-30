@@ -79,7 +79,7 @@
 #define	INTERNAL_NOPRI	0x10	/* the "no priority" priority */
 				/* mark "facility" */
 #define INTERNAL_ALLPRI 0xFF   /* Value to indicate all priorities in f_pmask */
-#define	INTERNAL_MARK	LOG_MAKEPRI(LOG_NFACILITIES, 0)
+#define	INTERNAL_MARK	LOG_MAKEPRI(LOG_NFACILITIES << 3, 0)
 typedef struct _code {
 	const char	*c_name;
 	int	c_val;
