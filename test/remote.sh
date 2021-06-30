@@ -10,7 +10,7 @@ MSG="kilroy"
 # Start collector in background, note: might need sudo!
 #tshark -Qni lo -w ${CAP} port ${PORT} &
 tshark -Qni lo -w ${CAP} port 514 &
-PID="$!"
+TPID="$!"
 
 # Wait for tshark to start up properly
 sleep 3
@@ -21,8 +21,8 @@ sleep 3
 sleep 1
 
 # Stop tshark collector
-kill -TERM ${PID}
-wait ${PID}
+kill -TERM ${TPID}
+wait ${TPID}
 
 # Analyze content, should have $MSG now ...
 #tshark -d udp.port==${PORT},syslog -r ${CAP} | grep ${MSG}
