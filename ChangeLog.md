@@ -4,6 +4,27 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.3.0][UNRELEASED]
+-----------------------
+
+### Changes
+- Add support for `logger -k`, early log to `/dev/kmsg`.  Useful when
+  logging from early system startup scripts before syslogd has started
+- Support for extracting non-kernel log messages from `/dev/kmsg`
+- Ignore `EINVAL` from kernel, caused warning message at first startup
+- Use journald socket on systemd systems, not `/dev/log`
+- Issue #38: add support for `syslogd -C file` to use `file` for caching
+  the last seen kernel sequence number, default: `/run/syslogd.cache`
+
+
+### Fixes
+- Issue #34: regression in v2.2.3, causing loss of syslogd log messages
+  like `syslogd v2.2.3: restart.`
+- Issue #35: man pages lists `-v` as verbose mode, is actually version
+- Issue #39: update tests to use `-P fn` and `-C fn`
+- Replace `\m` with `\n` (missing newline) in `logger` usage text
+
+
 [v2.2.3][] - 2021-05-11
 -----------------------
 
@@ -396,6 +417,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 
 
 [UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.2.3...HEAD
+[v2.3.0]:     https://github.com/troglobit/sysklogd/compare/v2.2.3...v2.3.0
 [v2.2.3]:     https://github.com/troglobit/sysklogd/compare/v2.2.2...v2.2.3
 [v2.2.2]:     https://github.com/troglobit/sysklogd/compare/v2.2.1...v2.2.2
 [v2.2.1]:     https://github.com/troglobit/sysklogd/compare/v2.2.0...v2.2.1

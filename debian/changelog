@@ -1,10 +1,19 @@
 sysklogd (2.3.0) stable; urgency=medium
 
-  * PREVIEW BUILD
+  * Support for `logger -k`, early log to /dev/kmsg.  Useful when logging
+    from early system startup scripts before syslogd has started
+  * Support for extracting non-kernel log messages from /dev/kmsg
+  * Ignore EINVAL from kernel, caused warning message at first startup
+  * Add support for `syslogd -C file` to use `file` for caching
+    the last seen kernel sequence number, default: /run/syslogd.cache
+  * Fix regression from v2.2.3, causing loss of syslogd log messages
+    like `syslogd v2.2.3: restart.`
+  * Fix man page, listed `-v` as verbose mode, is actually version
+  * Replace `\m` with `\n` (missing newline) in `logger` usage text
   * Use systemd KillMode=process
   * Let syslogd use another socket when journald is active (systemd systems)
 
- -- Joachim Wiberg <troglobit@gmail.com>  Wed, 23 Jun 2021 15:24:00 +0200
+ -- Joachim Wiberg <troglobit@gmail.com>  Thu, 01 Jul 2021 00:12:24 +0200
 
 sysklogd (2.2.3) stable; urgency=medium
 
