@@ -43,6 +43,7 @@
 .Op Fl a Ar name[:port]
 .Op Fl b Ar addr[:port]
 .Op Fl b Ar :port
+.Op Fl C Ar file
 .Op Fl f Ar file
 .Op Fl m Ar interval
 .Op Fl P Ar file
@@ -209,6 +210,16 @@ is
 .Ql syslog .
 This option can be specified multiple times to bind to
 multiple addresses and/or ports.
+.It Fl C Ar file
+File to use for caching last read kernel sequence number from
+.Pa /dev/kmsg ,
+default:
+.Pa /run/syslogd.cache .
+If
+.Nm
+cannot write to, or read from, this file it will cause repeated kernel
+log messages when restarting
+.Nm .
 .It Fl d
 Put
 .Nm

@@ -96,9 +96,10 @@ static char sccsid[] __attribute__((unused)) =
 #include "timer.h"
 #include "compat.h"
 
-char *ConfFile = _PATH_LOGCONF;
-char *PidFile  = _PATH_LOGPID;
-char  ctty[]   = _PATH_CONSOLE;
+char *CacheFile = _PATH_CACHE;
+char *ConfFile  = _PATH_LOGCONF;
+char *PidFile   = _PATH_LOGPID;
+char  ctty[]    = _PATH_CONSOLE;
 
 static volatile sig_atomic_t debugging_on;
 static volatile sig_atomic_t restart;
@@ -202,7 +203,7 @@ static void sys_seqno_load(void)
 	char buf[32], *str;
 	FILE *fp;
 
-	fp = fopen(_PATH_CACHE, "r");
+	fp = fopen(CacheFile, "r");
 	if (!fp)
 		return;
 
@@ -235,7 +236,7 @@ static void sys_seqno_save(void)
 	if (prev == sys_seqno)
 		return;		/* no changes since last save */
 
-	fp = fopen(_PATH_CACHE, "w");
+	fp = fopen(CacheFile, "w");
 	if (!fp)
 		return;		/* best effort, ignore any errors */
 
@@ -273,6 +274,7 @@ int usage(int code)
 	       "              :port                 UDP port number, or service name\n"
 	       "                                    default: 'syslog', port 514\n"
 	       "\n"
+	       "  -C FILE   File to cache last read kernel seqno, default: %s\n"
 	       "  -d        Enable debug mode, implicitly enables -F to prevent backgrounding\n"
 	       "  -F        Run in foreground, required when monitored by init(1)\n"
 	       "  -f FILE   Alternate .conf file, default: %s\n"
@@ -293,7 +295,7 @@ int usage(int code)
 	       "  -v        Show program version and exit\n"
 	       "\n"
 	       "Bug report address: %s\n",
-	       _PATH_LOGCONF, _PATH_LOGPID, _PATH_LOG, _PATH_LOGCONF, PACKAGE_BUGREPORT);
+	       _PATH_CACHE, _PATH_LOGCONF, _PATH_LOGPID, _PATH_LOG, _PATH_LOGCONF, PACKAGE_BUGREPORT);
 #ifdef PACKAGE_URL
 	printf("Project home page:  %s\n", PACKAGE_URL);
 #endif
@@ -308,7 +310,7 @@ int main(int argc, char *argv[])
 	int pflag = 0, bflag = 0;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "46Aa:b:dHFf:km:nP:p:r:sTv?")) != EOF) {
+	while ((ch = getopt(argc, argv, "46Aa:b:C:dHFf:km:nP:p:r:sTv?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -336,6 +338,10 @@ int main(int argc, char *argv[])
 				.pe_name = optarg,
 				.pe_serv = ptr,
 			});
+			break;
+
+		case 'C': /* kernel seqno cache file */
+			CacheFile = optarg;
 			break;
 
 		case 'd': /* debug */
