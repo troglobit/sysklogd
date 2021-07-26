@@ -1,0 +1,55 @@
+name: Bob the Builder
+
+# Run on all branches, including all pull requests, except the 'dev'
+# branch since that's where we run Coverity Scan (limited tokens/day)
+on:
+  push:
+    branches:
+      - '**'
+      - '!dev'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  build:
+    # Verify we can build on latest Ubuntu with both gcc and clang
+    name: ${{ matrix.compiler }}
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+      fail-fast: false
+    runs-on: ubuntu-latest
+    env:
+      MAKEFLAGS: -j3
+      CC: ${{ matrix.compiler }}
+    steps:
+      - name: Install build dependencies ...
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq -y tree tshark
+      - uses: actions/checkout@v2
+      - name: Configure
+        run: |
+          ./autogen.sh
+          ./configure --prefix=
+      - name: Build
+        run: |
+          make V=1
+      - name: Install
+        run: |
+          make V=1 DESTDIR=~/tmp install-strip
+          tree ~/tmp
+          ldd ~/tmp/sbin/syslogd
+          size ~/tmp/sbin/syslogd
+          ~/tmp/sbin/syslogd -?
+      - name: Example w/ libsyslog
+        run: |
+          mkdir -p ~/tmp/example
+          cp -a example/example.* ~/tmp/example/
+          pushd ~/tmp/example/
+          PKG_CONFIG_LIBDIR=~/tmp/lib/pkgconfig make -f example.mk
+          popd
+      - name: Unit tests
+        run: |
+          sudo make check || (cat test/start.log; cat test/remote.log; false)
