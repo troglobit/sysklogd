@@ -10,7 +10,7 @@
 ```
 <a href="https://repology.org/project/sysklogd/versions"><img align="right" alt="Packaging status"
    src="https://repology.org/badge/vertical-allrepos/sysklogd.svg"></a>
-[![BSD Badge][]][BSD License] [![Travis Status][]][Travis] [![Coverity Status][]][Coverity Scan]
+[![BSD Badge][]][BSD License] [![GitHub Status][]][GitHub] [![Coverity Status][]][Coverity Scan]
 
 Table of Contents
 -----------------
@@ -178,22 +178,23 @@ This is the continuation of the original sysklogd by Dr. G.W. Wettstein
 and [Martin Schulze][].  Currently maintained, and almost completely
 rewritten with the latest DNA strands from NetBSD and FreeBSD, by
 [Joachim Wiberg][].  Please file bug reports, or send pull requests for
-bug fixes and proposed extensions at [GitHub][].
+bug fixes and proposed extensions at [GitHub][Home].
 
-The project was previously licensed under the GNU GPL, since the removal
-of `klogd` the project is now [3-clause BSD][BSD License] licensed.
+The project was previously licensed under the GNU GPL, but since the
+removal of `klogd`, man pages, and resync with the BSDs the project is
+now [3-clause BSD][BSD License] licensed.
 
 [RFC3164]:          https://tools.ietf.org/html/rfc3164
 [RFC5424]:          https://tools.ietf.org/html/rfc5424
 [Martin Schulze]:   http://www.infodrom.org/projects/sysklogd/
 [Joachim Wiberg]:   https://troglobit.com
 [Finit]:            https://github.com/troglobit/finit
-[GitHub]:           https://github.com/troglobit/sysklogd
+[Home]:             https://github.com/troglobit/sysklogd
 [example]:          https://github.com/troglobit/sysklogd/tree/master/example
 [buildsystem]:      https://airs.com/ian/configure/
 [BSD License]:      https://en.wikipedia.org/wiki/BSD_licenses
 [BSD Badge]:        https://img.shields.io/badge/License-BSD%203--Clause-blue.svg
-[Travis]:           https://travis-ci.org/troglobit/sysklogd
-[Travis Status]:    https://travis-ci.org/troglobit/sysklogd.png?branch=master
+[GitHub]:           https://github.com/troglobit/sysklogd/actions/workflows/build.yml/
+[GitHub Status]:    https://github.com/troglobit/sysklogd/actions/workflows/build.yml/badge.svg
 [Coverity Scan]:    https://scan.coverity.com/projects/19540
 [Coverity Status]:  https://scan.coverity.com/projects/19540/badge.svg
