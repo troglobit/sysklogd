@@ -220,6 +220,13 @@ If
 cannot write to, or read from, this file it will cause repeated kernel
 log messages when restarting
 .Nm .
+.Pp
+.Sy Note:
+.Nm
+relies on this file being removed at system reboot.  The default
+location depends on the system and how
+.Nm
+was configured.
 .It Fl d
 Put
 .Nm
@@ -461,7 +468,10 @@ conventional name for default rules.
 default process ID file
 .It Pa /var/run/syslogd.cache
 cache of last read sequence number from
-.Pa /dev/kmsg
+.Pa /dev/kmsg .
+Please note,
+.Nm
+relies on this file being removed at system reboot.
 .It Pa /dev/log
 name of the
 .Ux

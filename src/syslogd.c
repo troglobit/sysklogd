@@ -275,6 +275,7 @@ int usage(int code)
 	       "                                    default: 'syslog', port 514\n"
 	       "\n"
 	       "  -C FILE   File to cache last read kernel seqno, default: %s\n"
+	       "            Note: syslogd relies on this file being removed at system reboot.\n"
 	       "  -d        Enable debug mode, implicitly enables -F to prevent backgrounding\n"
 	       "  -F        Run in foreground, required when monitored by init(1)\n"
 	       "  -f FILE   Alternate .conf file, default: %s\n"

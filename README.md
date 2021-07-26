@@ -132,6 +132,11 @@ sudo make install-strip
 You may want to remove the `--prefix=/usr` option.  Most users prefer
 non-distro binaries in `/usr/local` or `/opt`.
 
+> **Note:** the `--runstatedir` option should point to a filesystem
+>           that is cleaned at reboot.  syslogd relies on this for
+>           its `syslogd.cache` file, which keeps track of the last
+>           read kernel log message from `/dev/kmsg`.
+
 
 Building from GIT
 -----------------
