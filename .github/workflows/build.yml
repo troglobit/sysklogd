@@ -32,24 +32,24 @@ jobs:
       - name: Configure
         run: |
           ./autogen.sh
-          ./configure --prefix=
+          ./configure --prefix=/tmp
       - name: Build
         run: |
           make V=1
       - name: Install
         run: |
-          make V=1 DESTDIR=~/tmp install-strip
-          tree ~/tmp
-          ldd ~/tmp/sbin/syslogd
-          size ~/tmp/sbin/syslogd
-          ~/tmp/sbin/syslogd -?
-      - name: Example w/ libsyslog
+          make V=1 install-strip
+          tree /tmp
+          ldd /tmp/sbin/syslogd
+          size /tmp/sbin/syslogd
+          /tmp/sbin/syslogd -?
+      - name: Example
         run: |
-          mkdir -p ~/tmp/example
-          cp -a example/example.* ~/tmp/example/
-          pushd ~/tmp/example/
-          PKG_CONFIG_LIBDIR=~/tmp/lib/pkgconfig make -f example.mk
+          mkdir -p /tmp/example
+          cp -a example/example.* /tmp/example/
+          pushd /tmp/example/
+          PKG_CONFIG_LIBDIR=/tmp/lib/pkgconfig make -f example.mk
           popd
-      - name: Unit tests
+      - name: Test
         run: |
           sudo make check || (cat test/start.log; cat test/remote.log; false)
