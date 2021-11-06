@@ -69,12 +69,11 @@ release: release-hook distcheck package
 	done
 	@mv $(DIST_ARCHIVES) ../
 	@echo
-	@echo "Resulting release files:"
-	@echo "================================================================="
-	@for file in $(DIST_ARCHIVES); do					\
-		printf "$$file    \tDistribution tarball\n";			\
-		printf "$$file.md5\t"; cat ../$$file.md5 | cut -f1 -d' ';	\
-		printf "$$file.sha256\t"; cat ../$$file.sha256 | cut -f1 -d' ';	\
+	@echo "Resulting release files ======================================================================="
+	@for file in $(DIST_ARCHIVES); do						\
+		printf "%-30s Distribution tarball\n" $$file;				\
+		printf "%-30s " $$file.md5;    cat ../$$file.md5    | cut -f1 -d' ';	\
+		printf "%-30s " $$file.sha256; cat ../$$file.sha256 | cut -f1 -d' ';	\
 	done
 
 # Workaround for systemd unit file duing distcheck
