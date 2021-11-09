@@ -38,7 +38,7 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm
-.Op Fl ?46AdFknsTv
+.Op Fl ?46AdFHknsTv
 .Op Fl a Ar addr[/len][:port]
 .Op Fl a Ar name[:port]
 .Op Fl b Ar addr[:port]
@@ -252,6 +252,9 @@ and
 to run
 .Nm ,
 and wants to monitor when and how it exits.
+.It Fl H
+When logging remote messages use hostname from the message (if supplied)
+instead of using address from which the message was received.
 .It Fl k
 Disable the translation of
 messages received with facility
