@@ -40,6 +40,7 @@ jobs:
           make
       - name: Install Check
         run: |
+          pwd
           DESTDIR=/tmp make V=1 install-strip
           tree /tmp
           ldd /tmp/sbin/syslogd
@@ -47,6 +48,7 @@ jobs:
           /tmp/sbin/syslogd -?
       - name: Build Example
         run: |
+          pwd
           mkdir -p /tmp/example
           cp -a example/example.* /tmp/example/
           pushd /tmp/example/
