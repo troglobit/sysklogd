@@ -49,7 +49,7 @@ jobs:
           ./configure --prefix=/tmp --with-systemd=/tmp/lib/systemd/system
       - name: Build release ...
         run: |
-          make release || (cat test/start.log; cat test/remote.log; false)
+          make release || (cat sysklogd-2.3.0/_build/sub/test/start.log; cat sysklogd-2.3.0/_build/sub/test/remote.log; false)
           ls -lF ../
           mkdir -p artifacts/
           mv ../*.tar.* artifacts/
