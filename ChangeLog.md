@@ -4,7 +4,7 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
-[v2.3.0][UNRELEASED]
+[v2.3.0][] - 2021-11-22
 -----------------------
 
 ### Changes
@@ -14,14 +14,17 @@ All relevant changes to the project are documented in this file.
 - Ignore `EINVAL` from kernel, caused warning message at first startup
 - Use journald socket on systemd systems, not `/dev/log`
 - Issue #38: add support for `syslogd -C file` to use `file` for caching
-  the last seen kernel sequence number, default: `/run/syslogd.cache`
-
+  the last seen kernel sequence number, default: `/run/syslogd.cache`.
+  **Note:** syslogd relies on the location of this file to be wiped at
+  system boot.  The default, `/run`, is a RAM disk on modern systems
 
 ### Fixes
 - Issue #34: regression in v2.2.3, causing loss of syslogd log messages
   like `syslogd v2.2.3: restart.`
 - Issue #35: man pages lists `-v` as verbose mode, is actually version
 - Issue #39: update tests to use `-P fn` and `-C fn`
+- Issue #40: improve documentation for syslogd.cache file requirements
+- Issue #41: add missing documentation for -H option
 - Replace `\m` with `\n` (missing newline) in `logger` usage text
 
 
@@ -416,7 +419,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.2.3...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.3.0...HEAD
 [v2.3.0]:     https://github.com/troglobit/sysklogd/compare/v2.2.3...v2.3.0
 [v2.2.3]:     https://github.com/troglobit/sysklogd/compare/v2.2.2...v2.2.3
 [v2.2.2]:     https://github.com/troglobit/sysklogd/compare/v2.2.1...v2.2.2

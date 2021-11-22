@@ -9,11 +9,12 @@ sysklogd (2.3.0) stable; urgency=medium
   * Fix regression from v2.2.3, causing loss of syslogd log messages
     like `syslogd v2.2.3: restart.`
   * Fix man page, listed `-v` as verbose mode, is actually version
+  * Fix man page, missing documentation for `-H` option
   * Replace `\m` with `\n` (missing newline) in `logger` usage text
   * Use systemd KillMode=process
   * Let syslogd use another socket when journald is active (systemd systems)
 
- -- Joachim Wiberg <troglobit@gmail.com>  Thu, 01 Jul 2021 00:12:24 +0200
+ -- Joachim Wiberg <troglobit@gmail.com>  Mon, 22 Nov 2021 02:20:15 +0100
 
 sysklogd (2.2.3) stable; urgency=medium
 
