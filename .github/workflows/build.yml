@@ -26,8 +26,8 @@ jobs:
     steps:
       - name: Install build dependencies ...
         run: |
-          sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq -y tree tshark
+          sudo apt-get -y update
+          sudo apt-get -y install tree tshark
       - uses: actions/checkout@v2
       - name: Configure
         run: |
