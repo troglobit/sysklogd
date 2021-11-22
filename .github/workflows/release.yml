@@ -41,8 +41,8 @@ jobs:
       - uses: actions/checkout@v2
       - name: Installing dependencies ...
         run: |
-          sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq -y tree tshark
+          sudo apt-get -y update
+          sudo apt-get -y install tree tshark
       - name: Creating Makefiles ...
         run: |
           ./autogen.sh
