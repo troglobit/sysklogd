@@ -24,12 +24,12 @@ jobs:
       MAKEFLAGS: -j3
       CC: ${{ matrix.compiler }}
     steps:
-      - name: Install build dependencies ...
+      - name: Install dependencies
         run: |
           sudo apt-get -y update
           sudo apt-get -y install tree tshark
       - uses: actions/checkout@v2
-      - name: Configure
+      - name: Configure & Build
         run: |
           set -x
           ./autogen.sh
@@ -37,23 +37,21 @@ jobs:
           cd build/dir
           ../../configure --prefix= --with-systemd=/tmp/lib/systemd/system
           chmod -R a+w .
-      - name: Build
-        run: |
-          make V=1
-      - name: Install
+          make
+      - name: Install Check
         run: |
           DESTDIR=/tmp make V=1 install-strip
           tree /tmp
           ldd /tmp/sbin/syslogd
           size /tmp/sbin/syslogd
           /tmp/sbin/syslogd -?
-      - name: Example
+      - name: Build Example
         run: |
           mkdir -p /tmp/example
           cp -a example/example.* /tmp/example/
           pushd /tmp/example/
           PKG_CONFIG_LIBDIR=/tmp/lib/pkgconfig make -f example.mk
           popd
-      - name: Test
+      - name: Run Tests
         run: |
-          sudo make check || (cat test/start.log; cat test/remote.log; false)
+          make check || (cat test/test-suite.log; false)
