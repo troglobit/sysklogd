@@ -1698,9 +1698,12 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 		f->f_prevcount = 0;
 }
 
-#define fmtlogit(bm) logit("%s(%d, 0x%02x, %s, %s, %s, %s, %s, %s)", __func__, \
-			   bm->pri, bm->flags, bm->hostname, bm->app_name,     \
-			   bm->proc_id, bm->msgid, bm->sd, bm->msg)
+#define fmtlogit(bm) logit("%s(%d, 0x%02x, %s, %s, %s, %s, %s, %s)", __func__,		\
+			   bm->pri, bm->flags, bm->hostname ? bm->hostname : "-",	\
+			   bm->app_name ? bm->app_name : "-",				\
+			   bm->proc_id ? bm->proc_id : "-",				\
+			   bm->msgid ? bm->msgid : "-",					\
+			   bm->sd ? bm->sd : "-", bm->msg ? bm->msg : "-")
 
 static int fmt3164(struct buf_msg *buffer, char *fmt, struct iovec *iov, size_t iovmax)
 {
