@@ -35,14 +35,14 @@ jobs:
           ./autogen.sh
           mkdir -p build/dir
           cd build/dir
-          ../../configure --prefix=/tmp --with-systemd=/tmp/lib/systemd/system
-          chmod -R a+w
+          ../../configure --prefix= --with-systemd=/tmp/lib/systemd/system
+          chmod -R a+w .
       - name: Build
         run: |
           make V=1
       - name: Install
         run: |
-          make V=1 install-strip
+          DESTDIR=/tmp make V=1 install-strip
           tree /tmp
           ldd /tmp/sbin/syslogd
           size /tmp/sbin/syslogd
