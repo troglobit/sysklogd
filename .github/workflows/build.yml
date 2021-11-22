@@ -29,7 +29,7 @@ jobs:
           sudo apt-get -y update
           sudo apt-get -y install tree tshark
       - uses: actions/checkout@v2
-      - name: Configure & Build
+      - name: Configure
         run: |
           set -x
           ./autogen.sh
@@ -37,11 +37,13 @@ jobs:
           cd build/dir
           ../../configure --prefix= --with-systemd=/tmp/lib/systemd/system
           chmod -R a+w .
+      - name: Build
+        run: |
+          cd build/dir
           make
       - name: Install Check
         run: |
           cd build/dir
-          pwd
           DESTDIR=/tmp make V=1 install-strip
           tree /tmp
           ldd /tmp/sbin/syslogd
@@ -49,8 +51,6 @@ jobs:
           /tmp/sbin/syslogd -?
       - name: Build Example
         run: |
-          cd build/dir
-          pwd
           mkdir -p /tmp/example
           cp -a example/example.* /tmp/example/
           pushd /tmp/example/
