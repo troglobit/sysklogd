@@ -1,5 +1,8 @@
 #!/bin/sh
-. ./start.sh
+if [ x"${srcdir}" = x ]; then
+    srcdir=.
+fi
+. ${srcdir}/start.sh
 
 MSG="kilroy"
 

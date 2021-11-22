@@ -1,6 +1,9 @@
 #!/bin/sh -e
 # Test '-- MARK --' in log, depends on fwd.sh
-. ./start.sh
+if [ x"${srcdir}" = x ]; then
+    srcdir=.
+fi
+. ${srcdir}/start.sh
 
 check_mark()
 {

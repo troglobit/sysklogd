@@ -1,6 +1,9 @@
 #!/bin/sh
 # Test FWD between two syslogd, second binds 127.0.0.2:5555
-. ./start.sh
+if [ x"${srcdir}" = x ]; then
+    srcdir=.
+fi
+. ${srcdir}/start.sh
 
 MSG="fwd and allow"
 
