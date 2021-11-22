@@ -46,10 +46,10 @@ jobs:
       - name: Creating Makefiles ...
         run: |
           ./autogen.sh
-          ./configure
+          ./configure --prefix=/tmp --with-systemd=/tmp/lib/systemd/system
       - name: Build release ...
         run: |
-          make release || (cat test/test-suite.log; false)
+          make release || (cat test/start.log; cat test/remote.log; false)
           ls -lF ../
           mkdir -p artifacts/
           mv ../*.tar.* artifacts/
