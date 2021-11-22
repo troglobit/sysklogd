@@ -1,4 +1,4 @@
-EXTRA_DIST       = test.rc opts.sh start.sh stop.sh
+EXTRA_DIST       = lib.sh opts.sh
 EXTRA_DIST      += api.sh local.sh remote.sh fwd.sh mark.sh
 CLEANFILES       = *~ *.trs *.log
 TEST_EXTENSIONS  = .sh

@@ -3,7 +3,9 @@
 if [ x"${srcdir}" = x ]; then
     srcdir=.
 fi
-. ${srcdir}/start.sh
+. ${srcdir}/lib.sh
+
+setup
 
 MSG="fwd and allow"
 
@@ -23,10 +25,9 @@ kill -HUP `cat ${PID}`
 sleep 2
 
 # Enable debug for second syslogd
+cat ${PID2} >> "$DIR/PIDs"
 kill -USR1 `cat ${PID2}`
 
 ../src/logger -t fwd -p ntp.notice -u ${SOCK} -m "NTP123" ${MSG}
 sleep 3
-grep "fwd - NTP123 - ${MSG}" ${LOG2}
-
-. ./stop.sh
+grep "fwd - NTP123 - ${MSG}" ${LOG2} || FAIL "Nothing forwarded."

@@ -2,15 +2,14 @@
 if [ x"${srcdir}" = x ]; then
     srcdir=.
 fi
-. ${srcdir}/start.sh
+. ${srcdir}/lib.sh
+setup
 
 MSG="foobar"
 MSG2="xyzzy"
 
 ../src/logger -u ${SOCK} ${MSG}
-grep ${MSG} ${LOG}
+grep ${MSG} ${LOG} || FAIL "Cannot find: ${MSG}"
 
 ../src/logger -u ${ALTSOCK} ${MSG2}
-grep ${MSG2} ${LOG}
-
-. ./stop.sh
+grep ${MSG2} ${LOG} || FAIL "Cannot find: ${MSG2}"

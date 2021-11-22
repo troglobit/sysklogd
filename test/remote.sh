@@ -1,8 +1,11 @@
 #!/bin/sh
+set -x
+
 if [ x"${srcdir}" = x ]; then
     srcdir=.
 fi
-. ${srcdir}/start.sh
+. ${srcdir}/lib.sh
+setup
 
 MSG="kilroy"
 
@@ -10,6 +13,7 @@ MSG="kilroy"
 #tshark -Qni lo -w ${CAP} port ${PORT} &
 tshark -Qni lo -w ${CAP} port 514 &
 TPID="$!"
+echo "$TPID" >> "$DIR/PIDs"
 
 # Wait for tshark to start up properly
 sleep 3
@@ -25,7 +29,5 @@ wait ${TPID}
 
 # Analyze content, should have $MSG now ...
 #tshark -d udp.port==${PORT},syslog -r ${CAP} | grep ${MSG}
-tshark -r ${CAP} | grep ${MSG}
+tshark -r ${CAP} | grep ${MSG} || FAIL "Cannot find: ${MSG}"
 rm ${CAP}
-
-. ./stop.sh

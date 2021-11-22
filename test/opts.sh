@@ -1,10 +1,8 @@
 #!/bin/sh
-set -x
-
 if [ x"${srcdir}" = x ]; then
     srcdir=.
 fi
-. ${srcdir}/test.rc
+. ${srcdir}/lib.sh
 
 mkdir -p ${CONFD}
 cat <<EOF > ${CONF}
@@ -14,8 +12,7 @@ EOF
 
 ../src/syslogd -m1 -b :${PORT} -d -sF -f ${CONF} -p ${SOCK} -p ${ALTSOCK} >${LOG2} &
 echo "$!" > ${PID}
+cat ${PID} >> "$DIR/PIDs"
 
-sleep 1
-kill -9 ${PID}
-
-grep ';RFC5424,rotate=10000000:5' ${LOG2}
+sleep 2
+grep ';RFC5424,rotate=10000000:5' ${LOG2} || FAIL "Failed parsing RFC542 .conf"
