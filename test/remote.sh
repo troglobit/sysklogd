@@ -1,9 +1,5 @@
 #!/bin/sh
-set -ex
-if [ x"${srcdir}" = x ]; then
-    srcdir=.
-fi
-. ${srcdir}/test.rc
+. ./start.sh
 
 MSG="kilroy"
 
@@ -29,3 +25,4 @@ wait ${TPID}
 tshark -r ${CAP} | grep ${MSG}
 rm ${CAP}
 
+. ./stop.sh

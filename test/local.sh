@@ -1,8 +1,5 @@
 #!/bin/sh
-if [ x"${srcdir}" = x ]; then
-    srcdir=.
-fi
-. ${srcdir}/test.rc
+. ./start.sh
 
 MSG="foobar"
 MSG2="xyzzy"
@@ -12,3 +9,5 @@ grep ${MSG} ${LOG}
 
 ../src/logger -u ${ALTSOCK} ${MSG2}
 grep ${MSG2} ${LOG}
+
+. ./stop.sh

@@ -1,10 +1,14 @@
 #!/bin/sh -e
 # Test '-- MARK --' in log, depends on fwd.sh
+. ./start.sh
 
-if [ x"${srcdir}" = x ]; then
-    srcdir=.
-fi
-. ${srcdir}/test.rc
+check_mark()
+{
+    grep "MARK" "${LOG}" && return 0
+    sleep 1
+    return 1
+}
 
-sleep 120
-grep "MARK" ${LOG2}
+tenacious 120 check_mark
+
+. ./stop.sh

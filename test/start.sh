@@ -4,6 +4,54 @@ if [ x"${srcdir}" = x ]; then
 fi
 . ${srcdir}/test.rc
 
+# Print heading for test phases
+print()
+{
+    printf "\e[7m>> %-76s\e[0m\n" "$1"
+}
+
+dprint()
+{
+    printf "\e[2m%-76s\e[0m\n" "$1"
+}
+
+SKIP()
+{
+    print "TEST: SKIP"
+    [ $# -gt 0 ] && echo "$*"
+    exit 77
+}
+
+FAIL()
+{
+    print "TEST: FAIL"
+    [ $# -gt 0 ] && echo "$*"
+    exit 99
+}
+
+OK()
+{
+    print "TEST: OK"
+    [ $# -gt 0 ] && echo "$*"
+    exit 0
+}
+
+# shellcheck disable=SC2068
+tenacious()
+{
+    timeout=$1
+    shift
+
+    while [ $timeout -gt 0 ]; do
+	$@ && return
+	timeout=$((timeout - 1))
+    done
+
+    FAIL "Timeed out $*"
+}
+
+ip link set lo up
+
 mkdir -p ${CONFD}
 cat <<EOF > ${CONF}
 # Nothing here yo

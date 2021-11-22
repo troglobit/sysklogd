@@ -1,9 +1,5 @@
 #!/bin/sh
-set -ex
-if [ x"${srcdir}" = x ]; then
-    srcdir=.
-fi
-. ${srcdir}/test.rc
+. ./start.sh
 
 export MSG="no-openlog-apitest"
 
@@ -42,3 +38,4 @@ echo "= Phase 4 - Verify RFC5424 API with logger(1) ==========="
 sleep 2
 grep "exampleSDID@32473" ${LOGV1} || (echo "== ${LOGV1}"; tail -10  ${LOGV1}; false)
 
+. ./stop.sh

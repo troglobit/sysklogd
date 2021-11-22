@@ -1,21 +1,25 @@
-NM=syslog-test
-NM2=syslog-test2
-LOG=/tmp/${NM}.log
-LOG2=/tmp/${NM2}.log
-LOGV1=/tmp/${NM}-v1.log
-LOGCONS=/tmp/${NM}-cons.log
-PID=/tmp/${NM}.pid
-PID2=/tmp/${NM2}.pid
-CAP=/tmp/${NM}.pcapng
-CACHE=/tmp/${NM}.cache
-CACHE2=/tmp/${NM2}.cache
-CONF=/tmp/${NM}.conf
-CONF2=/tmp/${NM2}.conf
-CONFD=/tmp/${NM}.d
-CONFD2=/tmp/${NM2}.d
-SOCK=/tmp/${NM}.sock
-SOCK2=/tmp/${NM2}.sock
-ALTSOCK=/tmp/${NM}-alt.sock
+# Test name, used everywhere as /tmp/sysklogd/$NM/foo
+NM=$(basename "$0" .sh)
+DIR=/tmp/sysklogd/$NM
+
+FN=syslog-test
+FN2=syslog-test2
+LOG=$DIR/${FN}.log
+LOG2=$DIR/${FN2}.log
+LOGV1=$DIR/${FN}-v1.log
+LOGCONS=$DIR/${FN}-cons.log
+PID=$DIR/${FN}.pid
+PID2=$DIR/${FN2}.pid
+CAP=$DIR/${FN}.pcapng
+CACHE=$DIR/${FN}.cache
+CACHE2=$DIR/${FN2}.cache
+CONF=$DIR/${FN}.conf
+CONF2=$DIR/${FN2}.conf
+CONFD=$DIR/${FN}.d
+CONFD2=$DIR/${FN2}.d
+SOCK=$DIR/${FN}.sock
+SOCK2=$DIR/${FN2}.sock
+ALTSOCK=$DIR/${FN}-alt.sock
 PORT=5514
 PORT2=5555
 
