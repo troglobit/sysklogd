@@ -31,8 +31,12 @@ jobs:
       - uses: actions/checkout@v2
       - name: Configure
         run: |
+          set -x
           ./autogen.sh
-          ./configure --prefix=/tmp --with-systemd=/tmp/lib/systemd/system
+          mkdir -p build/dir
+          cd build/dir
+          ../../configure --prefix=/tmp --with-systemd=/tmp/lib/systemd/system
+          chmod -R a+w
       - name: Build
         run: |
           make V=1
