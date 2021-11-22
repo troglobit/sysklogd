@@ -25,7 +25,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-aAC_INIT([sysklogd], [2.3.0], [https://github.com/troglobit/sysklogd/issues],,
+AC_INIT([sysklogd], [2.3.0], [https://github.com/troglobit/sysklogd/issues],,
 	[https://github.com/troglobit/sysklogd])
 AC_CONFIG_AUX_DIR(aux)
 AM_INIT_AUTOMAKE([1.11 foreign subdir-objects])
