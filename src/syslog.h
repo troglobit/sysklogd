@@ -34,7 +34,6 @@
 #ifndef _SYS_SYSLOG_H_ /* From NetBSD, for co-existance with C-library header */
 #define _SYS_SYSLOG_H_
 
-#include <features.h>
 #include <stdarg.h>
 
 /*
@@ -80,6 +79,7 @@
 				/* mark "facility" */
 #define INTERNAL_ALLPRI 0xFF   /* Value to indicate all priorities in f_pmask */
 #define	INTERNAL_MARK	LOG_MAKEPRI(LOG_NFACILITIES << 3, 0)
+#undef CODE
 typedef struct _code {
 	const char	*c_name;
 	int	c_val;
