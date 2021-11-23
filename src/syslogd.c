@@ -125,6 +125,7 @@ static int	  Debug;		/* debug flag */
 static int	  Foreground = 0;	/* don't fork - don't run in daemon mode */
 static time_t	  boot_time;		/* Offset for printsys() */
 static uint64_t	  sys_seqno = 0;	/* Last seen kernel log message */
+static int	  sys_seqno_init;	/* Timestamp can be in the past, use 'now' after first read */
 static int	  resolve = 1;		/* resolve hostname */
 static char	  LocalHostName[MAXHOSTNAMELEN + 1]; /* our hostname */
 static char	 *LocalDomain;			     /* our local domain name */
@@ -224,6 +225,7 @@ static void sys_seqno_load(void)
 			break; /* str began with a number but has junk left over at the end */
 
 		sys_seqno = val;
+		sys_seqno_init = 1; /* Ignore sys timestamp from now */
 	}
 	fclose(fp);
 }
@@ -244,6 +246,8 @@ static void sys_seqno_save(void)
 	fclose(fp);
 
 	prev = sys_seqno;
+
+	sys_seqno_init = 1;	/* Ignore sys timestamp from now */
 }
 
 int usage(int code)
@@ -1189,7 +1193,7 @@ void printsys(char *msg)
 				++p;
 		} else if (isdigit(*p)) {
 			/* Linux /dev/kmsg: "pri,seq#,msec,flag[,..];msg" */
-			time_t now = boot_time;
+			time_t now;
 
 			/* pri */
 			buffer.pri = 0;
@@ -1218,8 +1222,27 @@ void printsys(char *msg)
 			/* timestamp */
 			while (isdigit(*p))
 				ustime = 10 * ustime + (*p++ - '0');
-			now += ustime / 1000000;
-			buffer.timestamp.usec = ustime % 1000000;
+
+			/*
+			 * When syslogd starts up, we assume this happens at
+			 * close to system boot, we read all kernel logs from
+			 * /dev/kmsg (Linux) and calculate the precise time
+			 * stamp using boot_time + usec to get the time of a
+			 * log entry.  However, since the kernel time stamp
+			 * is not adjusted for suspend/resume it can be many
+			 * days (!) off after a few weeks of uptime.  It has
+			 * turned out to be quite an interesting problem to
+			 * compensate for, so at runtime we instead use the
+			 * current time of any new kernel messages.
+			 *     -- Joachim Wiberg Nov 23, 2021
+			 */
+			if (!sys_seqno_init) {
+				now = boot_time + ustime / 1000000;
+				buffer.timestamp.usec = ustime % 1000000;
+				localtime_r(&now, &buffer.timestamp.tm);
+			} else
+				now = time(NULL);
+
 			localtime_r(&now, &buffer.timestamp.tm);
 
 			/* skip flags for now */
