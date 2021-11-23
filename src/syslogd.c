@@ -1046,7 +1046,7 @@ parsemsg_rfc3164(const char *from, int pri, char *msg)
 			 * This loop can only run for at most three
 			 * iterations before terminating.
 			 */
-			t_now = boot_time + timer_now();
+			t_now = time(NULL);
 			localtime_r(&t_now, &tm_now);
 			for (year = tm_now.tm_year + 1;; --year) {
 				assert(year >= tm_now.tm_year - 1);
@@ -1874,7 +1874,7 @@ void wallmsg(struct filed *f, struct iovec *iov, int iovcnt)
 	 * and doing notty().
 	 */
 	if (fork() == 0) {
-		time_t t_now = boot_time + timer_now();
+		time_t t_now = time(NULL);
 
 		(void)signal(SIGTERM, SIG_DFL);
 		(void)alarm(0);
