@@ -96,6 +96,7 @@ setup()
     cat <<-EOF > ${CONFD}/bar.conf
     	# For remote logging
 	*.*	@127.0.0.2
+	*.*	@127.0.0.2:${PORT2}	;RFC3164
 	EOF
 
     ../src/syslogd -m1 -b :${PORT} -d -sF -f ${CONF} -p ${SOCK} -p ${ALTSOCK} -C ${CACHE} -P ${PID} &
