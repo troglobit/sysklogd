@@ -1579,7 +1579,7 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 		msg.msg_iovlen = iovcnt;
 
 		for (int i = 0; i < iovcnt; i++) {
-			logit("iov[%d] => %s\n", i, (char *)iov[i].iov_base);
+//			logit("iov[%d] => %s\n", i, (char *)iov[i].iov_base);
 			len += iov[i].iov_len;
 		}
 
@@ -1838,7 +1838,7 @@ static void fprintlog_first(struct filed *f, struct buf_msg *buffer)
 	else
 		iovcnt = fmt3164(buffer, BSDFMT_DATEFMT, iov, NELEMS(iov));
 
-	logit("logging to %s", TypeNames[f->f_type]);
+	logit(" logging to %s", TypeNames[f->f_type]);
 	fprintlog_write(f, iov, iovcnt, buffer->flags);
 }
 
