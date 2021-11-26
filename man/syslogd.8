@@ -38,7 +38,7 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm
-.Op Fl ?46AdFHknsTv
+.Op Fl ?46AdFHKknsTv
 .Op Fl a Ar addr[/len][:port]
 .Op Fl a Ar name[:port]
 .Op Fl b Ar addr[:port]
@@ -255,6 +255,24 @@ and wants to monitor when and how it exits.
 .It Fl H
 When logging remote messages use hostname from the message (if supplied)
 instead of using address from which the message was received.
+.It Fl K
+Keep (trust) kernel timestamp.
+.Pp
+On Linux systems the
+.Pa /dev/kmsg
+timestamp is a monotonic clock, in microseconds, relative to the boot of
+the system.  This timestamp is, among other things,
+.Sy not
+adjusted for suspend/resume cycles, meaning the kernel logs can start to
+go out of sync with the rest of the system.  This in turn can make it
+really hard to correlate events.
+.Pp
+.Nm
+by default only trusts the kernel timestamp when starting up the first
+time.  As soon as the the kernel ring buffer has been emptied,
+.Nm
+uses its own current time for each received kernel log message.  This
+option disables that behavior.
 .It Fl k
 Disable the translation of
 messages received with facility

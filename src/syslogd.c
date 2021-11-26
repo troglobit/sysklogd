@@ -141,6 +141,7 @@ static int	  RemoteAddDate;	  /* Always set the date on remote messages */
 static int	  RemoteHostname;	  /* Log remote hostname from the message */
 
 static int	  KeepKernFac;		  /* Keep remotely logged kernel facility */
+static int	  KeepKernTime;		  /* Keep kernel timestamp, evern after initial read */
 
 static off_t	  RotateSz = 0;		  /* Max file size (bytes) before rotating, disabled by default */
 static int	  RotateCnt = 5;	  /* Max number (count) of log files to keep, set with -c <NUM> */
@@ -253,8 +254,8 @@ static void sys_seqno_save(void)
 int usage(int code)
 {
 	printf("Usage:\n"
-	       "  syslogd [-46AdFknsTv?] [-a PEER] [-b NAME] [-f FILE] [-m INTERVAL]\n"
-	       "                         [-P PID_FILE] [-p SOCK_PATH] [-r SIZE[:NUM]]\n"
+	       "  syslogd [-46AdFKknsTv?] [-a PEER] [-b NAME] [-f FILE] [-m INTERVAL]\n"
+	       "                          [-P PID_FILE] [-p SOCK_PATH] [-r SIZE[:NUM]]\n"
 	       "Options:\n"
 	       "  -4        Force IPv4 only\n"
 	       "  -6        Force IPv6 only\n"
@@ -284,6 +285,7 @@ int usage(int code)
 	       "  -F        Run in foreground, required when monitored by init(1)\n"
 	       "  -f FILE   Alternate .conf file, default: %s\n"
 	       "  -k        Allow logging with facility 'kernel', otherwise remapped to 'user'\n"
+	       "  -K        Keep kernel timestamp, even after initial ring buffer emptying\n"
 	       "  -m MINS   Interval between MARK messages, 0 to disable, default: 20 min\n"
 	       "  -n        Disable DNS query for every request\n"
 	       "  -P FILE   File to store the process ID, default: %s\n"
@@ -315,7 +317,7 @@ int main(int argc, char *argv[])
 	int pflag = 0, bflag = 0;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "46Aa:b:C:dHFf:km:nP:p:r:sTv?")) != EOF) {
+	while ((ch = getopt(argc, argv, "46Aa:b:C:dHFf:Kkm:nP:p:r:sTv?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -368,6 +370,10 @@ int main(int argc, char *argv[])
 
 		case 'k':		/* keep remote kern fac */
 			KeepKernFac = 1;
+			break;
+
+		case 'K':	/* keep/trust kernel timestamp always */
+			KeepKernTime = 1;
 			break;
 
 		case 'm': /* mark interval */
@@ -1238,7 +1244,7 @@ void printsys(char *msg)
 			 * current time of any new kernel messages.
 			 *     -- Joachim Wiberg Nov 23, 2021
 			 */
-			if (!sys_seqno_init) {
+			if (KeepKernTime || !sys_seqno_init) {
 				now = boot_time + ustime / 1000000;
 				buffer.timestamp.usec = ustime % 1000000;
 				localtime_r(&now, &buffer.timestamp.tm);
