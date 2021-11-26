@@ -1013,7 +1013,7 @@ bad:
 static void
 parsemsg_rfc3164(const char *from, int pri, char *msg)
 {
-	struct logtime timestamp_remote;
+	struct logtime timestamp_remote = { 0 };
 	struct buf_msg buffer;
 	struct tm tm_parsed;
 	size_t i, msglen;
@@ -1034,8 +1034,8 @@ parsemsg_rfc3164(const char *from, int pri, char *msg)
 		msg += RFC3164_DATELEN + 1;
 
 		if (!RemoteAddDate) {
+			time_t t_now, t_remote;
 			struct tm tm_now;
-			time_t t_now;
 			int year;
 
 			/*
@@ -1053,13 +1053,15 @@ parsemsg_rfc3164(const char *from, int pri, char *msg)
 			t_now = time(NULL);
 			localtime_r(&t_now, &tm_now);
 			for (year = tm_now.tm_year + 1;; --year) {
-				assert(year >= tm_now.tm_year - 1);
+				if (year < tm_now.tm_year - 1)
+					break;
 				timestamp_remote.tm = tm_parsed;
 				timestamp_remote.tm.tm_year = year;
 				timestamp_remote.tm.tm_isdst = -1;
 				timestamp_remote.usec = 0;
-				if (mktime(&timestamp_remote.tm) <
-				    t_now + 7 * 24 * 60 * 60)
+				t_remote = mktime(&timestamp_remote.tm);
+				if ((t_remote != (time_t)-1) &&
+				    (t_remote - t_now) < 7 * 24 * 60 * 60)
 					break;
 			}
 			buffer.timestamp = timestamp_remote;
