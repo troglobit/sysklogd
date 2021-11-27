@@ -1573,8 +1573,8 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 		fwd_suspend = timer_now() - f->f_time;
 		if (fwd_suspend >= INET_SUSPEND_TIME) {
 			logit("\nForwarding suspension over, retrying FORW ");
-			f->f_type = F_FORW;
-			goto f_forw;
+			f->f_type = F_FORW_UNKN;
+			goto f_forw_unkn;
 		} else {
 			logit(" %s:%s\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
 			logit("Forwarding suspension not over, time left: %d.\n",
@@ -1584,6 +1584,7 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 
 	case F_FORW_UNKN:
 		logit("\n");
+	f_forw_unkn:
 		forw_lookup(f);
 		if (f->f_type == F_FORW)
 			goto f_forw;
@@ -1655,6 +1656,10 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 			default:
 				f->f_type = F_FORW_SUSP;
 				ERR("INET sendto(%s:%s)", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+				if (f->f_un.f_forw.f_addr) {
+					freeaddrinfo(f->f_un.f_forw.f_addr);
+					f->f_un.f_forw.f_addr = NULL;
+				}
 			}
 		}
 		break;
@@ -2196,8 +2201,10 @@ static void close_open_log_files(void)
 			break;
 
 		case F_FORW:
-			if (f->f_un.f_forw.f_addr)
+			if (f->f_un.f_forw.f_addr) {
 				freeaddrinfo(f->f_un.f_forw.f_addr);
+				f->f_un.f_forw.f_addr = NULL;
+			}
 			break;
 		}
 
