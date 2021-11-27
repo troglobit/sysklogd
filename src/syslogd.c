@@ -2096,7 +2096,7 @@ static void forw_lookup(struct filed *f)
 	char *serv = f->f_un.f_forw.f_serv;
 	int err, first;
 
-	/* Called from cfline() for firstial lookup? */
+	/* Called from cfline() for initial lookup? */
 	first = f->f_type == F_UNUSED ? 1 : 0;
 
 	diff = timer_now() - f->f_time;
