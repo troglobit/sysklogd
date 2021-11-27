@@ -4,7 +4,7 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
-[v2.3.0][] - 2021-11-22
+[v2.3.0][] - 2021-11-27
 -----------------------
 
 ### Changes
@@ -22,9 +22,21 @@ All relevant changes to the project are documented in this file.
 - Issue #34: regression in v2.2.3, causing loss of syslogd log messages
   like `syslogd v2.2.3: restart.`
 - Issue #35: man pages lists `-v` as verbose mode, is actually version
+- Issue #36: retry DNS lookup of remote syslog servers with `res_init()`
+  to ensure name resolution at bootup when a remote DNS may temporarily
+  be unreachable.  Retry at most every five seconds, to prevent syslogd
+  from monopolizing the CPU when emptying the kernel ring buffer
 - Issue #39: update tests to use `-P fn` and `-C fn`
 - Issue #40: improve documentation for syslogd.cache file requirements
 - Issue #41: add missing documentation for -H option
+- Issue #42: add option (`-K`) to always trust kernel timestamp.  By
+  default `syslogd` only trusts the kernel timestamp for the initial
+  emptying of the kernel ring buffer
+- Issue #43: avoid asserting (exiting) on and around Jan 19, 2038, when
+  the UNIX epoch wraps around on 32-bit `time_t` systems
+- libsyslog: handle `EOVERFLOW` from `gettimeofday()` on Jan 19, 2038
+- Avoid `NULL` pointers to internal `logit()` function, only triggered
+  when in debug mode
 - Replace `\m` with `\n` (missing newline) in `logger` usage text
 
 

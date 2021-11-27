@@ -10,11 +10,18 @@ sysklogd (2.3.0) stable; urgency=medium
     like `syslogd v2.2.3: restart.`
   * Fix man page, listed `-v` as verbose mode, is actually version
   * Fix man page, missing documentation for `-H` option
+  * Fix DNS lookup handling of remote syslog servers, call res_init()
+    before getaddrinfo() and re-check more often than every 180 sec.
+  * Add option `-K` to trust kernel timestamps after startup
+  * Avoid asserting (exiting) on and around Jan 19, 2038, UNIX epoch
+    wraparound on 32-bit systems.  Also, handle `EOVERFLOW` from the
+    gettimeofday() function in libsyslog
+  * Avoid NULL pointers in internal logging functions when in debug mode
   * Replace `\m` with `\n` (missing newline) in `logger` usage text
   * Use systemd KillMode=process
   * Let syslogd use another socket when journald is active (systemd systems)
 
- -- Joachim Wiberg <troglobit@gmail.com>  Mon, 22 Nov 2021 02:20:15 +0100
+ -- Joachim Wiberg <troglobit@gmail.com>  Sat, 27 Nov 2021 21:19:54 +0100
 
 sysklogd (2.2.3) stable; urgency=medium
 
