@@ -49,7 +49,7 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, libsyslog0 (= ${binary:Version})
 Conflicts: bsdutils
 Description: enter messages into the system log
- This version of logger is receommended for use with sysklogd.
+ This version of logger is recommended for use with sysklogd.
  It makes use of the new syslogp() API for RFC5424 style logs,
  e.g. MSGID, strucutred data (SD), etc.
  .
