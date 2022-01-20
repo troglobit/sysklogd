@@ -103,6 +103,7 @@ char  ctty[]    = _PATH_CONSOLE;
 
 static volatile sig_atomic_t debugging_on;
 static volatile sig_atomic_t restart;
+static volatile sig_atomic_t rotate_signal;
 
 /*
  * Intervals at which we flush out "message repeated" messages,
@@ -169,6 +170,9 @@ static void parsemsg(const char *from, char *msg);
 static int  opensys(const char *file);
 static void printsys(char *msg);
 static void logmsg(struct buf_msg *buffer);
+static void logrotate(struct filed *f);
+static void rotate_file(struct filed *f);
+static void rotate_all_files(void);
 static void fprintlog_first(struct filed *f, struct buf_msg *buffer);
 static void fprintlog_successive(struct filed *f, int flags);
 void        endtty();
@@ -192,6 +196,7 @@ static void notifier_add(struct notifiers *newn, const char *program);
 static void notifier_invoke(const char *logfile);
 static void notifier_free_all(void);
 void        reload(int);
+static void signal_rotate(int sig);
 static int  validate(struct sockaddr *sa, const char *hname);
 static int	waitdaemon(int);
 static void	timedout(int);
@@ -587,6 +592,12 @@ no_klogd:
 			if (pidfile(PidFile))
 				ERR("Failed touching %s", PidFile);
 			continue;
+		}
+
+		if (rotate_signal > 0) {
+			rotate_signal = 0;
+			logit("\nReceived SIGUSR2, forcing log rotation.\n");
+			rotate_all_files();
 		}
 
 		if (rc < 0 && errno != EINTR)
@@ -1560,7 +1571,7 @@ static void logmsg(struct buf_msg *buffer)
 	sigprocmask(SIG_UNBLOCK, &mask, NULL);
 }
 
-void logrotate(struct filed *f)
+static void logrotate(struct filed *f)
 {
 	struct stat statf;
 
@@ -1571,52 +1582,66 @@ void logrotate(struct filed *f)
 		return;
 
 	/* bug (mostly harmless): can wrap around if file > 4gb */
-	if (S_ISREG(statf.st_mode) && statf.st_size > f->f_rotatesz) {
-		if (f->f_rotatecount > 0) { /* always 0..999 */
-			int  len = strlen(f->f_un.f_fname) + 10 + 5;
-			int  i;
-			char oldFile[len];
-			char newFile[len];
+	if (S_ISREG(statf.st_mode) && statf.st_size > f->f_rotatesz)
+		rotate_file(f);
+}
 
-			/* First age zipped log files */
-			for (i = f->f_rotatecount; i > 1; i--) {
-				snprintf(oldFile, len, "%s.%d.gz", f->f_un.f_fname, i - 1);
-				snprintf(newFile, len, "%s.%d.gz", f->f_un.f_fname, i);
+static void rotate_file(struct filed *f)
+{
+	if (f->f_rotatecount > 0) { /* always 0..999 */
+		int  len = strlen(f->f_un.f_fname) + 10 + 5;
+		int  i;
+		char oldFile[len];
+		char newFile[len];
 
-				/* ignore errors - file might be missing */
-				(void)rename(oldFile, newFile);
-			}
+		/* First age zipped log files */
+		for (i = f->f_rotatecount; i > 1; i--) {
+			snprintf(oldFile, len, "%s.%d.gz", f->f_un.f_fname, i - 1);
+			snprintf(newFile, len, "%s.%d.gz", f->f_un.f_fname, i);
 
-			/* rename: f.8 -> f.9; f.7 -> f.8; ... */
-			for (i = 1; i > 0; i--) {
-				snprintf(oldFile, len, "%s.%d", f->f_un.f_fname, i - 1);
-				snprintf(newFile, len, "%s.%d", f->f_un.f_fname, i);
-
-				if (!rename(oldFile, newFile) && i > 0) {
-					size_t clen = 18 + strlen(newFile) + 1;
-					char cmd[clen];
-
-					snprintf(cmd, sizeof(cmd), "gzip -f %s", newFile);
-					system(cmd);
-				}
-			}
-
-			/* newFile == "f.0" now */
-			snprintf(newFile, len, "%s.0", f->f_un.f_fname);
-			(void)rename(f->f_un.f_fname, newFile);
-			close(f->f_file);
-
-			f->f_file = open(f->f_un.f_fname, O_CREATE | O_NONBLOCK | O_NOCTTY, 0644);
-			if (f->f_file < 0) {
-				f->f_type = F_UNUSED;
-				ERR("Failed re-opening log file %s after rotation", f->f_un.f_fname);
-				return;
-			}
-
-			if (!SIMPLEQ_EMPTY(&nothead))
-				notifier_invoke(f->f_un.f_fname);
+			/* ignore errors - file might be missing */
+			(void)rename(oldFile, newFile);
 		}
-		ftruncate(f->f_file, 0);
+
+		/* rename: f.8 -> f.9; f.7 -> f.8; ... */
+		for (i = 1; i > 0; i--) {
+			snprintf(oldFile, len, "%s.%d", f->f_un.f_fname, i - 1);
+			snprintf(newFile, len, "%s.%d", f->f_un.f_fname, i);
+
+			if (!rename(oldFile, newFile) && i > 0) {
+				size_t clen = 18 + strlen(newFile) + 1;
+				char cmd[clen];
+
+				snprintf(cmd, sizeof(cmd), "gzip -f %s", newFile);
+				system(cmd);
+			}
+		}
+
+		/* newFile == "f.0" now */
+		snprintf(newFile, len, "%s.0", f->f_un.f_fname);
+		(void)rename(f->f_un.f_fname, newFile);
+		close(f->f_file);
+
+		f->f_file = open(f->f_un.f_fname, O_CREATE | O_NONBLOCK | O_NOCTTY, 0644);
+		if (f->f_file < 0) {
+			f->f_type = F_UNUSED;
+			ERR("Failed re-opening log file %s after rotation", f->f_un.f_fname);
+			return;
+		}
+
+		if (!SIMPLEQ_EMPTY(&nothead))
+			notifier_invoke(f->f_un.f_fname);
+	}
+	ftruncate(f->f_file, 0);
+}
+
+static void rotate_all_files(void)
+{
+	struct filed *f;
+
+	SIMPLEQ_FOREACH(f, &fhead, f_link) {
+		if (f->f_type == F_FILE && f->f_rotatesz)
+			rotate_file(f);
 	}
 }
 
@@ -2443,6 +2468,7 @@ static void signal_init(void)
 	SIGNAL(SIGINT,  Debug ? die : SIG_IGN);
 	SIGNAL(SIGQUIT, Debug ? die : SIG_IGN);
 	SIGNAL(SIGUSR1, Debug ? debug_switch : SIG_IGN);
+	SIGNAL(SIGUSR2, signal_rotate);
 	SIGNAL(SIGXFSZ, SIG_IGN);
 	SIGNAL(SIGHUP,  reload);
 	SIGNAL(SIGCHLD, reapchild);
@@ -3443,6 +3469,15 @@ static void notifier_free_all(void)
 void reload(int signo)
 {
 	restart++;
+}
+
+/*
+ * SIGUSR2: forced rotation for so-configured files as soon as possible.
+ */
+static void signal_rotate(int sig)
+{
+	(void)sig;
+	rotate_signal++;
 }
 
 /**

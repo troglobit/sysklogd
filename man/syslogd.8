@@ -483,6 +483,10 @@ SIGTERM.
 .It USR1
 In debug mode this switches debugging on/off.  In normal operation
 it is ignored.
+.It USR2
+.Nm
+will rotate all files for which rotation is configured when receiving
+this signal.
 .El
 .Pp
 For convenience the PID is by default stored in
