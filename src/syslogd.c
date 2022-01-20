@@ -148,6 +148,11 @@ static off_t	  RotateSz = 0;		  /* Max file size (bytes) before rotating, disabl
 static int	  RotateCnt = 5;	  /* Max number (count) of log files to keep, set with -c <NUM> */
 
 /*
+ * List of notifiers
+ */
+static SIMPLEQ_HEAD(notifiers, notifier) nothead = SIMPLEQ_HEAD_INITIALIZER(nothead);
+
+/*
  * List of peers and sockets for binding.
  */
 static SIMPLEQ_HEAD(, peer) pqueue = SIMPLEQ_HEAD_INITIALIZER(pqueue);
@@ -180,9 +185,11 @@ static void signal_init(void);
 static void boot_time_init(void);
 static void init(void);
 static int  strtobytes(char *arg);
-static int  cfparse(FILE *fp, struct files *newf);
+static int  cfparse(FILE *fp, struct files *newf, struct notifiers *newn);
 int         decode(char *name, struct _code *codetab);
 static void logit(char *, ...);
+static void notifier_add(struct notifiers *newn, const char *program);
+static void notifier_invoke(const char *logfile);
 void        reload(int);
 static int  validate(struct sockaddr *sa, const char *hname);
 static int	waitdaemon(int);
@@ -1604,6 +1611,9 @@ void logrotate(struct filed *f)
 				ERR("Failed re-opening log file %s after rotation", f->f_un.f_fname);
 				return;
 			}
+
+			if (!SIMPLEQ_EMPTY(&nothead))
+				notifier_invoke(f->f_un.f_fname);
 		}
 		ftruncate(f->f_file, 0);
 	}
@@ -2250,6 +2260,7 @@ void debug_switch(int signo)
  */
 static void close_open_log_files(void)
 {
+	struct notifier *np = NULL, *npnext = NULL;
 	struct filed *f = NULL, *next = NULL;
 
 	SIMPLEQ_FOREACH_SAFE(f, &fhead, f_link, next) {
@@ -2276,6 +2287,9 @@ static void close_open_log_files(void)
 
 		free(f);
 	}
+
+	SIMPLEQ_FOREACH_SAFE(np, &nothead, n_link, npnext)
+		free(np);
 }
 
 void die(int signo)
@@ -2455,6 +2469,7 @@ static void boot_time_init(void)
 static void init(void)
 {
 	static int once = 1;
+	struct notifiers newn = SIMPLEQ_HEAD_INITIALIZER(newn);
 	struct filed *f;
 	struct files newf = SIMPLEQ_HEAD_INITIALIZER(newf);
 	FILE *fp;
@@ -2538,7 +2553,7 @@ static void init(void)
 		}
 	}
 
-	if (cfparse(fp, &newf)) {
+	if (cfparse(fp, &newf, &newn)) {
 		fclose(fp);
 		return;
 	}
@@ -2548,11 +2563,21 @@ static void init(void)
 	 * Close all open log files.
 	 */
 	close_open_log_files();
+
 	fhead = newf;
+	nothead = newn;
 
 	Initialized = 1;
 
 	if (Debug) {
+		if (!SIMPLEQ_EMPTY(&nothead)) {
+			struct notifier *np;
+
+			SIMPLEQ_FOREACH(np, &nothead, n_link)
+				printf("notify %s\n", np->n_program);
+			printf("\n");
+		}
+
 		SIMPLEQ_FOREACH(f, &fhead, f_link) {
 			if (f->f_type == F_UNUSED)
 				continue;
@@ -2923,7 +2948,7 @@ static struct filed *cfline(char *line)
 /*
  * Parse .conf file and append to list
  */
-static int cfparse(FILE *fp, struct files *newf)
+static int cfparse(FILE *fp, struct files *newf, struct notifiers *newn)
 {
 	struct filed *f;
 	char  cbuf[BUFSIZ];
@@ -2988,10 +3013,15 @@ static int cfparse(FILE *fp, struct files *newf)
 				}
 
 				logit("Parsing %s ...", gl.gl_pathv[i]);
-				cfparse(fpi, newf);
+				cfparse(fpi, newf, newn);
 				fclose(fpi);
 			}
 			globfree(&gl);
+			continue;
+		}
+
+		if (!strncmp(cbuf, "notify", 6)) {
+			notifier_add(newn, &cbuf[6]);
 			continue;
 		}
 
@@ -3335,6 +3365,58 @@ static void logit(char *fmt, ...)
 	va_end(ap);
 
 	fflush(stdout);
+}
+
+static void notifier_add(struct notifiers *newn, const char *program)
+{
+	while (*program && isspace(*program))
+		program++;
+
+	/* Check whether it is accessible, regardless of TOCTOU */
+	if (!access(program, X_OK)) {
+		struct notifier *np;
+		size_t len;
+
+		len = strlen(program);
+
+		np = calloc(1, sizeof(*np) + len +1);
+		if (np) {
+			/* xxx Actually wastes space -- vararray? */
+			np->n_program = (char*)&np[1];
+			memcpy(np->n_program, program, len);
+			SIMPLEQ_INSERT_TAIL(newn, np, n_link);
+		} else
+			ERR("Cannot allocate memory for a notify program");
+	} else
+		logit("notify: non-existing, or not executable program\n");
+}
+
+static void notifier_invoke(const char *logfile)
+{
+	char *argv[3];
+	struct notifier *np;
+
+	logit("notify: rotated %s, invoking hooks\n", logfile);
+
+	SIMPLEQ_FOREACH(np, &nothead, n_link) {
+		switch (fork()) {
+		case -1:
+			ERR("Cannot start notifier %s", np->n_program);
+			break;
+		case 0:
+			/* No specific I/O setup, just use what we had */
+			argv[0] = np->n_program;
+			argv[1] = (char*)logfile; /* logical unconst */
+			argv[2] = NULL;
+			execv(argv[0], argv);
+			_exit(1);
+		default:
+			/* Do not care beside that, no special process group
+			 * etc.; it will eventually be reaped via reapchild() */
+			logit("notify: forked for %s\n", np->n_program);
+			break;
+		}
+	}
 }
 
 /*

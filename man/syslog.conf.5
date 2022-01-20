@@ -105,6 +105,17 @@ cron or a separate log rotate daemon.
 Comments, lines starting with a hash mark ('#'), and empty lines are
 ignored.  If an error occurs during parsing the whole line is ignored.
 .Pp
+The special keyword
+.Em notify
+specifies the path to an executable program which will get called
+whenever a log file has been rotated, with the name of the file, less
+its rotation suffix
+.Ql .0 ,
+as an argument.
+For example:
+.Ql notify /sbin/on-log-rotate.sh .
+Any number of notifiers may be installed.
+.Pp
 A special
 .Em include
 keyword can be used to include all files with names ending in '.conf'
