@@ -584,14 +584,11 @@ static void kernel_cb(int fd, void *arg)
 
 static int opensys(const char *file)
 {
-//	struct stat st;
+	struct stat st;
 	int fd;
 
-//	sleep(300);
-//	return 1;
-
-//	if (stat(file, &st) || !S_ISCHR(st.st_mode))
-//		return 1;
+	if (stat(file, &st) || !S_ISCHR(st.st_mode))
+		return 1;
 
 	fd = open(file, O_RDONLY | O_NONBLOCK | O_CLOEXEC, 0);
 	if (fd < 0)
