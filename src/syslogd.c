@@ -140,6 +140,7 @@ static int	  SecureMode;		  /* when true, receive only unix domain socks */
 static int	  RemoteAddDate;	  /* Always set the date on remote messages */
 static int	  RemoteHostname;	  /* Log remote hostname from the message */
 
+static int	  KernLog = 1;		  /* Track kernel logs by default */
 static int	  KeepKernFac;		  /* Keep remotely logged kernel facility */
 static int	  KeepKernTime;		  /* Keep kernel timestamp, evern after initial read */
 
@@ -255,8 +256,8 @@ static void sys_seqno_save(void)
 int usage(int code)
 {
 	printf("Usage:\n"
-	       "  syslogd [-46AdFKknsTv?] [-a PEER] [-b NAME] [-f FILE] [-m INTERVAL]\n"
-	       "                          [-P PID_FILE] [-p SOCK_PATH] [-r SIZE[:NUM]]\n"
+	       "  syslogd [-46AdFKknsTtv?] [-a PEER] [-b NAME] [-f FILE] [-m INTERVAL]\n"
+	       "                           [-P PID_FILE] [-p SOCK_PATH] [-r SIZE[:NUM]]\n"
 	       "Options:\n"
 	       "  -4        Force IPv4 only\n"
 	       "  -6        Force IPv6 only\n"
@@ -285,6 +286,7 @@ int usage(int code)
 	       "  -d        Enable debug mode, implicitly enables -F to prevent backgrounding\n"
 	       "  -F        Run in foreground, required when monitored by init(1)\n"
 	       "  -f FILE   Alternate .conf file, default: %s\n"
+	       "  -K        Disable kernel logging, useful in container use-cases\n"
 	       "  -k        Allow logging with facility 'kernel', otherwise remapped to 'user'\n"
 	       "  -m MINS   Interval between MARK messages, 0 to disable, default: 20 min\n"
 	       "  -n        Disable DNS query for every request\n"
@@ -318,7 +320,7 @@ int main(int argc, char *argv[])
 	int pflag = 0, bflag = 0;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "46Aa:b:C:dHFf:km:nP:p:r:sTtv?")) != EOF) {
+	while ((ch = getopt(argc, argv, "46Aa:b:C:dHFf:Kkm:nP:p:r:sTtv?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -367,6 +369,10 @@ int main(int argc, char *argv[])
 
 		case 'H':
 			RemoteHostname = 1;
+			break;
+
+		case 'K':
+			KernLog = 0;
 			break;
 
 		case 'k':		/* keep remote kern fac */
@@ -457,14 +463,17 @@ int main(int argc, char *argv[])
 	 * /dev/kmsg and fall back to _PROC_KLOG, which on GLIBC
 	 * systems is /proc/kmsg, and /dev/klog on *BSD.
 	 */
-	sys_seqno_load();
-	if (opensys("/dev/kmsg")) {
-		if (opensys(_PATH_KLOG))
-			warn("Kernel logging disabled, failed opening %s", _PATH_KLOG);
-		else
+	if (KernLog) {
+		sys_seqno_load();
+		if (opensys("/dev/kmsg")) {
+			if (opensys(_PATH_KLOG))
+				warn("Kernel logging disabled, failed opening %s",
+				     _PATH_KLOG);
+			else
+				kern_console_off();
+		} else
 			kern_console_off();
-	} else
-		kern_console_off();
+	}
 
 	consfile.f_type = F_CONSOLE;
 	strlcpy(consfile.f_un.f_fname, ctty, sizeof(consfile.f_un.f_fname));
@@ -523,7 +532,8 @@ int main(int argc, char *argv[])
 		if (rc < 0 && errno != EINTR)
 			ERR("select()");
 
-		sys_seqno_save();
+		if (KernLog)
+			sys_seqno_save();
 	}
 }
 

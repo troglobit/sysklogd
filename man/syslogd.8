@@ -38,7 +38,7 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm
-.Op Fl ?46AdFHknsTtv
+.Op Fl ?46AdFHKknsTtv
 .Op Fl a Ar addr[/len][:port]
 .Op Fl a Ar name[:port]
 .Op Fl b Ar addr[:port]
@@ -255,6 +255,9 @@ and wants to monitor when and how it exits.
 .It Fl H
 When logging remote messages use hostname from the message (if supplied)
 instead of using address from which the message was received.
+.It Fl K
+Disable kernel logging.  Useful in container use-cases where kernel logs
+har handled by the host system.
 .It Fl k
 Disable the translation of
 messages received with facility
