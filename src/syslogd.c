@@ -189,6 +189,40 @@ static int	waitdaemon(int);
 static void	timedout(int);
 
 
+/*
+ * Very basic, and incomplete, check if we're running in a container.
+ * If so, we probably want to disable kernel logging.
+ */
+static int in_container(void)
+{
+	const char *files[] = {
+		"/run/.containerenv",
+		"/.dockerenv"
+	};
+	const char *containers[] = {
+		"lxc",
+		"docker",
+		"kubepod"
+	};
+	size_t i;
+	char *c;
+
+	c = getenv("container");
+	if (c) {
+		for (i = 0; i < NELEMS(containers); i++) {
+			if (!strcmp(containers[i], c))
+				return 1;
+		}
+	}
+
+	for (i = 0; i < NELEMS(files); i++) {
+		if (!access(files[i], F_OK))
+			return 1;
+	}
+
+	return 0;
+}
+
 static int addpeer(struct peer *pe0)
 {
 	struct peer *pe;
@@ -316,8 +350,10 @@ int usage(int code)
 int main(int argc, char *argv[])
 {
 	pid_t ppid = 1;
+	int no_sys = 0;
+	int pflag = 0;
+	int bflag = 0;
 	char *ptr;
-	int pflag = 0, bflag = 0;
 	int ch;
 
 	while ((ch = getopt(argc, argv, "46Aa:b:C:dHFf:Kkm:nP:p:r:sTtv?")) != EOF) {
@@ -464,6 +500,11 @@ int main(int argc, char *argv[])
 	 * systems is /proc/kmsg, and /dev/klog on *BSD.
 	 */
 	if (KernLog) {
+		if (in_container()) {
+			no_sys = 1;
+			goto no_klogd;
+		}
+
 		sys_seqno_load();
 		if (opensys("/dev/kmsg")) {
 			if (opensys(_PATH_KLOG))
@@ -473,6 +514,7 @@ int main(int argc, char *argv[])
 				kern_console_off();
 		} else
 			kern_console_off();
+	no_klogd:
 	}
 
 	consfile.f_type = F_CONSOLE;
@@ -512,6 +554,10 @@ int main(int argc, char *argv[])
 	/* Tell parent we're up and running */
 	if (ppid != 1)
 		kill(ppid, SIGALRM);
+
+	/* Log if we disabled klogd */
+	if (no_sys)
+		NOTE("Running in a container, disabling klogd.");
 
 	/* Main loop begins here. */
 	for (;;) {
