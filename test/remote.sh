@@ -15,7 +15,7 @@ export MSG="kilroy"
 cat <<-EOF >${CONFD2}/50-default.conf
 	*.*	${LOG2}
 	EOF
-../src/syslogd -a 127.0.0.2:* -b :${PORT2} -d -F -f ${CONF2} -p ${SOCK2} -m1 -C ${CACHE2} -P ${PID2} &
+../src/syslogd -K -a 127.0.0.2:* -b :${PORT2} -d -F -f ${CONF2} -p ${SOCK2} -m1 -C ${CACHE2} -P ${PID2} &
 sleep 3
 cat ${PID2} >> "$DIR/PIDs"
 kill -USR1 `cat ${PID2}`

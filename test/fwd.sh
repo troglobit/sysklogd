@@ -19,7 +19,7 @@ kern.*		/dev/null
 *.*;kern.none	${LOG2}			;RFC5424
 EOF
 
-../src/syslogd -a 127.0.0.2:* -b :${PORT2} -d -F -f ${CONF2} -p ${SOCK2} -m1 -C ${CACHE2} -P ${PID2} &
+../src/syslogd -K -a 127.0.0.2:* -b :${PORT2} -d -F -f ${CONF2} -p ${SOCK2} -m1 -C ${CACHE2} -P ${PID2} &
 
 kill -HUP `cat ${PID}`
 sleep 2

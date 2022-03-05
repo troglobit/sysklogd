@@ -10,7 +10,7 @@ cat <<EOF > ${CONF}
 *.*       -${LOG}    ;rotate=10M:5,RFC5424
 EOF
 
-../src/syslogd -m1 -b :${PORT} -d -sF -f ${CONF} -p ${SOCK} -p ${ALTSOCK} >${LOG2} &
+../src/syslogd -K -m1 -b :${PORT} -d -sF -f ${CONF} -p ${SOCK} -p ${ALTSOCK} >${LOG2} &
 echo "$!" > ${PID}
 cat ${PID} >> "$DIR/PIDs"
 

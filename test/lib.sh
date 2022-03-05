@@ -99,7 +99,7 @@ setup()
 	*.*	@127.0.0.2:${PORT2}	;RFC3164
 	EOF
 
-    ../src/syslogd -m1 -b :${PORT} -d -sF -f ${CONF} -p ${SOCK} -p ${ALTSOCK} -C ${CACHE} -P ${PID} &
+    ../src/syslogd -K -m1 -b :${PORT} -d -sF -f ${CONF} -p ${SOCK} -p ${ALTSOCK} -C ${CACHE} -P ${PID} &
 
     sleep 2
     cat ${PID} >> "$DIR/PIDs"
