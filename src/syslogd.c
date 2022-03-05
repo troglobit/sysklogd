@@ -290,8 +290,8 @@ static void sys_seqno_save(void)
 int usage(int code)
 {
 	printf("Usage:\n"
-	       "  syslogd [-46AdFKknsTtv?] [-a PEER] [-b NAME] [-f FILE] [-m INTERVAL]\n"
-	       "                           [-P PID_FILE] [-p SOCK_PATH] [-r SIZE[:NUM]]\n"
+	       "  syslogd [-46AdFHKknsTtv?] [-a PEER] [-b NAME] [-f FILE] [-m INTERVAL]\n"
+	       "                            [-P PID_FILE] [-p SOCK_PATH] [-r SIZE[:NUM]]\n"
 	       "Options:\n"
 	       "  -4        Force IPv4 only\n"
 	       "  -6        Force IPv6 only\n"
@@ -320,6 +320,7 @@ int usage(int code)
 	       "  -d        Enable debug mode, implicitly enables -F to prevent backgrounding\n"
 	       "  -F        Run in foreground, required when monitored by init(1)\n"
 	       "  -f FILE   Alternate .conf file, default: %s\n"
+	       "  -H        Use hostname from message instead of address for remote messages\n"
 	       "  -K        Disable kernel logging, useful in container use-cases\n"
 	       "  -k        Allow logging with facility 'kernel', otherwise remapped to 'user'\n"
 	       "  -m MINS   Interval between MARK messages, 0 to disable, default: 20 min\n"
