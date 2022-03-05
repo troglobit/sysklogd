@@ -73,38 +73,79 @@ tenacious()
     FAIL "Timeed out $*"
 }
 
-setup()
+# shellcheck disable=SC2046,SC2086
+do_setup()
 {
+    order=$1
+    pidfn=$2
+    shift 2
+    opts="$*"
+
     ip link set lo up
 
-    cat <<-EOF > ${CONF}
-    	# Nothing here yo
-	include ${CONFD}/*.conf
-	EOF
+    print "Starting $order syslogd ..."
+    ../src/syslogd -dKF ${opts} &
 
-    mkdir -p ${CONFD2}
-    cat <<-EOF > ${CONF2}
-    	# Nothing here yo
+    sleep 2
+    [ -f "${pidfn}" ] || FAIL "Failed starting $order syslogd"
+    cat "${pidfn}" >> "$DIR/PIDs"
+
+    # Enable debugging ...
+    kill -USR1 $(cat "${pidfn}")
+
+    sleep 1
+}
+
+# set up and start primary syslogd
+setup()
+{
+    if [ ! -f "${CONF}" ]; then
+	cat <<-EOF > "${CONF}"
+		include ${CONFD}/*.conf
+		EOF
+
+	cat <<-EOF > "${CONFD}/foo.conf"
+		# Local log file, avoid sync to disk
+		*.* -${LOG}
+		EOF
+
+	cat <<-EOF > "${CONFD}/bar.conf"
+		# For remote logging
+		*.* @127.0.0.2
+		*.* @127.0.0.2:${PORT2}	;RFC3164
+		EOF
+    fi
+
+    do_setup "primary" "${PID}" "$*" -b ":${PORT}" -f "${CONF}" -p "${SOCK}" \
+	     -p "${ALTSOCK}" -C "${CACHE}" -P "${PID}"
+}
+
+# set up and start second syslogd, e.g., for remote.sh
+setup2()
+{
+    cat <<-EOF > "${CONF2}"
 	include ${CONFD2}/*.conf
 	EOF
 
-    cat <<-EOF > ${CONFD}/foo.conf
-    	# Local log file, avoid sync to disk
-	*.*	-${LOG}
-	EOF
+    do_setup "secondary" "${PID2}" "$*" -f "${CONF2}" -p "${SOCK2}" \
+	     -C "${CACHE2}" -P "${PID2}"
+}
 
-    cat <<-EOF > ${CONFD}/bar.conf
-    	# For remote logging
-	*.*	@127.0.0.2
-	*.*	@127.0.0.2:${PORT2}	;RFC3164
-	EOF
-
-    ../src/syslogd -K -m1 -b :${PORT} -d -sF -f ${CONF} -p ${SOCK} -p ${ALTSOCK} -C ${CACHE} -P ${PID} &
-
-    sleep 2
-    cat ${PID} >> "$DIR/PIDs"
-    kill -USR1 `cat ${PID}`
+do_reload()
+{
+    # shellcheck disable=SC2046
+    kill -HUP $(cat "$1")
     sleep 1
+}
+
+reload()
+{
+    do_reload "${PID}"
+}
+
+reload2()
+{
+    do_reload "${PID2}"
 }
 
 # Stop all lingering collectors and other tools
@@ -157,6 +198,7 @@ trapit()
 }
 
 # Runs once when including lib.sh
-mkdir -p ${CONFD}
+mkdir -p "${CONFD}"
+mkdir -p "${CONFD2}"
 touch "$DIR/PIDs"
 trapit signal INT TERM QUIT EXIT

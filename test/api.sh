@@ -15,8 +15,7 @@ echo "= Phase 2 - syslog() with openlog() & custom facility ==="
 cat <<EOF >${CONFD}/console.conf
 console.*	-${LOGCONS}
 EOF
-kill -HUP `cat ${PID}`
-sleep 2
+reload
 
 ./api -i foo
 grep "foo: ${MSG}" ${LOGCONS}
@@ -29,8 +28,7 @@ echo "= Phase 4 - Verify RFC5424 API with syslogp() ==========="
 cat <<EOF >${CONFD}/v1.conf
 ftp.*		-${LOGV1}	;RFC5424
 EOF
-kill -HUP `cat ${PID}`
-sleep 2
+reload
 
 ./api -i troglobit -p
 sleep 2

@@ -4,7 +4,9 @@ if [ x"${srcdir}" = x ]; then
     srcdir=.
 fi
 . ${srcdir}/lib.sh
-setup
+
+# Enable MARK messages every minute, full secure mode
+setup -m1 -ss
 
 check_mark()
 {
