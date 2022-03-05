@@ -514,9 +514,8 @@ int main(int argc, char *argv[])
 				kern_console_off();
 		} else
 			kern_console_off();
-	no_klogd:
 	}
-
+no_klogd:
 	consfile.f_type = F_CONSOLE;
 	strlcpy(consfile.f_un.f_fname, ctty, sizeof(consfile.f_un.f_fname));
 
