@@ -1,5 +1,6 @@
 #!/bin/sh -e
 # Test '-- MARK --' in log, depends on fwd.sh
+# shellcheck disable=SC1090
 if [ x"${srcdir}" = x ]; then
     srcdir=.
 fi

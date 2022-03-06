@@ -59,7 +59,7 @@ OK()
     exit 0
 }
 
-# shellcheck disable=SC2068
+# shellcheck disable=SC2068,SC2086
 tenacious()
 {
     timeout=$1
@@ -193,7 +193,7 @@ trapit()
 {
     func="$1" ; shift
     for sig ; do
-        trap "$func $sig" "$sig"
+        trap '$func $sig' "$sig"
     done
 }
 

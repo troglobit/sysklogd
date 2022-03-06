@@ -10,9 +10,10 @@ print "TEST: Starting"
 MSG="foobar"
 MSG2="xyzzy"
 
-../src/logger -u ${SOCK} ${MSG}
-grep ${MSG} ${LOG} || FAIL "Cannot find: ${MSG}"
+../src/logger -u "${SOCK}" ${MSG}
+grep ${MSG} "${LOG}" || FAIL "Cannot find: ${MSG}"
 
-../src/logger -u ${ALTSOCK} ${MSG2}
-grep ${MSG2} ${LOG} || FAIL "Cannot find: ${MSG2}"
+../src/logger -u "${ALTSOCK}" ${MSG2}
+grep ${MSG2} "${LOG}" || FAIL "Cannot find: ${MSG2}"
+
 OK
