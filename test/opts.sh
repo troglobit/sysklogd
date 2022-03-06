@@ -12,3 +12,5 @@ EOF
 setup -m0 >"${LOG2}"
 
 grep ';RFC5424,rotate=10000000:5' ${LOG2} || FAIL "Failed parsing RFC542 .conf"
+
+OK

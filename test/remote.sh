@@ -18,6 +18,8 @@ cat <<-EOF >${CONFD2}/50-default.conf
 
 setup2 -m0 -a 127.0.0.2:* -b ":${PORT2}"
 
+print "TEST: Starting"
+
 # Start collector in background, note: might need sudo!
 #tshark -Qni lo -w ${CAP} port ${PORT} &
 tshark -Qni lo -w ${CAP} port 514 2>/dev/null &
@@ -39,3 +41,5 @@ wait ${TPID}
 # Analyze content, should have $MSG now ...
 #tshark -d udp.port==${PORT},syslog -r ${CAP} | grep ${MSG}
 tshark -r ${CAP} 2>/dev/null | grep ${MSG} || FAIL "Cannot find: ${MSG}"
+
+OK
