@@ -26,7 +26,7 @@ setup2 -m0 -a 127.0.0.2:* -b ":${PORT2}"
 print "TEST: Starting"
 
 ../src/logger -t fwd -p ntp.notice -u "${SOCK}" -m "NTP123" "${MSG}"
-sleep 3
+sleep 3  # Allow message to be received, processed, and forwarded
 grep "fwd - NTP123 - ${MSG}" "${LOG2}" || FAIL "Nothing forwarded."
 
 OK

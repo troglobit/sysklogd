@@ -34,7 +34,6 @@ reload
 
 ./api -i troglobit -p
 sleep 2
-ps fax |grep -A2 syslogd
 grep "troglobit - MSGID - ${MSG}" "${LOGV1}" || (echo "== ${LOGV1}"; tail -10 "${LOGV1}"; echo "== ${LOG}"; tail -10 "${LOG}"; cat "${CONFD}/v1.conf"; FAIL "Cannot find troglobit")
 
 print "Phase 4 - Verify RFC5424 API with logger(1)"
