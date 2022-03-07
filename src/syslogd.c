@@ -290,11 +290,12 @@ static void sys_seqno_save(void)
 int usage(int code)
 {
 	printf("Usage:\n"
-	       "  syslogd [-46AdFHKknsTtv?] [-a PEER] [-b NAME] [-f FILE] [-m INTERVAL]\n"
-	       "                            [-P PID_FILE] [-p SOCK_PATH] [-r SIZE[:NUM]]\n"
+	       "  syslogd [-468AdFHKknsTtv?] [-a PEER] [-b NAME] [-f FILE] [-m INTERVAL]\n"
+	       "                             [-P PID_FILE] [-p SOCK_PATH] [-r SIZE[:NUM]]\n"
 	       "Options:\n"
 	       "  -4        Force IPv4 only\n"
 	       "  -6        Force IPv6 only\n"
+	       "  -8        Allow all 8-bit data, e.g. unicode, does not affect control chars\n"
 	       "  -A        Send to all addresses in DNS A, or AAAA record\n"
 	       "  -a PEER   Allow PEER to use us as a remote syslog sink. Ignored when started\n"
 	       "            with -s. Multiple -a options may be specified:\n"
@@ -357,7 +358,7 @@ int main(int argc, char *argv[])
 	char *ptr;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "46Aa:b:C:dHFf:Kkm:nP:p:r:sTtv?")) != EOF) {
+	while ((ch = getopt(argc, argv, "468Aa:b:C:dHFf:Kkm:nP:p:r:sTtv?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -365,6 +366,10 @@ int main(int argc, char *argv[])
 
 		case '6':
 			family = PF_INET6;
+			break;
+
+		case '8':
+			mask_C1 = 0;
 			break;
 
 		case 'A':

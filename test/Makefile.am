@@ -1,5 +1,5 @@
 EXTRA_DIST       = lib.sh opts.sh
-EXTRA_DIST      += api.sh local.sh remote.sh fwd.sh mark.sh
+EXTRA_DIST      += api.sh local.sh unicode.sh remote.sh fwd.sh mark.sh
 CLEANFILES       = *~ *.trs *.log
 TEST_EXTENSIONS  = .sh
 TESTS_ENVIRONMENT= unshare -mrun
@@ -12,6 +12,7 @@ api_LDADD        = ../src/libsyslog.la
 
 TESTS            = opts.sh
 TESTS           += local.sh
+TESTS           += unicode.sh
 TESTS           += remote.sh
 TESTS           += api.sh
 TESTS           += fwd.sh

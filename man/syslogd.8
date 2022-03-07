@@ -38,7 +38,7 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm
-.Op Fl ?46AdFHKknsTtv
+.Op Fl ?468AdFHKknsTtv
 .Op Fl a Ar addr[/len][:port]
 .Op Fl a Ar name[:port]
 .Op Fl b Ar addr[:port]
@@ -129,6 +129,22 @@ to use IPv4 addresses only.
 Force
 .Nm
 to use IPv6 addresses only.
+.It Fl 8
+Tells
+.Nm
+not to interfere with 8-bit data.  Normally
+.Nm
+replaces C1 control characters
+.Pq ISO 8859 and Unicode characters
+with their
+.Dq M- Ns Em x
+equivalent.  Note, this option does not change the way
+.Nm
+alters control characters
+.Pq see Xr iscntrl 3 .
+They are always replaced with their
+.Dq ^ Ns Em x
+equivalent.
 .It Fl A
 Ordinarily,
 .Nm
