@@ -190,6 +190,7 @@ int         decode(char *name, struct _code *codetab);
 static void logit(char *, ...);
 static void notifier_add(struct notifiers *newn, const char *program);
 static void notifier_invoke(const char *logfile);
+static void notifier_free_all(void);
 void        reload(int);
 static int  validate(struct sockaddr *sa, const char *hname);
 static int	waitdaemon(int);
@@ -2260,7 +2261,6 @@ void debug_switch(int signo)
  */
 static void close_open_log_files(void)
 {
-	struct notifier *np = NULL, *npnext = NULL;
 	struct filed *f = NULL, *next = NULL;
 
 	SIMPLEQ_FOREACH_SAFE(f, &fhead, f_link, next) {
@@ -2287,9 +2287,6 @@ static void close_open_log_files(void)
 
 		free(f);
 	}
-
-	SIMPLEQ_FOREACH_SAFE(np, &nothead, n_link, npnext)
-		free(np);
 }
 
 void die(int signo)
@@ -2565,6 +2562,12 @@ static void init(void)
 	close_open_log_files();
 
 	fhead = newf;
+
+	/*
+	 * Free all notifiers
+	 */
+	notifier_free_all();
+
 	nothead = newn;
 
 	Initialized = 1;
@@ -3370,23 +3373,24 @@ static void logit(char *fmt, ...)
 static void notifier_add(struct notifiers *newn, const char *program)
 {
 	while (*program && isspace(*program))
-		program++;
+		++program;
 
 	/* Check whether it is accessible, regardless of TOCTOU */
 	if (!access(program, X_OK)) {
 		struct notifier *np;
-		size_t len;
 
-		len = strlen(program);
-
-		np = calloc(1, sizeof(*np) + len +1);
-		if (np) {
-			/* xxx Actually wastes space -- vararray? */
-			np->n_program = (char*)&np[1];
-			memcpy(np->n_program, program, len);
-			SIMPLEQ_INSERT_TAIL(newn, np, n_link);
-		} else
+		np = calloc(1, sizeof(*np));
+		if (!np) {
 			ERR("Cannot allocate memory for a notify program");
+			return;
+		}
+		np->n_program = strdup(program);
+		if (!np->n_program) {
+			free (np);
+			ERR("Cannot allocate memory for a notify program");
+			return;
+		}
+		SIMPLEQ_INSERT_TAIL(newn, np, n_link);
 	} else
 		logit("notify: non-existing, or not executable program\n");
 }
@@ -3394,28 +3398,39 @@ static void notifier_add(struct notifiers *newn, const char *program)
 static void notifier_invoke(const char *logfile)
 {
 	char *argv[3];
+	int childpid;
 	struct notifier *np;
 
 	logit("notify: rotated %s, invoking hooks\n", logfile);
 
 	SIMPLEQ_FOREACH(np, &nothead, n_link) {
-		switch (fork()) {
+		childpid = fork();
+
+		switch (childpid) {
 		case -1:
 			ERR("Cannot start notifier %s", np->n_program);
 			break;
 		case 0:
-			/* No specific I/O setup, just use what we had */
 			argv[0] = np->n_program;
-			argv[1] = (char*)logfile; /* logical unconst */
+			argv[1] = (char*)logfile;
 			argv[2] = NULL;
 			execv(argv[0], argv);
 			_exit(1);
 		default:
-			/* Do not care beside that, no special process group
-			 * etc.; it will eventually be reaped via reapchild() */
-			logit("notify: forked for %s\n", np->n_program);
+			logit("notify: forked child pid %d for %s\n",
+				childpid, np->n_program);
 			break;
 		}
+	}
+}
+
+static void notifier_free_all(void)
+{
+	struct notifier *np, *npnext;
+
+	SIMPLEQ_FOREACH_SAFE(np, &nothead, n_link, npnext) {
+		free(np->n_program);
+		free(np);
 	}
 }
 
