@@ -171,7 +171,7 @@ static int  opensys(const char *file);
 static void printsys(char *msg);
 static void logmsg(struct buf_msg *buffer);
 static void logrotate(struct filed *f);
-static void rotate_file(struct filed *f);
+static void rotate_file(struct filed *f, struct stat *stp_or_null);
 static void rotate_all_files(void);
 static void fprintlog_first(struct filed *f, struct buf_msg *buffer);
 static void fprintlog_successive(struct filed *f, int flags);
@@ -1583,12 +1583,13 @@ static void logrotate(struct filed *f)
 
 	/* bug (mostly harmless): can wrap around if file > 4gb */
 	if (S_ISREG(statf.st_mode) && statf.st_size > f->f_rotatesz)
-		rotate_file(f);
+		rotate_file(f, &statf);
 }
 
-static void rotate_file(struct filed *f)
+static void rotate_file(struct filed *f, struct stat *stp_or_null)
 {
 	if (f->f_rotatecount > 0) { /* always 0..999 */
+		struct stat st_stack;
 		int  len = strlen(f->f_un.f_fname) + 10 + 5;
 		int  i;
 		char oldFile[len];
@@ -1620,9 +1621,18 @@ static void rotate_file(struct filed *f)
 		/* newFile == "f.0" now */
 		snprintf(newFile, len, "%s.0", f->f_un.f_fname);
 		(void)rename(f->f_un.f_fname, newFile);
+
+		/* Get mode of open descriptor if not yet */
+		if (stp_or_null == NULL) {
+			stp_or_null = &st_stack;
+			if (fstat(f->f_file, stp_or_null))
+				stp_or_null = NULL;
+		}
+
 		close(f->f_file);
 
-		f->f_file = open(f->f_un.f_fname, O_CREATE | O_NONBLOCK | O_NOCTTY, 0644);
+		f->f_file = open(f->f_un.f_fname, O_CREATE | O_NONBLOCK | O_NOCTTY,
+				 (stp_or_null ? stp_or_null->st_mode : 0644));
 		if (f->f_file < 0) {
 			f->f_type = F_UNUSED;
 			ERR("Failed re-opening log file %s after rotation", f->f_un.f_fname);
@@ -1641,7 +1651,7 @@ static void rotate_all_files(void)
 
 	SIMPLEQ_FOREACH(f, &fhead, f_link) {
 		if (f->f_type == F_FILE && f->f_rotatesz)
-			rotate_file(f);
+			rotate_file(f, NULL);
 	}
 }
 
