@@ -668,6 +668,13 @@ static int opensys(const char *file)
 	struct stat st;
 	int fd;
 
+	/*
+	 * In some (container) use-cases /dev/kmsg might not be a proper
+	 * FIFO, which may lead to CPU overload and possible loss of
+	 * function.  This check, along with the in_container() function
+	 * is an attempt to remedy such scenarios.  It's merely a sanity
+	 * check, so ignore any TOCTOU warnings this might cause.
+	 */
 	if (stat(file, &st) || !S_ISCHR(st.st_mode))
 		return 1;
 
