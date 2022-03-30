@@ -21,6 +21,11 @@ Table of Contents
 * [Building from GIT](#building-from-git)
 * [Origin & References](#origin--references)
 
+> **Tip:** the Gentoo project has a very nice article on their wiki
+> detailing how to use and set up sysklogd ➤
+> <https://wiki.gentoo.org/wiki/Sysklogd>
+
+
 Introduction
 ------------
 
@@ -74,10 +79,6 @@ Main differences from the original sysklogd package are:
 - Touch PID file on `SIGHUP`, for integration with [Finit][]
 - GNU configure & build system to ease porting/cross-compiling
 - Support for configuring remote syslog timeout
-
-> **Tip:** the Gentoo project has a very nice article on their wiki
-> detailing how to use and set up sysklogd ➤
-> <https://wiki.gentoo.org/wiki/Sysklogd>
 
 
 Using -lsyslog
