@@ -75,6 +75,10 @@ Main differences from the original sysklogd package are:
 - GNU configure & build system to ease porting/cross-compiling
 - Support for configuring remote syslog timeout
 
+> **Tip:** the Gentoo project has a very nice article on their wiki
+> detailing how to use and set up sysklogd ➤
+> <https://wiki.gentoo.org/wiki/Sysklogd>
+
 
 Using -lsyslog
 --------------
