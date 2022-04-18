@@ -198,8 +198,8 @@ static void notifier_free_all(void);
 void        reload(int);
 static void signal_rotate(int sig);
 static int  validate(struct sockaddr *sa, const char *hname);
-static int	waitdaemon(int);
-static void	timedout(int);
+static int  waitdaemon(int);
+static void timedout(int);
 
 
 /*
@@ -454,9 +454,9 @@ int main(int argc, char *argv[])
 
 			pflag = 1;
 			addpeer(&(struct peer) {
-					.pe_name = optarg,
-					.pe_mode = 0666,
-				});
+				.pe_name = optarg,
+				.pe_mode = 0666,
+			});
 			break;
 
 		case 'r':
