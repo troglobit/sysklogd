@@ -163,6 +163,20 @@ static SIMPLEQ_HEAD(, peer) pqueue = SIMPLEQ_HEAD_INITIALIZER(pqueue);
  */
 static SIMPLEQ_HEAD(, allowedpeer) aphead = SIMPLEQ_HEAD_INITIALIZER(aphead);
 
+/*
+ * central list of recognized configuration keywords with an optional
+ * address for their values as strings.  If there is no value ptr, the
+ * parser moves the argument to the beginning of the parsed line.
+ */
+char *secure_str;			  /* string value of secure_mode */
+
+const struct cfkey {
+	const char  *key;
+	char       **var;
+} cfkey[] = {
+	{ "notify",      NULL        },
+};
+
 /* Function prototypes. */
 static int  allowaddr(char *s);
 void        untty(void);
@@ -2992,10 +3006,46 @@ static struct filed *cfline(char *line)
 }
 
 /*
+ * Find matching cfkey and modify cline to the argument.
+ * Note, the key '=' value separator is optional.
+ */
+const struct cfkey *cfkey_match(char *cline)
+{
+	size_t i;
+
+	for (i = 0; i < NELEMS(cfkey); i++) {
+		const struct cfkey *cfk = &cfkey[i];
+		size_t len = strlen(cfk->key);
+		char *p;
+
+		if (strncmp(cline, cfk->key, len))
+			continue;
+
+		p = &cline[len];
+		while (*p && isspace(*p))
+			p++;
+		if (*p == '=')
+			p++;
+		while (*p && isspace(*p))
+			p++;
+
+		if (cfk->var)
+			*cfk->var = strdupa(p);
+		else
+			memmove(cline, p, strlen(p) + 1);
+
+		return cfk;
+	}
+
+	return NULL;
+}
+
+/*
  * Parse .conf file and append to list
  */
 static int cfparse(FILE *fp, struct files *newf, struct notifiers *newn)
 {
+	const struct cfkey *cfk;
 	struct filed *f;
 	char  cbuf[BUFSIZ];
 	char *cline;
@@ -3036,10 +3086,10 @@ static int cfparse(FILE *fp, struct files *newf, struct notifiers *newn)
 
 		*++p = '\0';
 
-		if (!strncmp(cbuf, "include", 7)) {
+		if (!strncmp(cline, "include", 7)) {
 			glob_t gl;
 
-			p = &cbuf[7];
+			p = &cline[7];
 			while (*p && isspace(*p))
 				p++;
 
@@ -3066,12 +3116,14 @@ static int cfparse(FILE *fp, struct files *newf, struct notifiers *newn)
 			continue;
 		}
 
-		if (!strncmp(cbuf, "notify", 6)) {
-			notifier_add(newn, &cbuf[6]);
+		cfk = cfkey_match(cline);
+		if (cfk) {
+			if (!strcmp(cfk->key, "notify"))
+				notifier_add(newn, cline);
 			continue;
 		}
 
-		f = cfline(cbuf);
+		f = cfline(cline);
 		if (!f)
 			continue;
 
