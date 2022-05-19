@@ -821,31 +821,34 @@ static int nslookup(const char *host, const char *service, struct addrinfo **ai)
 
 static void create_inet_socket(struct peer *pe)
 {
-	struct addrinfo *res, *r;
+	struct addrinfo *ai, *res;
 	int sd, err;
 
 	err = nslookup(pe->pe_name, pe->pe_serv, &res);
 	if (err) {
-		ERRX("%s/udp service unknown: %s", pe->pe_serv, gai_strerror(err));
+		ERRX("%s/udp service unknown: %s", pe->pe_serv,
+		     gai_strerror(err));
 		return;
 	}
 
-	for (r = res; r; r = r->ai_next) {
+	for (ai = res; ai; ai = ai->ai_next) {
 		if (pe->pe_socknum + 1 >= NELEMS(pe->pe_sock)) {
-			WARN("Only %zd IP addresses per socket supported.", NELEMS(pe->pe_sock));
+			WARN("Only %zd IP addresses per socket supported.",
+			     NELEMS(pe->pe_sock));
 			break;
 		}
 
 		if (SecureMode)
-			r->ai_flags |= AI_SECURE;
+			ai->ai_flags |= AI_SECURE;
 		else
-			r->ai_flags &= ~AI_SECURE;
+			ai->ai_flags &= ~AI_SECURE;
 
-		sd = socket_create(r, inet_cb, NULL);
+		sd = socket_create(ai, inet_cb, NULL);
 		if (sd < 0)
 			continue;
 
-		logit("Created inet socket %d for %s:%s ...\n", sd, pe->pe_name, pe->pe_serv);
+		logit("Created inet socket %d for %s:%s ...\n", sd,
+		      pe->pe_name, pe->pe_serv);
 		pe->pe_sock[pe->pe_socknum++] = sd;
 	}
 
