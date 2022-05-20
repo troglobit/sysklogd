@@ -73,6 +73,44 @@ tenacious()
     FAIL "Timeed out $*"
 }
 
+cap_start()
+{
+	tshark -Qni lo -w "${CAP}" port 514 2>/dev/null &
+	TPID="$!"
+	echo "$TPID" >> "$DIR/PIDs"
+	sleep 1
+}
+
+cap_stop()
+{
+	sleep 1
+	kill -TERM ${TPID}
+	wait ${TPID}
+}
+
+cap_dump()
+{
+	tshark -r "${CAP}" 2>/dev/null
+}
+
+cap_find()
+{
+	cap_dump | grep "$@"
+}
+
+logger()
+{
+	[ -x ../src/logger ] || SKIP 'logger missing'
+
+	sock="${SOCK}"
+	if [ $# -gt 1 ] && [ -f "$1" ]; then
+		sock="$1"
+		shift
+	fi
+
+	../src/logger -u "$sock" "$@"
+}
+
 # shellcheck disable=SC2046,SC2086
 do_setup()
 {
@@ -129,6 +167,11 @@ setup2()
 
     do_setup "secondary" "${PID2}" "$*" -f "${CONF2}" -p "${SOCK2}" \
 	     -C "${CACHE2}" -P "${PID2}"
+}
+
+is_running()
+{
+	kill -0 $(cat "$PID")
 }
 
 do_reload()
