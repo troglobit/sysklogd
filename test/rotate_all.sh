@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1090
 set -x
 
 if [ x"${srcdir}" = x ]; then
@@ -26,7 +27,7 @@ EOF
 setup
 
 rm -f ${NOT1STAMP}
-../src/logger -u ${SOCK} notrotall-1
+logger notrotall-1
 
 kill -USR2 `cat ${PID}`
 sleep 3
@@ -45,7 +46,7 @@ else
 fi
 
 rm -f ${NOT1STAMP}
-../src/logger -u ${SOCK} notrotall-2
+logger notrotall-2
 
 kill -USR2 `cat ${PID}`
 sleep 3
@@ -68,7 +69,7 @@ fi
 
 cp $NOT1STAMP /tmp/
 rm -f ${NOT1STAMP}
-../src/logger -u ${SOCK} notrotall-3
+logger notrotall-3
 
 kill -USR2 `cat ${PID}`
 sleep 3

@@ -1,12 +1,11 @@
 #!/bin/sh
+# shellcheck disable=SC1090
 set -x
 
 if [ x"${srcdir}" = x ]; then
     srcdir=.
 fi
 . ${srcdir}/lib.sh
-
-[ -x ../src/logger ] || SKIP 'logger missing'
 
 NOT1=${DIR}/${NM}-1.sh
 NOT1STAMP=${DIR}/${NM}-1.stamp
@@ -28,13 +27,13 @@ setup
 
 MSG=01234567890123456789012345678901234567890123456789
 MSG=$MSG$MSG$MSG$MSG$MSG$MSG$MSG$MSG$MSG$MSG
-../src/logger -u ${SOCK} ${MSG}
-../src/logger -u ${SOCK} 1${MSG}
-../src/logger -u ${SOCK} 2${MSG}
+logger ${MSG}
+logger 1${MSG}
+logger 2${MSG}
 
-if [ -f ${LOG}.0 ] &&
-		grep 'script 1' ${NOT1STAMP} &&
-		grep 'script 2' ${NOT2STAMP}; then
+if [ -f "${LOG}.0" ] &&
+		grep 'script 1' "${NOT1STAMP}" &&
+		grep 'script 2' "${NOT2STAMP}"; then
 	OK
 else
 	FAIL 'Notifier did not run.'

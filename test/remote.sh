@@ -30,7 +30,7 @@ echo "$TPID" >> "$DIR/PIDs"
 # Wait for tshark to start up properly
 sleep 3
 
-../src/logger -u "${SOCK}" ${MSG}
+logger ${MSG}
 
 # Wait for any OS delays, in particular on Travis
 sleep 1
@@ -41,6 +41,6 @@ wait ${TPID}
 
 # Analyze content, should have $MSG now ...
 #tshark -d udp.port==${PORT},syslog -r ${CAP} | grep ${MSG}
-tshark -r "${CAP}" 2>/dev/null | grep ${MSG} || FAIL "Cannot find: ${MSG}"
+tshark -r "${CAP}" 2>/dev/null | grep "${MSG}" || FAIL "Cannot find: ${MSG}"
 
 OK

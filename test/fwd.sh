@@ -1,10 +1,12 @@
 #!/bin/sh
 # Test FWD between two syslogd, second binds 127.0.0.2:5555
+# shellcheck disable=SC1090
+
 if [ x"${srcdir}" = x ]; then
     srcdir=.
 fi
-. ${srcdir}/lib.sh
 
+. ${srcdir}/lib.sh
 setup -m0
 
 MSG="fwd and allow"
@@ -25,7 +27,7 @@ setup2 -m0 -a 127.0.0.2:* -b ":${PORT2}"
 
 print "TEST: Starting"
 
-../src/logger -t fwd -p ntp.notice -u "${SOCK}" -m "NTP123" "${MSG}"
+logger -t fwd -p ntp.notice -m "NTP123" "${MSG}"
 sleep 3  # Allow message to be received, processed, and forwarded
 grep "fwd - NTP123 - ${MSG}" "${LOG2}" || FAIL "Nothing forwarded."
 
