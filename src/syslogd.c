@@ -586,7 +586,7 @@ no_klogd:
 	 * Tell system we're up and running by creating /run/syslogd.pid
 	 */
 	if (pidfile(PidFile))
-		logit("Failed creating %s: %s", PidFile, strerror(errno));
+		logit("Failed creating %s: %s\n", PidFile, strerror(errno));
 
 	/* Tell parent we're up and running */
 	if (ppid != 1)
@@ -2603,7 +2603,7 @@ static void init(void)
 
 		fp = cftemp();
 		if (!fp) {
-			logit("Cannot even create a tempfile: %s", strerror(errno));
+			logit("Cannot even create a tempfile: %s\n", strerror(errno));
 			return;
 		}
 	}
@@ -3124,7 +3124,7 @@ static int cfparse(FILE *fp, struct files *newf, struct notifiers *newn)
 					continue;
 				}
 
-				logit("Parsing %s ...", gl.gl_pathv[i]);
+				logit("Parsing %s ...\n", gl.gl_pathv[i]);
 				cfparse(fpi, newf, newn);
 				fclose(fpi);
 			}
