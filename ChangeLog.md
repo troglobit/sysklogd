@@ -4,6 +4,35 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.4.0][UNRELEASED] - 2022-05-xx
+-----------------------
+
+### Changes
+- Add support for `secure_mode=[0,1,2]` to syslog.conf, same as `-s`
+  but easier to use and activate with SIGHUP
+- Rename option `-K` to `-t` for trusting kernel timestamp, issue #42
+- Add support for `notify PATH` option to syslog.conf, for calling an
+  external script on log rotation, by Steffen Nurpmeso, issue #45
+- Add support for log rotation on SIGUSR2, by Steffen Nurpmeso, issue #46
+- Add option `-K` to disable kernel logging, issue #48
+- Rudimentary support for detecting if running in a container and then
+  disable kernel logging automatically, issue #48
+- Disable debug messages, in default syslog.conf, from /var/log/syslog
+- Enable secure_mode (only log to remote servers) in default syslog.conf
+- Update manual page for `-b` option description
+
+### Fixes
+- Issue #41: add missing `-H` option to usage text
+- Issue #44: option misspelled in man page
+- Issue #47: do not lose file mode on rotated files, by Steffen Nurpmeso
+- Issue #48: verify kernel log FIFO is a proper character device, for
+  running in certain container setups
+- Issue #49: add support for `-8` command line option to allow 8-bit
+  data to be logged -- this is a temporary fix until we have support
+  for parsing the Unicode BOM, as defined in RFC5424
+- Issue #50: fix issue with wall message, by Edward K. McGuire
+
+
 [v2.3.0][] - 2021-11-27
 -----------------------
 
@@ -432,6 +461,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 
 
 [UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.3.0...HEAD
+[v2.4.0]:     https://github.com/troglobit/sysklogd/compare/v2.3.0...v2.4.0
 [v2.3.0]:     https://github.com/troglobit/sysklogd/compare/v2.2.3...v2.3.0
 [v2.2.3]:     https://github.com/troglobit/sysklogd/compare/v2.2.2...v2.2.3
 [v2.2.2]:     https://github.com/troglobit/sysklogd/compare/v2.2.1...v2.2.2
