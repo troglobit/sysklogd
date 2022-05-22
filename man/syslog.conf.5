@@ -68,6 +68,11 @@ OPTION   := [OPTION,]
 	 |= RFC3164
 	 |= RFC5424
          |= rotate=SIZE:COUNT
+
+secure_mode [0,1,2]
+
+include /etc/syslog.d/*.conf
+notify  /path/to/script-on-rotate
 .Ed
 .Pp
 The
@@ -105,9 +110,34 @@ cron or a separate log rotate daemon.
 Comments, lines starting with a hash mark ('#'), and empty lines are
 ignored.  If an error occurs during parsing the whole line is ignored.
 .Pp
-The special keyword
-.Em notify
-specifies the path to an executable program which will get called
+Additional options include
+.Ql secure_mode <0-2>
+which is the same as the
+.Nm syslogd Fl s
+commandline option.
+.Sy Note:
+command line option always wins, so you need to drop
+.Fl s
+from the command line to use this .conf file option instead.
+.Pp
+.Bl -tag -compact -width "01" -offset indent
+.It 0
+act as a syslog sink, listening on UDP port 514 by default, as well as
+support for sending to remote syslog servers
+.It 1
+only support for sending to remote syslog servers, no Internet ports
+open
+.It 2
+no Internet ports open at all, and no remote logging possible
+.El
+.Bd -literal -offset indent
+# Example: only allow logging to remote servers
+secure_mode 1
+.Ed
+.Pp
+The
+.Ql notify <PATH>
+option specifies the path to an executable program which will get called
 whenever a log file has been rotated, with the name of the file, less
 its rotation suffix
 .Ql .0 ,
@@ -116,10 +146,10 @@ For example:
 .Ql notify /sbin/on-log-rotate.sh .
 Any number of notifiers may be installed.
 .Pp
-A special
-.Em include
-keyword can be used to include all files with names ending in '.conf'
-and not beginning with a '.' contained in the directory following the
+The
+.Ql include <PATH/*.conf>
+option can be used to include all files with names ending in '.conf' and
+not beginning with a '.' contained in the directory following the
 keyword.  This keyword can only be used in the first level configuration
 file.  The included example
 .Pa /etc/syslog.conf

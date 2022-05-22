@@ -334,6 +334,21 @@ is 5.
 Operate in secure mode.  Do not log messages from remote machines.  If
 specified twice, no network socket will be opened at all, which also
 disables logging to remote machines.
+.Pp
+Secure mode can also be set in
+.Xr syslog.conf 5
+using the
+.Cm secure_mode
+config option.  This is more flexible since you can change the option
+and simply send
+.Ar SIGHUP
+to activate the changes, instead of having to restart
+.Nm .
+.Pp
+.Sy Note:
+the command line option always wins, so it must be removed for
+.Nm
+to consider the .conf file option instead.
 .It Fl T
 Always use the local time and date for messages received from the network,
 instead of the timestamp field supplied in the message by the remote host.

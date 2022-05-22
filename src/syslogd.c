@@ -96,6 +96,8 @@ static char sccsid[] __attribute__((unused)) =
 #include "timer.h"
 #include "compat.h"
 
+#define SecureMode (secure_opt > 0 ? secure_opt : secure_mode)
+
 char *CacheFile = _PATH_CACHE;
 char *ConfFile  = _PATH_LOGCONF;
 char *PidFile   = _PATH_LOGPID;
@@ -136,7 +138,8 @@ static int	  MarkInterval = 20 * 60; /* interval between marks in seconds */
 static int	  family = PF_UNSPEC;	  /* protocol family (IPv4, IPv6 or both) */
 static int	  mask_C1 = 1;		  /* mask characters from 0x80 - 0x9F */
 static int	  send_to_all;		  /* send message to all IPv4/IPv6 addresses */
-static int	  SecureMode;		  /* when true, receive only unix domain socks */
+static int	  secure_opt;		  /* sink for others, log to remote, or only unix domain socks */
+static int	  secure_mode;		  /* same as above but from syslog.conf, only if cmdline unset */
 
 static int	  RemoteAddDate;	  /* Always set the date on remote messages */
 static int	  RemoteHostname;	  /* Log remote hostname from the message */
@@ -175,6 +178,7 @@ const struct cfkey {
 	char       **var;
 } cfkey[] = {
 	{ "notify",      NULL        },
+	{ "secure_mode", &secure_str },
 };
 
 /* Function prototypes. */
@@ -478,7 +482,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 's':
-			SecureMode++;
+			secure_opt++;
 			break;
 
 		case 'T':
@@ -726,6 +730,9 @@ static void create_unix_socket(struct peer *pe)
 	struct sockaddr_un sun;
 	struct addrinfo ai;
 	int sd = -1;
+
+	if (pe->pe_socknum)
+		return;		/* Already set up */
 
 	memset(&ai, 0, sizeof(ai));
 	ai.ai_addr = (struct sockaddr *)&sun;
@@ -2244,6 +2251,14 @@ static void forw_lookup(struct filed *f)
 	int err, first;
 	time_t diff;
 
+	if (SecureMode > 1) {
+		if (f->f_un.f_forw.f_addr)
+			freeaddrinfo(f->f_un.f_forw.f_addr);
+		f->f_un.f_forw.f_addr = NULL;
+		f->f_type = F_FORW_UNKN;
+		return;
+	}
+
 	/* Called from cfline() for initial lookup? */
 	first = f->f_type == F_UNUSED ? 1 : 0;
 
@@ -2525,10 +2540,10 @@ static void boot_time_init(void)
  */
 static void init(void)
 {
-	static int once = 1;
 	struct notifiers newn = SIMPLEQ_HEAD_INITIALIZER(newn);
-	struct filed *f;
 	struct files newf = SIMPLEQ_HEAD_INITIALIZER(newf);
+	struct filed *f;
+	struct peer *pe;
 	FILE *fp;
 	char *p;
 
@@ -2575,23 +2590,6 @@ static void init(void)
 	}
 
 	/*
-	 * Open sockets for local and remote communication
-	 */
-	if (once) {
-		struct peer *pe;
-
-		/* Only once at startup */
-		once = 0;
-
-		SIMPLEQ_FOREACH(pe, &pqueue, pe_link) {
-			if (pe->pe_name && pe->pe_name[0] == '/')
-				create_unix_socket(pe);
-			else if (SecureMode < 2)
-				create_inet_socket(pe);
-		}
-	}
-
-	/*
 	 * Load / reload timezone data (in case it changed)
 	 */
 	tzset();
@@ -2629,6 +2627,21 @@ static void init(void)
 	notifier_free_all();
 
 	nothead = newn;
+
+	/*
+	 * Open or close sockets for local and remote communication
+	 */
+	SIMPLEQ_FOREACH(pe, &pqueue, pe_link) {
+		if (pe->pe_name && pe->pe_name[0] == '/') {
+			create_unix_socket(pe);
+		} else {
+			for (size_t i = 0; i < pe->pe_socknum; i++)
+				socket_close(pe->pe_sock[i]);
+
+			if (SecureMode < 2)
+				create_inet_socket(pe);
+		}
+	}
 
 	Initialized = 1;
 
@@ -2771,7 +2784,7 @@ static struct filed *cfline(char *line)
 	int syncfile, pri;
 	int i, i2;
 
-	logit("cfline(%s)\n", line);
+	logit("cfline[%s]\n", line);
 
 	f = calloc(1, sizeof(*f));
 	if (!f) {
@@ -3033,7 +3046,7 @@ const struct cfkey *cfkey_match(char *cline)
 			p++;
 
 		if (cfk->var)
-			*cfk->var = strdupa(p);
+			*cfk->var = strdup(p);
 		else
 			memmove(cline, p, strlen(p) + 1);
 
@@ -3131,6 +3144,19 @@ static int cfparse(FILE *fp, struct files *newf, struct notifiers *newn)
 			continue;
 
 		SIMPLEQ_INSERT_TAIL(newf, f, f_link);
+	}
+
+	if (secure_str) {
+		int val;
+
+		val = atoi(secure_str);
+		if (val < 0 || val > 2)
+			logit("Invalid value to secure_mode = %s\n", secure_str);
+		else
+			secure_mode = val;
+
+		free(secure_str);
+		secure_str = NULL;
 	}
 
 	return 0;
