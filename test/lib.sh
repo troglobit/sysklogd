@@ -122,14 +122,20 @@ do_setup()
     ip link set lo up
 
     print "Starting $order syslogd ..."
-    ../src/syslogd -dKF ${opts} &
+    if [ -z "$VALGRIND" ]; then
+	    ../src/syslogd -dKF ${opts} &
+    else
+	    ${VALGRIND} ../src/syslogd -KF ${opts} &
+    fi
 
     sleep 2
     [ -f "${pidfn}" ] || FAIL "Failed starting $order syslogd"
     cat "${pidfn}" >> "$DIR/PIDs"
 
     # Enable debugging ...
-    kill -USR1 $(cat "${pidfn}")
+    if [ -z "$VALGRIND" ]; then
+	    kill -USR1 $(cat "${pidfn}")
+    fi
 
     sleep 1
 }
