@@ -4,21 +4,21 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
-[v2.4.0][UNRELEASED] - 2022-05-xx
+[v2.4.0][] - 2022-05-29
 -----------------------
 
 ### Changes
 - Add support for `secure_mode=[0,1,2]` to syslog.conf, same as `-s`
   but easier to use and activate with SIGHUP
+- Enable `secure_mode=1` (only log to remote servers) in default `syslog.conf`
+- Disable debug messages, in default `syslog.conf`, from `/var/log/syslog`
 - Rename option `-K` to `-t` for trusting kernel timestamp, issue #42
-- Add support for `notify PATH` option to syslog.conf, for calling an
-  external script on log rotation, by Steffen Nurpmeso, issue #45
-- Add support for log rotation on SIGUSR2, by Steffen Nurpmeso, issue #46
 - Add option `-K` to disable kernel logging, issue #48
 - Rudimentary support for detecting if running in a container and then
   disable kernel logging automatically, issue #48
-- Disable debug messages, in default syslog.conf, from /var/log/syslog
-- Enable secure_mode (only log to remote servers) in default syslog.conf
+- Add support for `notify PATH` option to syslog.conf, for calling an
+  external script on log rotation, by Steffen Nurpmeso, issue #45
+- Add support for log rotation on SIGUSR2, by Steffen Nurpmeso, issue #46
 - Update manual page for `-b` option description
 
 ### Fixes
@@ -460,7 +460,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.3.0...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.4.0...HEAD
 [v2.4.0]:     https://github.com/troglobit/sysklogd/compare/v2.3.0...v2.4.0
 [v2.3.0]:     https://github.com/troglobit/sysklogd/compare/v2.2.3...v2.3.0
 [v2.2.3]:     https://github.com/troglobit/sysklogd/compare/v2.2.2...v2.2.3
