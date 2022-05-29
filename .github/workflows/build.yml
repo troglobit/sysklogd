@@ -60,3 +60,7 @@ jobs:
         run: |
           cd build/dir
           make check || (cat test/test-suite.log; false)
+      - uses: actions/upload-artifact@v3
+        with:
+          name: test-logs
+          path: test/*.log
