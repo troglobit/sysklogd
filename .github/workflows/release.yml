@@ -42,7 +42,7 @@ jobs:
       - name: Installing dependencies ...
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install tree tshark
+          sudo apt-get -y install tree tshark valgrind
       - name: Creating Makefiles ...
         run: |
           ./autogen.sh
