@@ -2373,6 +2373,11 @@ void die(int signo)
 	}
 
 	/*
+	 * Stop all active timers
+	 */
+	timer_exit();
+
+	/*
 	 * Close all open log files.
 	 */
 	close_open_log_files();

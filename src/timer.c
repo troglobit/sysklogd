@@ -212,7 +212,7 @@ void timer_exit(void)
 
 	alarm(0);
 
-	close(timer_fd[0]);
+	socket_close((timer_fd[0]));
 	close(timer_fd[1]);
 
 	LIST_FOREACH_SAFE(tmr, &tmr_head, tmr_link, tmp) {
