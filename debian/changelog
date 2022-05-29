@@ -1,3 +1,29 @@
+sysklogd (2.4.0) stable; urgency=medium
+
+  * Add support for secure_mode=[0,1,2] to syslog.conf, same as -s
+    but easier to use and activate with SIGHUP
+  * Enable secure_mode=1 (only log to remote servers) in default syslog.conf
+  * Disable debug messages, in default syslog.conf, from /var/log/syslog
+  * Rename option -K to -t for trusting kernel timestamp, issue #42
+  * Add option -K to disable kernel logging, issue #48
+  * Rudimentary support for detecting if running in a container and then
+    disable kernel logging automatically, issue #48
+  * Add support for notify PATH option to syslog.conf, for calling an
+    external script on log rotation, by Steffen Nurpmeso, issue #45
+  * Add support for log rotation on SIGUSR2, by Steffen Nurpmeso, issue #46
+  * Update manual page for -b option description
+  * Add missing -H option to usage text
+  * Fix misspelled option in man page
+  * Do not lose file mode on rotated files, by Steffen Nurpmeso
+  * Verify kernel log FIFO is a proper character device, for running in
+    certain container setups
+  * Add support for -8 command line option to allow 8-bit data to be
+    logged -- this is a temporary fix until we have support for parsing
+    the Unicode BOM, as defined in RFC5424
+  * Fix issue with wall message, by Edward K. McGuire
+
+ -- Joachim Wiberg <troglobit@gmail.com>  Sun, 29 May 2022 19:36:47 +0200
+
 sysklogd (2.3.0) stable; urgency=medium
 
   * Support for `logger -k`, early log to /dev/kmsg.  Useful when logging
