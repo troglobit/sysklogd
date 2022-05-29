@@ -60,7 +60,8 @@ jobs:
         run: |
           cd build/dir
           make check || (cat test/test-suite.log; false)
+          tar cfz ~/test-logs.tar.gz test/*.log
       - uses: actions/upload-artifact@v3
         with:
           name: test-logs
-          path: test/*.log
+          path: ~/test-logs.tar.gz
