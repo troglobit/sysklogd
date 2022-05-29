@@ -60,8 +60,7 @@ jobs:
         run: |
           cd build/dir
           make check || (cat test/test-suite.log; false)
-          tar cfz ~/test-logs.tar.gz test/*.log
       - uses: actions/upload-artifact@v3
         with:
-          name: test-logs
-          path: ~/test-logs.tar.gz
+          name: ${{ matrix.compiler }}-test-logs
+          path: build/dir/test/*.log
