@@ -1,6 +1,0 @@
-usr/include/syslog/*.h
-usr/lib/*/libsyslog.a
-usr/lib/*/libsyslog.so
-usr/lib/*/pkgconfig/lib*.pc
-usr/share/doc/sysklogd/example/*
-usr/share/man/man3/*
