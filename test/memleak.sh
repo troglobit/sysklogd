@@ -1,7 +1,7 @@
 #!/bin/sh
 # Start, SIGHUP, and log a run of syslogd under Valgrind
 # shellcheck disable=SC1090
-set -x
+#set -x
 
 if [ x"${srcdir}" = x ]; then
     srcdir=.
