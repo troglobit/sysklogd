@@ -1366,12 +1366,17 @@ void printsys(char *msg)
 			 */
 			if (KeepKernTime || !sys_seqno_init) {
 				now = boot_time + ustime / 1000000;
-				buffer.timestamp.usec = ustime % 1000000;
 				localtime_r(&now, &buffer.timestamp.tm);
-			} else
+			} else {
+				struct timeval tv;
+
 				now = time(NULL);
+				if (!gettimeofday(&tv, NULL))
+					ustime = tv.tv_usec * 1000000;
+			}
 
 			localtime_r(&now, &buffer.timestamp.tm);
+			buffer.timestamp.usec = ustime % 1000000;
 
 			/* skip flags for now */
 			q = strchr(p, ';');
