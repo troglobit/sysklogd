@@ -1157,7 +1157,12 @@ parsemsg_rfc3164(const char *from, int pri, char *msg)
 	 */
 	if (strptime(msg, RFC3164_DATEFMT, &tm_parsed) ==
 	    msg + RFC3164_DATELEN && msg[RFC3164_DATELEN] == ' ') {
+		struct timeval tv;
+
 		msg += RFC3164_DATELEN + 1;
+
+		if (gettimeofday(&tv, NULL))
+			tv.tv_usec = 0;
 
 		if (!RemoteAddDate) {
 			time_t t_now, t_remote;
@@ -1192,6 +1197,8 @@ parsemsg_rfc3164(const char *from, int pri, char *msg)
 			}
 			buffer.timestamp = timestamp_remote;
 		}
+
+		buffer.timestamp.usec = tv.tv_usec;
 	}
 
 	/*
