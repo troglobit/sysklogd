@@ -1429,18 +1429,8 @@ void printsys(char *msg)
 		}
 
 		q = lp;
-		while (*p != '\0' && (c = *p++) != '\n' && q < &line[MAXLINE]) {
-			/* Linux /dev/kmsg C-style hex encoding. */
-			if (c == '\\' && *p == 'x') {
-				char code[5] = "0x\0\0\0";
-
-				p++;
-				code[2] = *p++;
-				code[3] = *p++;
-				c = (int)strtol(code, NULL, 16);
-			}
+		while (*p != '\0' && (c = *p++) != '\n' && q < &line[MAXLINE])
 			*q++ = c;
-		}
 		*q = '\0';
 
 		logmsg(&buffer);

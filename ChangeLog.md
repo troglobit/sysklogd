@@ -4,7 +4,7 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
-[v2.4.0][] - 2022-05-29
+[v2.4.0][] - 2022-06-16
 -----------------------
 
 ### Changes
@@ -31,6 +31,11 @@ All relevant changes to the project are documented in this file.
   data to be logged -- this is a temporary fix until we have support
   for parsing the Unicode BOM, as defined in RFC5424
 - Issue #50: fix issue with wall message, by Edward K. McGuire
+- Do not corrupt logfiles when kernel messages contain control codes,
+  notably `\n`. Instead, preserve the kernel's protective C-style hex
+  encoding. For example, `\n` embedded in a message by a kernel-level
+  facility is received as `\x0a`. See:
+  <https://kernel.org/doc/Documentation/ABI/testing/dev-kmsg>
 
 
 [v2.3.0][] - 2021-11-27
