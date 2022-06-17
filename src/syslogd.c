@@ -1321,11 +1321,12 @@ void printsys(char *msg)
 
 		if (*p == '<') {
 			/* /proc/klog or *BSD /dev/klog */
+			p++;
 			buffer.pri = 0;
-			while (isdigit(*++p))
-				buffer.pri = 10 * buffer.pri + (*p - '0');
+			while (isdigit(*p))
+				buffer.pri = 10 * buffer.pri + (*p++ - '0');
 			if (*p == '>')
-				++p;
+				p++;
 		} else if (isdigit(*p)) {
 			/* Linux /dev/kmsg: "pri,seq#,msec,flag[,..];msg" */
 			time_t now;
@@ -1334,8 +1335,8 @@ void printsys(char *msg)
 			buffer.pri = 0;
 			while (isdigit(*p))
 				buffer.pri = 10 * buffer.pri + (*p++ - '0');
-
-			p++;	      /* skip ',' */
+			if (*p == ',')
+				p++;
 
 			/* seq# */
 			while (isdigit(*p))
@@ -1351,8 +1352,8 @@ void printsys(char *msg)
 					return;
 			}
 			sys_seqno = seqno;
-
-			p++;	      /* skip ',' */
+			if (*p == ',')
+				p++;
 
 			/* timestamp */
 			while (isdigit(*p))
