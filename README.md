@@ -8,8 +8,6 @@
 <23>Aug 24 05:14:15 192.0.2.1 myproc[8710]: Kilroy was here.
 <23>1 2019-11-04T00:50:15.001234+01:00 troglobit myproc 8710 - - Kilroy was here.
 ```
-<a href="https://repology.org/project/sysklogd/versions"><img align="right" alt="Packaging status"
-   src="https://repology.org/badge/vertical-allrepos/sysklogd.svg"></a>
 [![BSD Badge][]][BSD License] [![GitHub Status][]][GitHub] [![Coverity Status][]][Coverity Scan]
 
 Table of Contents
