@@ -2645,6 +2645,7 @@ static void init(void)
 		} else {
 			for (size_t i = 0; i < pe->pe_socknum; i++)
 				socket_close(pe->pe_sock[i]);
+			pe->pe_socknum = 0;
 
 			if (SecureMode < 2)
 				create_inet_socket(pe);
