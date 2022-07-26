@@ -4,7 +4,30 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
-[v2.4.0][] - 2022-06-16
+[v2.4.1][UNRELEASED]
+-----------------------
+
+### Changes
+- Fake microsecond timestamp to allow for improved log sorting:
+  - in RFC3164 messages (that don't have this resolution)
+  - in untrusted kernel messages
+- Dropped `debian/` directory (moved to separate branch), to ease
+  re-packaging by downstream
+
+### Fixes
+- Fix #52: Prevent over-read when scanning a new-style kernel message.
+  Found and fixed by Edward K. McGuire
+- Fix #53: prevent log file corruption when kernel messages contain
+  control codes, notably `\n`.  Instead, preserve kernel protective
+  C-style hex encoding.  For example, `\n` embedded in a message by a
+  kernel-level facility is received as `\x0a`.  Found and fixed by
+  Edward K. McGuire
+- Fix #56: logging to remote machine stops after receiving a few
+  SIGHUPs.  Open remote socket count was not reset properly on SIGHUP.
+  Problem introduced in v2.4.0.  Reported by Edward K. McGuire
+
+
+[v2.4.0][] - 2022-05-29
 -----------------------
 
 ### Changes
@@ -31,11 +54,6 @@ All relevant changes to the project are documented in this file.
   data to be logged -- this is a temporary fix until we have support
   for parsing the Unicode BOM, as defined in RFC5424
 - Issue #50: fix issue with wall message, by Edward K. McGuire
-- Do not corrupt logfiles when kernel messages contain control codes,
-  notably `\n`. Instead, preserve the kernel's protective C-style hex
-  encoding. For example, `\n` embedded in a message by a kernel-level
-  facility is received as `\x0a`. See:
-  <https://kernel.org/doc/Documentation/ABI/testing/dev-kmsg>
 
 
 [v2.3.0][] - 2021-11-27
@@ -466,6 +484,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 
 
 [UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.4.0...HEAD
+[v2.4.1]:     https://github.com/troglobit/sysklogd/compare/v2.4.0...v2.4.1
 [v2.4.0]:     https://github.com/troglobit/sysklogd/compare/v2.3.0...v2.4.0
 [v2.3.0]:     https://github.com/troglobit/sysklogd/compare/v2.2.3...v2.3.0
 [v2.2.3]:     https://github.com/troglobit/sysklogd/compare/v2.2.2...v2.2.3
