@@ -30,6 +30,7 @@ MSG=$MSG$MSG$MSG$MSG$MSG$MSG$MSG$MSG$MSG$MSG
 logger ${MSG}
 logger 1${MSG}
 logger 2${MSG}
+sleep 1
 
 if [ -f "${LOG}.0" ] &&
 		grep 'script 1' "${NOT1STAMP}" &&
