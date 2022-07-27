@@ -534,10 +534,12 @@ openlog_unlocked_r(const char *ident, int logstat, int logfac,
 	if (logfac != 0 && (logfac &~ LOG_FACMASK) == 0)
 		data->log_fac = logfac;
 
-	if (data->log_stat & LOG_NDELAY)	/* open immediately */
+	if (data->log_stat & LOG_NDELAY) {	/* open immediately */
 		connectlog_r(data);
-
-	data->log_opened = 1;
+		if (data->log_connected)
+			data->log_opened = 1;
+	} else
+		data->log_opened = 1;
 }
 
 void
