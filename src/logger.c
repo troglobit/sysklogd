@@ -35,11 +35,14 @@
 #include <err.h>
 #include <errno.h>
 #include <getopt.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #define SYSLOG_NAMES
 #include "compat.h"
@@ -120,6 +123,77 @@ static void log_kmsg(FILE *fp, char *ident, int pri, int opts, char *buf)
 
 	/* Always add [PID] so syslogd can find this later on */
 	fprintf(fp, "<%d>%s[%d]:%s\n", pri, ident, getpid(), buf);
+}
+
+/*
+ * Used on systems that don't have sa->sa_len
+ */
+#ifndef HAVE_SA_LEN
+static socklen_t sa_len(struct sockaddr *sa)
+{
+	if (sa->sa_family == AF_INET6)
+		return sizeof(struct sockaddr_in6);
+	if (sa->sa_family == AF_INET)
+		return sizeof(struct sockaddr_in);
+	return 0;
+}
+#endif
+#include <arpa/inet.h>
+static void print_addr(struct sockaddr *sa)
+{
+	struct sockaddr_in6 *sin6;
+	struct sockaddr_in *sin;
+	socklen_t len;
+	void *address;
+	char buf[128];
+
+	if (sa->sa_family == AF_INET6) {
+		sin6 = (struct sockaddr_in6 *)sa;
+		address = &sin6->sin6_addr;
+		len = sizeof(*sin6);
+	} else {
+		sin = (struct sockaddr_in *)sa;
+		address = &sin->sin_addr;
+		len = sizeof(*sin);
+	}
+
+	printf("address %s len %u vs calculated %u\n",
+	       inet_ntop(sa->sa_family, address, buf, sizeof(buf)),
+			 len, sa_len(sa));
+}
+
+static int nslookup(const char *host, const char *svcname, int family, struct sockaddr *sa)
+{
+	struct addrinfo hints, *ai, *result;
+	int error;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_flags    = !host ? AI_PASSIVE : 0;
+	hints.ai_family   = family;
+	hints.ai_socktype = SOCK_DGRAM;
+
+	error = getaddrinfo(host, svcname, &hints, &result);
+	if (error == EAI_SERVICE) {
+		warnx("%s/udp: unknown service, trying syslog port 514", svcname);
+		svcname = "514";
+		error = getaddrinfo(host, svcname, &hints, &result);
+	}
+	if (error) {
+		warnx("%s (%s:%s)", gai_strerror(error), host, svcname);
+		return 1;
+	}
+
+	for (ai = result; ai; ai = ai->ai_next) {
+		print_addr(ai->ai_addr);
+		if (ai->ai_family != AF_INET && ai->ai_family != AF_INET6)
+			continue;
+
+		memcpy(sa, ai->ai_addr, ai->ai_addrlen);
+		break;
+	}
+	freeaddrinfo(result);
+
+	return 0;
 }
 
 static int checksz(FILE *fp, off_t sz)
@@ -220,21 +294,32 @@ static int usage(int code)
 
 int main(int argc, char *argv[])
 {
-	FILE *fp = NULL;
-	int c, num = 5;
 	int facility = LOG_USER;
 	int severity = LOG_INFO;
+	int family = AF_UNSPEC;
+	FILE *fp = NULL;
+	int c, num = 5;
 	int log_opts = 0;
 	int rotate = 0;
 	int allow_kmsg = 0;
 	off_t size = 200 * 1024;
 	char *ident = NULL, *logfile = NULL;
 	char *msgid = NULL, *sd = NULL;
-	char *sockpath = NULL;
+	char *host = NULL, *sockpath = NULL;
+	char *svcname = "syslog";
+	struct sockaddr sa;
 	char buf[512] = "";
 
-	while ((c = getopt(argc, argv, "?cd:f:ikm:np:r:st:u:v")) != EOF) {
+	while ((c = getopt(argc, argv, "46?cd:f:h:ikm:np:P:r:st:u:v")) != EOF) {
 		switch (c) {
+		case '4':
+			family = AF_INET;
+			break;
+
+		case '6':
+			family = AF_INET6;
+			break;
+
 		case 'c':
 			log_opts |= LOG_CONS;
 			break;
@@ -245,6 +330,10 @@ int main(int argc, char *argv[])
 
 		case 'f':
 			logfile = optarg;
+			break;
+
+		case 'h':
+			host = optarg;
 			break;
 
 		case 'i':
@@ -270,6 +359,10 @@ int main(int argc, char *argv[])
 		case 'p':
 			if (parse_prio(optarg, &facility, &severity))
 				return usage(1);
+			break;
+
+		case 'P':
+			svcname = optarg;
 			break;
 
 		case 'r':
@@ -351,6 +444,11 @@ int main(int argc, char *argv[])
 
 			return fclose(fp);
 		}
+	} else if (host) {
+		log.log_host = &sa;
+		if (nslookup(host, svcname, family, &sa))
+			return 1;
+		log_opts |= LOG_NDELAY;
 	}
 
 	openlog_r(ident, log_opts, facility, &log);

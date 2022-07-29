@@ -97,6 +97,20 @@ is_socket(int fd)
 }
 
 /*
+ * Used on systems that don't have sa->sa_len
+ */
+#ifndef HAVE_SA_LEN
+static socklen_t sa_len(struct sockaddr *sa)
+{
+	if (sa->sa_family == AF_INET6)
+		return sizeof(struct sockaddr_in6);
+	if (sa->sa_family == AF_INET)
+		return sizeof(struct sockaddr_in);
+	return 0;
+}
+#endif
+
+/*
  * syslog, vsyslog --
  *	print message on log file; output is intended for syslogd(8).
  */
@@ -190,6 +204,8 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 {
 	static const char BRCOSP[] = "]: ";
 	static const char CRLF[] = "\r\n";
+	struct sockaddr *sa = NULL;
+	socklen_t len = 0;
 	size_t cnt, prlen, tries;
 	char ch, *p, *t;
 	struct timeval tv;
@@ -425,8 +441,17 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 		goto done;
 	}
 
+	if (data->log_host) {
+		sa  = data->log_host;
+#ifdef HAVE_SA_LEN
+		len = sa->sa_len;
+#else
+		len = sa_len(sa);
+#endif
+	}
+
 	/*
-	 * If the send() failed, there are two likely scenarios:
+	 * If the send() fails, there are two likely scenarios:
 	 *  1) syslogd was restarted
 	 *  2) /dev/log is out of socket buffer space
 	 * We attempt to reconnect to /dev/log to take care of
@@ -434,7 +459,7 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 	 * to give syslogd a chance to empty its socket buffer.
 	 */
 	for (tries = 0; tries < MAXTRIES; tries++) {
-		if (send(data->log_file, tbuf, cnt, 0) != -1)
+		if (sendto(data->log_file, tbuf, cnt, 0, sa, len) != -1)
 			break;
 		if (errno != ENOBUFS) {
 			disconnectlog_r(data);
@@ -487,7 +512,7 @@ disconnectlog_r(struct syslog_data *data)
 static void
 connectlog_r(struct syslog_data *data)
 {
-	/* AF_UNIX address of local logger */
+	struct sockaddr *sa = data->log_host;
 	static struct sockaddr_un sun = {
 		.sun_family = AF_LOCAL,
 #ifdef HAVE_SA_LEN
@@ -495,28 +520,48 @@ connectlog_r(struct syslog_data *data)
 #endif
 		.sun_path = _PATH_LOG,
 	};
+	socklen_t len;
+	int family;
 	char *path;
 
-	path = getenv("SYSLOG_UNIX_PATH");
-	if (!data->log_sockpath && path)
-		data->log_sockpath = path;
-	if (data->log_sockpath && !access(data->log_sockpath, W_OK))
-		strlcpy(sun.sun_path, data->log_sockpath, sizeof(sun.sun_path));
+	if (sa) {
+		family = sa->sa_family;
+#ifdef HAVE_SA_LEN
+		len = sa->sa_len;
+#else
+		len = sa_len(sa);
+#endif
+	} else {
+		sa  = (struct sockaddr *)&sun;
+		family = AF_UNIX;
+#ifdef HAVE_SA_LEN
+		len = sa->sa_len;
+#else
+		len = sizeof(sun);
+#endif
+
+		path = getenv("SYSLOG_UNIX_PATH");
+		if (!data->log_sockpath && path)
+			data->log_sockpath = path;
+
+		if (data->log_sockpath && !access(data->log_sockpath, W_OK))
+			strlcpy(sun.sun_path, data->log_sockpath, sizeof(sun.sun_path));
+	}
 
 	if (data->log_file == -1 || fcntl(data->log_file, F_GETFL, 0) == -1) {
-		data->log_file = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+		data->log_file = socket(family, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 		if (data->log_file == -1)
 			return;
 		data->log_connected = 0;
 	}
+
 	if (!data->log_connected) {
 		if (!is_socket(data->log_file)) {
 			data->log_connected = 1;
 			return;
 		}
 
-		if (connect(data->log_file, (const struct sockaddr *)&sun,
-			    sizeof(sun)) == -1) {
+		if (connect(data->log_file, sa, len) == -1) {
 			(void)close(data->log_file);
 			data->log_file = -1;
 		} else

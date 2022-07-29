@@ -206,6 +206,7 @@ struct syslog_data {
 	char	log_hostname[256];	/* MAXHOSTNAMELEN */
 	int	log_fac;
 	int	log_mask;
+	void	*log_host;		/* struct sockaddr* */
 };
 
 #define SYSLOG_DATA_INIT { \
@@ -219,6 +220,7 @@ struct syslog_data {
     .log_hostname = { '\0' }, \
     .log_fac = LOG_USER, \
     .log_mask = 0xff, \
+    .log_host = NULL, \
 }
 
 #ifdef __cplusplus
