@@ -1161,8 +1161,10 @@ parsemsg_rfc3164(const char *from, int pri, char *msg)
 
 		msg += RFC3164_DATELEN + 1;
 
-		if (gettimeofday(&tv, NULL))
+		if (gettimeofday(&tv, NULL) == -1) {
+			tv.tv_sec  = time(NULL);
 			tv.tv_usec = 0;
+		}
 
 		if (!RemoteAddDate) {
 			time_t t_now, t_remote;
@@ -1379,8 +1381,11 @@ void printsys(char *msg)
 				struct timeval tv;
 
 				now = time(NULL);
-				if (!gettimeofday(&tv, NULL))
-					ustime = tv.tv_usec * 1000000;
+				if (gettimeofday(&tv, NULL) == -1) {
+					tv.tv_sec  = time(NULL);
+					tv.tv_usec = 0;
+				}
+				ustime = tv.tv_usec * 1000000;
 			}
 
 			localtime_r(&now, &buffer.timestamp.tm);
@@ -1465,8 +1470,10 @@ static void check_timestamp(struct buf_msg *buffer)
 	if (memcmp(&buffer->timestamp, &zero, sizeof(zero)))
 		return;
 
-	if (gettimeofday(&tv, NULL) == -1)
-		return;
+	if (gettimeofday(&tv, NULL) == -1) {
+		tv.tv_sec  = time(NULL);
+		tv.tv_usec = 0;
+	}
 
 	localtime_r(&tv.tv_sec, &now.tm);
 	now.usec = tv.tv_usec;
@@ -2537,7 +2544,10 @@ static void boot_time_init(void)
 	struct sysinfo si;
 	struct timeval tv;
 
-	gettimeofday(&tv, NULL);
+	if (gettimeofday(&tv, NULL) == -1) {
+		tv.tv_sec  = time(NULL);
+		tv.tv_usec = 0;
+	}
 	sysinfo(&si);
 	boot_time = tv.tv_sec - si.uptime;
 #endif
