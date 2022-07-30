@@ -125,43 +125,6 @@ static void log_kmsg(FILE *fp, char *ident, int pri, int opts, char *buf)
 	fprintf(fp, "<%d>%s[%d]:%s\n", pri, ident, getpid(), buf);
 }
 
-/*
- * Used on systems that don't have sa->sa_len
- */
-#ifndef HAVE_SA_LEN
-static socklen_t sa_len(struct sockaddr *sa)
-{
-	if (sa->sa_family == AF_INET6)
-		return sizeof(struct sockaddr_in6);
-	if (sa->sa_family == AF_INET)
-		return sizeof(struct sockaddr_in);
-	return 0;
-}
-#endif
-#include <arpa/inet.h>
-static void print_addr(struct sockaddr *sa)
-{
-	struct sockaddr_in6 *sin6;
-	struct sockaddr_in *sin;
-	socklen_t len;
-	void *address;
-	char buf[128];
-
-	if (sa->sa_family == AF_INET6) {
-		sin6 = (struct sockaddr_in6 *)sa;
-		address = &sin6->sin6_addr;
-		len = sizeof(*sin6);
-	} else {
-		sin = (struct sockaddr_in *)sa;
-		address = &sin->sin_addr;
-		len = sizeof(*sin);
-	}
-
-	printf("address %s len %u vs calculated %u\n",
-	       inet_ntop(sa->sa_family, address, buf, sizeof(buf)),
-			 len, sa_len(sa));
-}
-
 static int nslookup(const char *host, const char *svcname, int family, struct sockaddr *sa)
 {
 	struct addrinfo hints, *ai, *result;
@@ -184,7 +147,6 @@ static int nslookup(const char *host, const char *svcname, int family, struct so
 	}
 
 	for (ai = result; ai; ai = ai->ai_next) {
-		print_addr(ai->ai_addr);
 		if (ai->ai_family != AF_INET && ai->ai_family != AF_INET6)
 			continue;
 
