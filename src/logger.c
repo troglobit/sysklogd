@@ -64,8 +64,8 @@ static int create(char *path, mode_t mode, uid_t uid, gid_t gid)
  */
 static int logrotate(char *file, int num, off_t sz)
 {
-	int cnt;
 	struct stat st;
+	int cnt;
 
 	if (stat(file, &st))
 		return 1;
@@ -261,21 +261,21 @@ static int usage(int code)
 
 int main(int argc, char *argv[])
 {
+	char *ident = NULL, *logfile = NULL;
+	char *host = NULL, *sockpath = NULL;
+	char *msgid = NULL, *sd = NULL;
+	char *svcname = "syslog";
+	off_t size = 200 * 1024;
 	int facility = LOG_USER;
 	int severity = LOG_INFO;
 	int family = AF_UNSPEC;
+	struct sockaddr sa;
+	int allow_kmsg = 0;
+	char buf[512] = "";
+	int log_opts = 0;
 	FILE *fp = NULL;
 	int c, num = 5;
-	int log_opts = 0;
 	int rotate = 0;
-	int allow_kmsg = 0;
-	off_t size = 200 * 1024;
-	char *ident = NULL, *logfile = NULL;
-	char *msgid = NULL, *sd = NULL;
-	char *host = NULL, *sockpath = NULL;
-	char *svcname = "syslog";
-	struct sockaddr sa;
-	char buf[512] = "";
 
 	while ((c = getopt(argc, argv, "46?bcd:f:h:ikm:np:P:r:st:u:v")) != EOF) {
 		switch (c) {
