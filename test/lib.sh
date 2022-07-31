@@ -108,7 +108,11 @@ logger()
 		shift
 	fi
 
-	../src/logger -u "$sock" "$@"
+	if [ -f "$sock" ]; then
+		../src/logger -u "$sock" "$@"
+	else
+		../src/logger "$@"
+	fi
 }
 
 # shellcheck disable=SC2046,SC2086
