@@ -236,6 +236,7 @@ static int usage(int code)
 	       "  -d SD     Log SD as RFC5424 style 'structured data' in message\n"
 	       "  -f FILE   Log file to write messages to, instead of syslog daemon\n"
 	       "  -h HOST   Send (UDP) message to this remote syslog server (IP or DNS name)\n"
+	       "  -H NAME   Use NAME instead of system hostname in message header\n"
 	       "  -i        Log process ID of the logger process with each line (LOG_PID)\n"
 #ifdef __linux__
 	       "  -k        Log to kernel /dev/kmsg if /dev/log doesn't exist yet\n"
@@ -277,7 +278,7 @@ int main(int argc, char *argv[])
 	int c, num = 5;
 	int rotate = 0;
 
-	while ((c = getopt(argc, argv, "46?bcd:f:h:ikm:np:P:r:st:u:v")) != EOF) {
+	while ((c = getopt(argc, argv, "46?bcd:f:h:H:ikm:np:P:r:st:u:v")) != EOF) {
 		switch (c) {
 		case '4':
 			family = AF_INET;
@@ -305,6 +306,10 @@ int main(int argc, char *argv[])
 
 		case 'h':
 			host = optarg;
+			break;
+
+		case 'H':
+			strlcpy(log.log_hostname, optarg, sizeof(log.log_hostname));
 			break;
 
 		case 'i':
