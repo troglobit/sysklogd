@@ -19,8 +19,8 @@ Table of Contents
 * [Building from GIT](#building-from-git)
 * [Origin & References](#origin--references)
 
-> **Tip:** the Gentoo project has a very nice article detailing how to
-> use and set up sysklogd ➤ <https://wiki.gentoo.org/wiki/Sysklogd>
+> **Tip:** the Gentoo project has a very nice article detailing sysklogd
+> ➤ <https://wiki.gentoo.org/wiki/Sysklogd>
 
 
 Introduction
@@ -48,9 +48,14 @@ with standard C-library implementations of the `syslog()` API (GLIBC,
 musl libc, uClibc), `libsyslog` must be used in your application to
 unlock the new [RFC5424][] `syslogp()` API.
 
-The included `logger` tool can be used from the command line, or script,
-to send RFC5424 formatted messages using `libsyslog` to `syslogd` for
-local or remote logging.
+The included `logger` tool is primarily made for use with sysklogd, but
+can be used stand-alone too.  It is not command line compatible with the
+"standard" Linux logger tool from the bsdutils project.  Instead it is
+compatible with the actual BSD logger tool(s) -- only major difference
+is its support for `-I PID`, similar to the bsdutils `--id=PID`.  The
+`logger` tool can be used from the command line, or script, to send both
+RFC5424 (default) and old-style (BSD) RFC3164 formatted messages using
+`libsyslog` to `syslogd` for local processing, or to a remote server.
 
 Main differences from the original sysklogd package are:
 
@@ -69,7 +74,8 @@ Main differences from the original sysklogd package are:
 - Support for remote peer filtering, from FreeBSD
 - Support for disabling DNS reverse lookups for each remote log message
 - Support for FreeBSD Secure Mode, remote logging enabled by default(!)
-- Includes a `logger` tool with RFC5424 capabilities (`msgid` etc.)
+- Includes a fit for purpose `logger` tool, compatible with `syslogd`,
+  leveraging the full RFC5424 capabilities (`msgid` etc.)
 - Includes a syslog library and system header replacement for logging
 - FreeBSD socket receive buffer size patch
 - Avoid blocking `syslogd` if console is backed up
