@@ -35,11 +35,14 @@
 #include <err.h>
 #include <errno.h>
 #include <getopt.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #define SYSLOG_NAMES
 #include "compat.h"
@@ -61,8 +64,8 @@ static int create(char *path, mode_t mode, uid_t uid, gid_t gid)
  */
 static int logrotate(char *file, int num, off_t sz)
 {
-	int cnt;
 	struct stat st;
+	int cnt;
 
 	if (stat(file, &st))
 		return 1;
@@ -120,6 +123,39 @@ static void log_kmsg(FILE *fp, char *ident, int pri, int opts, char *buf)
 
 	/* Always add [PID] so syslogd can find this later on */
 	fprintf(fp, "<%d>%s[%d]:%s\n", pri, ident, getpid(), buf);
+}
+
+static int nslookup(const char *host, const char *svcname, int family, struct sockaddr *sa)
+{
+	struct addrinfo hints, *ai, *result;
+	int error;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_flags    = !host ? AI_PASSIVE : 0;
+	hints.ai_family   = family;
+	hints.ai_socktype = SOCK_DGRAM;
+
+	error = getaddrinfo(host, svcname, &hints, &result);
+	if (error == EAI_SERVICE) {
+		warnx("%s/udp: unknown service, trying syslog port 514", svcname);
+		svcname = "514";
+		error = getaddrinfo(host, svcname, &hints, &result);
+	}
+	if (error) {
+		warnx("%s (%s:%s)", gai_strerror(error), host, svcname);
+		return 1;
+	}
+
+	for (ai = result; ai; ai = ai->ai_next) {
+		if (ai->ai_family != AF_INET && ai->ai_family != AF_INET6)
+			continue;
+
+		memcpy(sa, ai->ai_addr, ai->ai_addrlen);
+		break;
+	}
+	freeaddrinfo(result);
+
+	return 0;
 }
 
 static int checksz(FILE *fp, off_t sz)
@@ -193,16 +229,23 @@ static int usage(int code)
 	       "\n"
 	       "Write MESSAGE (or line-by-line stdin) to syslog, or file (with logrotate).\n"
 	       "\n"
+	       "  -4        Prefer IPv4 address when sending remote, see -h\n"
+	       "  -6        Prefer IPv6 address when sending remote, see -h\n"
+	       "  -b        Use RFC3164 (BSD) style format, default: RFC5424\n"
 	       "  -c        Log to console (LOG_CONS) on failure\n"
 	       "  -d SD     Log SD as RFC5424 style 'structured data' in message\n"
 	       "  -f FILE   Log file to write messages to, instead of syslog daemon\n"
+	       "  -h HOST   Send (UDP) message to this remote syslog server (IP or DNS name)\n"
+	       "  -H NAME   Use NAME instead of system hostname in message header\n"
 	       "  -i        Log process ID of the logger process with each line (LOG_PID)\n"
+	       "  -I PID    Log process ID using PID, recommed using PID $$ for shell scripts\n"
 #ifdef __linux__
 	       "  -k        Log to kernel /dev/kmsg if /dev/log doesn't exist yet\n"
 #endif
 	       "  -m MSGID  Log message using this RFC5424 style MSGID\n"
 	       "  -n        Open log file immediately (LOG_NDELAY)\n"
 	       "  -p PRIO   Log message priority (numeric or facility.severity pair)\n"
+	       "  -P PORT   Use PORT (or named UDP service) for remote server, default: syslog\n"
 	       "  -r S[:R]  Enable log file rotation, default: 200 kB \e[4ms\e[0mize, 5 \e[4mr\e[0motations\n"
 	       "  -s        Log to stderr as well as the system log\n"
 	       "  -t TAG    Log using the specified tag (defaults to user name)\n"
@@ -220,21 +263,36 @@ static int usage(int code)
 
 int main(int argc, char *argv[])
 {
-	FILE *fp = NULL;
-	int c, num = 5;
+	char *ident = NULL, *logfile = NULL;
+	char *host = NULL, *sockpath = NULL;
+	char *msgid = NULL, *sd = NULL;
+	char *svcname = "syslog";
+	off_t size = 200 * 1024;
 	int facility = LOG_USER;
 	int severity = LOG_INFO;
-	int log_opts = 0;
-	int rotate = 0;
+	int family = AF_UNSPEC;
+	struct sockaddr sa;
 	int allow_kmsg = 0;
-	off_t size = 200 * 1024;
-	char *ident = NULL, *logfile = NULL;
-	char *msgid = NULL, *sd = NULL;
-	char *sockpath = NULL;
 	char buf[512] = "";
+	int log_opts = 0;
+	FILE *fp = NULL;
+	int c, num = 5;
+	int rotate = 0;
 
-	while ((c = getopt(argc, argv, "?cd:f:ikm:np:r:st:u:v")) != EOF) {
+	while ((c = getopt(argc, argv, "46?bcd:f:h:H:iI:km:np:P:r:st:u:v")) != EOF) {
 		switch (c) {
+		case '4':
+			family = AF_INET;
+			break;
+
+		case '6':
+			family = AF_INET6;
+			break;
+
+		case 'b':
+			log_opts |= LOG_RFC3154;
+			break;
+
 		case 'c':
 			log_opts |= LOG_CONS;
 			break;
@@ -247,8 +305,21 @@ int main(int argc, char *argv[])
 			logfile = optarg;
 			break;
 
+		case 'h':
+			host = optarg;
+			break;
+
+		case 'H':
+			strlcpy(log.log_hostname, optarg, sizeof(log.log_hostname));
+			break;
+
 		case 'i':
 			log_opts |= LOG_PID;
+			break;
+
+		case 'I':
+			log_opts |= LOG_PID;
+			log.log_pid = atoi(optarg);
 			break;
 
 		case 'k':
@@ -270,6 +341,10 @@ int main(int argc, char *argv[])
 		case 'p':
 			if (parse_prio(optarg, &facility, &severity))
 				return usage(1);
+			break;
+
+		case 'P':
+			svcname = optarg;
 			break;
 
 		case 'r':
@@ -351,6 +426,11 @@ int main(int argc, char *argv[])
 
 			return fclose(fp);
 		}
+	} else if (host) {
+		log.log_host = &sa;
+		if (nslookup(host, svcname, family, &sa))
+			return 1;
+		log_opts |= LOG_NDELAY;
 	}
 
 	openlog_r(ident, log_opts, facility, &log);

@@ -97,6 +97,20 @@ is_socket(int fd)
 }
 
 /*
+ * Used on systems that don't have sa->sa_len
+ */
+#ifndef HAVE_SA_LEN
+static socklen_t sa_len(struct sockaddr *sa)
+{
+	if (sa->sa_family == AF_INET6)
+		return sizeof(struct sockaddr_in6);
+	if (sa->sa_family == AF_INET)
+		return sizeof(struct sockaddr_in);
+	return 0;
+}
+#endif
+
+/*
  * syslog, vsyslog --
  *	print message on log file; output is intended for syslogd(8).
  */
@@ -190,6 +204,8 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 {
 	static const char BRCOSP[] = "]: ";
 	static const char CRLF[] = "\r\n";
+	struct sockaddr *sa = NULL;
+	socklen_t len = 0;
 	size_t cnt, prlen, tries;
 	char ch, *p, *t;
 	struct timeval tv;
@@ -225,6 +241,17 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 	if ((pri & LOG_FACMASK) == 0)
 		pri |= data->log_fac;
 
+	/* Get system time, wallclock, fall back to UNIX time */
+	if (gettimeofday(&tv, NULL) == -1) {
+		tv.tv_sec  = time(NULL);
+		tv.tv_usec = 0;
+	}
+
+	/* strftime() implies tzset(), localtime_r() doesn't. */
+	tzset();
+	now = (time_t) tv.tv_sec;
+	localtime_r(&now, &tmnow);
+
 	/* Build the message. */
 	p = tbuf;
 	tbuf_left = TBUF_LEN;
@@ -237,23 +264,59 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 		tbuf_left -= prlen;				\
 	} while (/*CONSTCOND*/0)
 
+	/* Default log format is RFC5424, continues below BSD format */
+	if (data->log_stat & LOG_RFC3154) {
+		if (!(data->log_stat & LOG_NLOG)) {
+			prlen = snprintf(p, tbuf_left, "<%d>", pri);
+			DEC();
+		} else
+			prlen = 0;
+
+		prlen = strftime(dbuf, sizeof(dbuf), "%b %d %T ", &tmnow);
+
+		if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG)) {
+			iov[iovcnt].iov_base = dbuf;
+			iov[iovcnt].iov_len = strlen(dbuf);
+			iovcnt++;
+		}
+		if (data->log_host) {
+			memcpy(p, dbuf, prlen);
+			DEC();
+		}
+
+		if (data->log_hostname[0] == '\0' && gethostname(data->log_hostname,
+					sizeof(data->log_hostname)) == -1) {
+			/* can this really happen? */
+			data->log_hostname[0] = '-';
+			data->log_hostname[1] = '\0';
+		}
+		prlen = snprintf(p, tbuf_left, "%s ", data->log_hostname);
+		DEC();
+
+		if (data->log_tag == NULL)
+			data->log_tag = getprogname();
+		prlen = snprintf(p, tbuf_left, "%s", data->log_tag);
+		DEC();
+
+		if (data->log_stat & LOG_PID) {
+			if (data->log_pid == -1)
+				data->log_pid = getpid();
+			prlen = snprintf(p, tbuf_left, "[%d]", data->log_pid);
+			DEC();
+		}
+		strlcat(p, ":", tbuf_left);
+		prlen = 1;
+		DEC();
+		goto output;
+	}
+
 	if (!(data->log_stat & LOG_NLOG)) {
 		prlen = snprintf(p, tbuf_left, "<%d>1 ", pri);
 		DEC();
 	} else
 		prlen = 0;
 
-	if (gettimeofday(&tv, NULL) == -1) {
-		tv.tv_sec  = time(NULL);
-		tv.tv_usec = 0;
-	}
-
 	{
-		/* strftime() implies tzset(), localtime_r() doesn't. */
-		tzset();
-		now = (time_t) tv.tv_sec;
-		localtime_r(&now, &tmnow);
-
 		prlen = strftime(p, tbuf_left, "%FT%T", &tmnow);
 		DEC();
 		prlen = snprintf(p, tbuf_left, ".%06ld", (long)tv.tv_usec);
@@ -307,7 +370,9 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 	DEC();
 
 	if (data->log_stat & LOG_PID) {
-		prlen = snprintf(p, tbuf_left, "%d ", getpid());
+		if (data->log_pid == -1)
+			data->log_pid = getpid();
+		prlen = snprintf(p, tbuf_left, "%d ", data->log_pid);
 		if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG)) {
 			iov[iovcnt].iov_base = __UNCONST("[");
 			iov[iovcnt].iov_len = 1;
@@ -343,6 +408,7 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 	} else
 		strlcat(fmt_cat, "-", FMT_LEN);
 
+output:
 	if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG))
 		msgsdlen = strlen(fmt_cat) + 1;
 	else
@@ -425,8 +491,17 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 		goto done;
 	}
 
+	if (data->log_host) {
+		sa  = data->log_host;
+#ifdef HAVE_SA_LEN
+		len = sa->sa_len;
+#else
+		len = sa_len(sa);
+#endif
+	}
+
 	/*
-	 * If the send() failed, there are two likely scenarios:
+	 * If the send() fails, there are two likely scenarios:
 	 *  1) syslogd was restarted
 	 *  2) /dev/log is out of socket buffer space
 	 * We attempt to reconnect to /dev/log to take care of
@@ -434,7 +509,7 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 	 * to give syslogd a chance to empty its socket buffer.
 	 */
 	for (tries = 0; tries < MAXTRIES; tries++) {
-		if (send(data->log_file, tbuf, cnt, 0) != -1)
+		if (sendto(data->log_file, tbuf, cnt, 0, sa, len) != -1)
 			break;
 		if (errno != ENOBUFS) {
 			disconnectlog_r(data);
@@ -487,7 +562,7 @@ disconnectlog_r(struct syslog_data *data)
 static void
 connectlog_r(struct syslog_data *data)
 {
-	/* AF_UNIX address of local logger */
+	struct sockaddr *sa = data->log_host;
 	static struct sockaddr_un sun = {
 		.sun_family = AF_LOCAL,
 #ifdef HAVE_SA_LEN
@@ -495,28 +570,48 @@ connectlog_r(struct syslog_data *data)
 #endif
 		.sun_path = _PATH_LOG,
 	};
+	socklen_t len;
+	int family;
 	char *path;
 
-	path = getenv("SYSLOG_UNIX_PATH");
-	if (!data->log_sockpath && path)
-		data->log_sockpath = path;
-	if (data->log_sockpath && !access(data->log_sockpath, W_OK))
-		strlcpy(sun.sun_path, data->log_sockpath, sizeof(sun.sun_path));
+	if (sa) {
+		family = sa->sa_family;
+#ifdef HAVE_SA_LEN
+		len = sa->sa_len;
+#else
+		len = sa_len(sa);
+#endif
+	} else {
+		sa  = (struct sockaddr *)&sun;
+		family = AF_UNIX;
+#ifdef HAVE_SA_LEN
+		len = sa->sa_len;
+#else
+		len = sizeof(sun);
+#endif
+
+		path = getenv("SYSLOG_UNIX_PATH");
+		if (!data->log_sockpath && path)
+			data->log_sockpath = path;
+
+		if (data->log_sockpath && !access(data->log_sockpath, W_OK))
+			strlcpy(sun.sun_path, data->log_sockpath, sizeof(sun.sun_path));
+	}
 
 	if (data->log_file == -1 || fcntl(data->log_file, F_GETFL, 0) == -1) {
-		data->log_file = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+		data->log_file = socket(family, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 		if (data->log_file == -1)
 			return;
 		data->log_connected = 0;
 	}
+
 	if (!data->log_connected) {
 		if (!is_socket(data->log_file)) {
 			data->log_connected = 1;
 			return;
 		}
 
-		if (connect(data->log_file, (const struct sockaddr *)&sun,
-			    sizeof(sun)) == -1) {
+		if (connect(data->log_file, sa, len) == -1) {
 			(void)close(data->log_file);
 			data->log_file = -1;
 		} else
@@ -534,10 +629,12 @@ openlog_unlocked_r(const char *ident, int logstat, int logfac,
 	if (logfac != 0 && (logfac &~ LOG_FACMASK) == 0)
 		data->log_fac = logfac;
 
-	if (data->log_stat & LOG_NDELAY)	/* open immediately */
+	if (data->log_stat & LOG_NDELAY) {	/* open immediately */
 		connectlog_r(data);
-
-	data->log_opened = 1;
+		if (data->log_connected)
+			data->log_opened = 1;
+	} else
+		data->log_opened = 1;
 }
 
 void
