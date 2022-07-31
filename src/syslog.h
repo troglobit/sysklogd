@@ -208,6 +208,7 @@ struct syslog_data {
 	int	log_fac;
 	int	log_mask;
 	void	*log_host;		/* struct sockaddr* */
+	int     log_pid;
 };
 
 #define SYSLOG_DATA_INIT { \
@@ -222,6 +223,7 @@ struct syslog_data {
     .log_fac = LOG_USER, \
     .log_mask = 0xff, \
     .log_host = NULL, \
+    .log_pid = -1, \
 }
 
 #ifdef __cplusplus

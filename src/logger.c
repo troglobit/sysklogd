@@ -238,6 +238,7 @@ static int usage(int code)
 	       "  -h HOST   Send (UDP) message to this remote syslog server (IP or DNS name)\n"
 	       "  -H NAME   Use NAME instead of system hostname in message header\n"
 	       "  -i        Log process ID of the logger process with each line (LOG_PID)\n"
+	       "  -I PID    Log process ID using PID, recommed using PID $$ for shell scripts\n"
 #ifdef __linux__
 	       "  -k        Log to kernel /dev/kmsg if /dev/log doesn't exist yet\n"
 #endif
@@ -278,7 +279,7 @@ int main(int argc, char *argv[])
 	int c, num = 5;
 	int rotate = 0;
 
-	while ((c = getopt(argc, argv, "46?bcd:f:h:H:ikm:np:P:r:st:u:v")) != EOF) {
+	while ((c = getopt(argc, argv, "46?bcd:f:h:H:iI:km:np:P:r:st:u:v")) != EOF) {
 		switch (c) {
 		case '4':
 			family = AF_INET;
@@ -314,6 +315,11 @@ int main(int argc, char *argv[])
 
 		case 'i':
 			log_opts |= LOG_PID;
+			break;
+
+		case 'I':
+			log_opts |= LOG_PID;
+			log.log_pid = atoi(optarg);
 			break;
 
 		case 'k':

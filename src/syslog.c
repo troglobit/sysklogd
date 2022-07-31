@@ -299,7 +299,9 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 		DEC();
 
 		if (data->log_stat & LOG_PID) {
-			prlen = snprintf(p, tbuf_left, "[%d]", getpid());
+			if (data->log_pid == -1)
+				data->log_pid = getpid();
+			prlen = snprintf(p, tbuf_left, "[%d]", data->log_pid);
 			DEC();
 		}
 		strlcat(p, ":", tbuf_left);
@@ -368,7 +370,9 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 	DEC();
 
 	if (data->log_stat & LOG_PID) {
-		prlen = snprintf(p, tbuf_left, "%d ", getpid());
+		if (data->log_pid == -1)
+			data->log_pid = getpid();
+		prlen = snprintf(p, tbuf_left, "%d ", data->log_pid);
 		if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG)) {
 			iov[iovcnt].iov_base = __UNCONST("[");
 			iov[iovcnt].iov_len = 1;
