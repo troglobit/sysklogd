@@ -13,6 +13,12 @@ All relevant changes to the project are documented in this file.
   - in untrusted kernel messages
 - Dropped `debian/` directory (moved to separate branch), to ease
   re-packaging by downstream
+- Major updates to `logger`:
+  - Support for logging to a remote host, `-h HOST` and `-P PORT`
+  - Support for logging in RFC3164 format, mostly for remote logging
+    to syslog servers that do not support RFC5424, `-b`
+  - Support for overriding hostname `-H NAME`
+  - Support for custom PID, e.g., a shell scripts PID, `-I PID`
 
 ### Fixes
 - Fix #52: Prevent over-read when scanning a new-style kernel message.
@@ -297,7 +303,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 
 ### Changes
 - Support for true RFC3164 formatted log messages to remote log servers,
-  including timestamp and hostname.  Use `;RFC3161` rule option
+  including timestamp and hostname.  Use `;RFC3164` rule option
 - Support for RFC5424 from UNIX domain socket, from remote servers and also
   to remote servers.  Requires new API `syslogp()` to unlock these features
   on the UNIX socket.  Still compatible with GLIBC/musl/uClibc
