@@ -265,7 +265,7 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 	} while (/*CONSTCOND*/0)
 
 	/* Default log format is RFC5424, continues below BSD format */
-	if (data->log_stat & LOG_RFC3154) {
+	if (data->log_stat & LOG_RFC3164) {
 		if (!(data->log_stat & LOG_NLOG)) {
 			prlen = snprintf(p, tbuf_left, "<%d>", pri);
 			DEC();

@@ -290,7 +290,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'b':
-			log_opts |= LOG_RFC3154;
+			log_opts |= LOG_RFC3164;
 			break;
 
 		case 'c':
