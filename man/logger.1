@@ -33,11 +33,13 @@
 .Nd Send messages to system log, or a log file
 .Sh SYNOPSIS
 .Nm
-.Op Fl chiknsv
+.Op Fl 46bchiknsv
 .Op Fl d Ar SD
 .Op Fl f Ar FILE
+.Op Fl h Ar HOST
 .Op Fl m Ar MSGID
 .Op Fl p Ar PRIO
+.Op Fl P Ar PORT
 .Op Fl r Ar SIZE:NUM
 .Op Fl t Ar TAG
 .Op Fl u Ar SOCK
@@ -61,6 +63,16 @@ reads input from
 .Sh OPTIONS
 This program follows the usual UNIX command line syntax:
 .Bl -tag -width Ds
+.It Fl 4
+Force
+.Nm
+to use IPv4 addresses only.
+.It Fl 6
+Force
+.Nm
+to use IPv6 addresses only.
+.It Fl b
+Use RFC3164 (BSD) style format, default: RFC5424.
 .It Fl c
 Log to console
 .Ql ( LOG_CONS )
@@ -83,6 +95,10 @@ accepts
 .Fl f-
 as an alias for
 .Ar stdout .
+.It Fl h Ar host
+Send the message to the remote system
+.Ar host
+instead of logging it locally.
 .It Fl i
 Log the process id of the logger process with each line
 .Ql ( LOG_PID ) .
@@ -112,6 +128,17 @@ or sending remote in correctly formatted RFC5424 style.
 .It Fl n
 Open log file immediately
 .Ql ( LOG_NDELAY ) .
+.It Fl P Ar port
+Send the message to the specified
+.Ar port
+number on a remote system,
+which can be specified as a service name
+or as a decimal number.
+The default is
+.Dq Li syslog .
+If an unknown service name is used,
+.Nm
+prints a warning and falls back to port 514.
 .It Fl p Ar PRIO
 Priority, numeric or
 .Ar facility.severity
