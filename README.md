@@ -19,9 +19,8 @@ Table of Contents
 * [Building from GIT](#building-from-git)
 * [Origin & References](#origin--references)
 
-> **Tip:** the Gentoo project has a very nice article on their wiki
-> detailing how to use and set up sysklogd ➤
-> <https://wiki.gentoo.org/wiki/Sysklogd>
+> **Tip:** the Gentoo project has a very nice article detailing how to
+> use and set up sysklogd ➤ <https://wiki.gentoo.org/wiki/Sysklogd>
 
 
 Introduction
@@ -77,6 +76,9 @@ Main differences from the original sysklogd package are:
 - Touch PID file on `SIGHUP`, for integration with [Finit][]
 - GNU configure & build system to ease porting/cross-compiling
 - Support for configuring remote syslog timeout
+
+Please file bug reports, or send pull requests for bug fixes and/or
+proposed extensions at [GitHub][Home].
 
 
 Using -lsyslog
@@ -179,9 +181,14 @@ Origin & References
 
 This is the continuation of the original sysklogd by Dr. G.W. Wettstein
 and [Martin Schulze][].  Currently maintained, and almost completely
-rewritten with the latest DNA strands from NetBSD and FreeBSD, by
-[Joachim Wiberg][].  Please file bug reports, or send pull requests for
-bug fixes and proposed extensions at [GitHub][Home].
+rewritten by [Joachim Wiberg][], who spliced in fresh DNA strands from
+the NetBSD and FreeBSD projects.  Much of the code base is NetBSD, but
+the command line interface is FreeBSD.
+
+> **Note:** the project name remains `sysklogd`, which was a combination
+> of the names of the two main daemons, `syslogd` and `klogd`.  However,
+> since v2.0 `klogd` no longer exists, kernel logging is now native to
+> `syslogd`.
 
 The project was previously licensed under the GNU GPL, but since the
 removal of `klogd`, man pages, and resync with the BSDs the project is
