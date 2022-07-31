@@ -1,6 +1,7 @@
 EXTRA_DIST       = lib.sh opts.sh
-EXTRA_DIST      += api.sh local.sh unicode.sh remote.sh fwd.sh mark.sh \
-		   memleak.sh facility.sh notify.sh rotate_all.sh secure.sh
+EXTRA_DIST      += api.sh local.sh unicode.sh remote.sh fwd.sh mark.sh      \
+		   memleak.sh facility.sh notify.sh rotate_all.sh secure.sh \
+		   logger.sh
 CLEANFILES       = *~ *.trs *.log
 TEST_EXTENSIONS  = .sh
 TESTS_ENVIRONMENT= unshare -mrun
@@ -13,6 +14,7 @@ api_LDADD        = ../src/libsyslog.la
 
 TESTS            = opts.sh
 TESTS           += local.sh
+TESTS           += logger.sh
 TESTS           += unicode.sh
 TESTS           += remote.sh
 TESTS           += api.sh
