@@ -190,6 +190,7 @@ CODE facilitynames[] = {
 #define	LOG_PTRIM	0x040	/* trim tag and pid from messages to stderr */
 #define	LOG_NLOG	0x080	/* don't write to the system log */
 #define	LOG_STDOUT	0x100	/* like nlog, for debugging syslogp() API */
+#define	LOG_RFC3154     0x200	/* Log to remote/ipc socket in old BSD format */
 
 #ifndef __KERNEL__
 

@@ -241,6 +241,17 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 	if ((pri & LOG_FACMASK) == 0)
 		pri |= data->log_fac;
 
+	/* Get system time, wallclock, fall back to UNIX time */
+	if (gettimeofday(&tv, NULL) == -1) {
+		tv.tv_sec  = time(NULL);
+		tv.tv_usec = 0;
+	}
+
+	/* strftime() implies tzset(), localtime_r() doesn't. */
+	tzset();
+	now = (time_t) tv.tv_sec;
+	localtime_r(&now, &tmnow);
+
 	/* Build the message. */
 	p = tbuf;
 	tbuf_left = TBUF_LEN;
@@ -253,23 +264,57 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 		tbuf_left -= prlen;				\
 	} while (/*CONSTCOND*/0)
 
+	/* Default log format is RFC5424, continues below BSD format */
+	if (data->log_stat & LOG_RFC3154) {
+		if (!(data->log_stat & LOG_NLOG)) {
+			prlen = snprintf(p, tbuf_left, "<%d>", pri);
+			DEC();
+		} else
+			prlen = 0;
+
+		prlen = strftime(dbuf, sizeof(dbuf), "%b %d %T ", &tmnow);
+
+		if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG)) {
+			iov[iovcnt].iov_base = dbuf;
+			iov[iovcnt].iov_len = strlen(dbuf);
+			iovcnt++;
+		}
+		if (data->log_host) {
+			memcpy(p, dbuf, prlen);
+			DEC();
+		}
+
+		if (data->log_hostname[0] == '\0' && gethostname(data->log_hostname,
+					sizeof(data->log_hostname)) == -1) {
+			/* can this really happen? */
+			data->log_hostname[0] = '-';
+			data->log_hostname[1] = '\0';
+		}
+		prlen = snprintf(p, tbuf_left, "%s ", data->log_hostname);
+		DEC();
+
+		if (data->log_tag == NULL)
+			data->log_tag = getprogname();
+		prlen = snprintf(p, tbuf_left, "%s", data->log_tag);
+		DEC();
+
+		if (data->log_stat & LOG_PID) {
+			prlen = snprintf(p, tbuf_left, "[%d]", getpid());
+			DEC();
+		}
+		strlcat(p, ":", tbuf_left);
+		prlen = 1;
+		DEC();
+		goto output;
+	}
+
 	if (!(data->log_stat & LOG_NLOG)) {
 		prlen = snprintf(p, tbuf_left, "<%d>1 ", pri);
 		DEC();
 	} else
 		prlen = 0;
 
-	if (gettimeofday(&tv, NULL) == -1) {
-		tv.tv_sec  = time(NULL);
-		tv.tv_usec = 0;
-	}
-
 	{
-		/* strftime() implies tzset(), localtime_r() doesn't. */
-		tzset();
-		now = (time_t) tv.tv_sec;
-		localtime_r(&now, &tmnow);
-
 		prlen = strftime(p, tbuf_left, "%FT%T", &tmnow);
 		DEC();
 		prlen = snprintf(p, tbuf_left, ".%06ld", (long)tv.tv_usec);
@@ -359,6 +404,7 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 	} else
 		strlcat(fmt_cat, "-", FMT_LEN);
 
+output:
 	if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG))
 		msgsdlen = strlen(fmt_cat) + 1;
 	else

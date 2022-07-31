@@ -272,7 +272,7 @@ int main(int argc, char *argv[])
 	struct sockaddr sa;
 	char buf[512] = "";
 
-	while ((c = getopt(argc, argv, "46?cd:f:h:ikm:np:P:r:st:u:v")) != EOF) {
+	while ((c = getopt(argc, argv, "46?bcd:f:h:ikm:np:P:r:st:u:v")) != EOF) {
 		switch (c) {
 		case '4':
 			family = AF_INET;
@@ -280,6 +280,10 @@ int main(int argc, char *argv[])
 
 		case '6':
 			family = AF_INET6;
+			break;
+
+		case 'b':
+			log_opts |= LOG_RFC3154;
 			break;
 
 		case 'c':
