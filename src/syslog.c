@@ -295,17 +295,20 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 
 		if (data->log_tag == NULL)
 			data->log_tag = getprogname();
-		prlen = snprintf(p, tbuf_left, "%s", data->log_tag);
-		DEC();
+		if (data->log_pid == -1)
+			data->log_pid = getpid();
 
-		if (data->log_stat & LOG_PID) {
-			if (data->log_pid == -1)
-				data->log_pid = getpid();
-			prlen = snprintf(p, tbuf_left, "[%d]", data->log_pid);
-			DEC();
+		if (data->log_stat & LOG_PID)
+			prlen = snprintf(p, tbuf_left, "%s[%d]: ", data->log_tag,
+					 data->log_pid);
+		else
+			prlen = snprintf(p, tbuf_left, "%s: ", data->log_tag);
+
+		if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG)) {
+			iov[iovcnt].iov_base = p;
+			iov[iovcnt].iov_len = prlen;
+			iovcnt++;
 		}
-		strlcat(p, ":", tbuf_left);
-		prlen = 1;
 		DEC();
 		goto output;
 	}
