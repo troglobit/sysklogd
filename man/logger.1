@@ -30,7 +30,7 @@
 .Os sysklogd
 .Sh NAME
 .Nm logger
-.Nd Send messages to system log, or a log file
+.Nd Send messages to system log daemon, or a log file
 .Sh SYNOPSIS
 .Nm
 .Op Fl 46bchiknsv
@@ -48,20 +48,22 @@
 .Op Ar MESSAGE
 .Sh DESCRIPTIOMN
 .Nm
-can be used to log messages to the system log daemon from a UNIX shell,
-or script.  Optionally a stand-alone log file can be used, in which case
-the
+can be used to log messages to a local or remote system log daemon, or a
+log file, from a UNIX shell, or script.  The new
 .Xr syslogp 3
-API is still used but
+API is always used but
 .Nm syslogd
-is bypassed.  This log file can also be automatically log rotated.
+is bypassed in the remote log daemon and local log file use-cases.  The
+log file is also be automatically rotated.  See below for log rotation
+options.
 .Pp
 Without a
 .Ar MESSAGE
-argument
+argument,
 .Nm
-reads input from
-.Ar stdin .
+waits for input on
+.Ar stdin ,
+consuming all data until EOF.
 .Sh OPTIONS
 This program follows the usual UNIX command line syntax:
 .Bl -tag -width Ds
