@@ -322,6 +322,7 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 			iov[iovcnt].iov_len = prlen;
 			iovcnt++;
 		}
+		prlen--; /* drop extra space for regular log messages */
 		DEC();
 		goto output;
 	}
