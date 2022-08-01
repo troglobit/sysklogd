@@ -187,7 +187,7 @@ CODE facilitynames[] = {
 #define	LOG_NDELAY	0x008	/* don't delay open */
 #define	LOG_NOWAIT	0x010	/* don't wait for console forks: DEPRECATED */
 #define	LOG_PERROR	0x020	/* log to stderr as well */
-#define	LOG_PTRIM	0x040	/* trim tag and pid from messages to stderr */
+#define	LOG_PTRIM	0x040	/* trim anything syslog addded when writing to stderr */
 #define	LOG_NLOG	0x080	/* don't write to the system log */
 #define	LOG_STDOUT	0x100	/* like nlog, for debugging syslogp() API */
 #define	LOG_RFC3164     0x200	/* Log to remote/ipc socket in old BSD format */

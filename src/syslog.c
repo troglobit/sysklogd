@@ -477,11 +477,21 @@ output:
 	DEC();
 	cnt = p - tbuf;
 
-	/* Output to stderr if requested. */
+	/* Output to stderr if requested, PTRIM logs only message. */
 	if (data->log_stat & LOG_PERROR) {
+		struct iovec *piov;
+		int piovcnt;
+
 		iov[iovcnt].iov_base = __UNCONST(CRLF + 1);
 		iov[iovcnt].iov_len = 1;
-		(void)writev(STDERR_FILENO, iov, iovcnt + 1);
+		if (data->log_stat & LOG_PTRIM) {
+			piov = &iov[iovcnt - 1];
+			piovcnt = 2;
+		} else {
+			piov = iov;
+			piovcnt = iovcnt + 1;
+		}
+		(void)writev(STDERR_FILENO, piov, piovcnt + 1);
 	}
 
 	/* Don't write to system log, instead use fd in log_file */
