@@ -366,7 +366,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'v':	/* version */
-			fprintf(stderr, "%s\n", version_info);
+			printf("%s\n", version_info);
 			return 0;
 
 		default:

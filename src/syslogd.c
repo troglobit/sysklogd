@@ -107,6 +107,8 @@ static volatile sig_atomic_t debugging_on;
 static volatile sig_atomic_t restart;
 static volatile sig_atomic_t rotate_signal;
 
+static const char version_info[] = PACKAGE_NAME " v" PACKAGE_VERSION;
+
 /*
  * Intervals at which we flush out "message repeated" messages,
  * in seconds after previous message is logged.  After each flush,
@@ -494,8 +496,8 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'v':
-			printf("syslogd v%s\n", VERSION);
-			exit(0);
+			printf("%s\n", version_info);
+			return 0;
 
 		case '?':
 			return usage(0);
