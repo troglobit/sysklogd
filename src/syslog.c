@@ -221,7 +221,7 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 	char dbuf[30];
 	struct iovec iov[8];	/* date/time + prog + [ + pid + ]: + fmt + crlf */
 	int iovcnt = 0;
-	int opened;
+	int opened = 0;
 
 #define INTERNALLOG	LOG_ERR|LOG_CONS|LOG_PERROR|LOG_PID
 	/* Check for invalid bits. */
@@ -484,14 +484,6 @@ output:
 		(void)writev(STDERR_FILENO, iov, iovcnt + 1);
 	}
 
-	/* Get connected, output the message to the local logger. */
-	if (data == &sdata)
-		mutex_lock(&syslog_mutex);
-	opened = !data->log_opened;
-	if (opened)
-		openlog_unlocked_r(data->log_tag, data->log_stat, 0, data);
-	connectlog_r(data);
-
 	/* Don't write to system log, instead use fd in log_file */
 	if (data->log_stat & LOG_NLOG) {
 		iov[iovcnt].iov_base = __UNCONST(CRLF + 1);
@@ -499,6 +491,14 @@ output:
 		(void)writev(data->log_file, iov, iovcnt + 1);
 		goto done;
 	}
+
+	/* Get connected, output the message to the local logger. */
+	if (data == &sdata)
+		mutex_lock(&syslog_mutex);
+	opened = !data->log_opened;
+	if (opened)
+		openlog_unlocked_r(data->log_tag, data->log_stat, 0, data);
+	connectlog_r(data);
 
 	/* Log to stdout, usually for debugging syslogp() API */
 	if (data->log_stat & LOG_STDOUT) {
