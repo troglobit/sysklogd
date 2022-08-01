@@ -269,7 +269,7 @@ int main(int argc, char *argv[])
 	char *svcname = "syslog";
 	off_t size = 200 * 1024;
 	int facility = LOG_USER;
-	int severity = LOG_INFO;
+	int severity = LOG_NOTICE;
 	int family = AF_UNSPEC;
 	struct sockaddr sa;
 	int allow_kmsg = 0;
