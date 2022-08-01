@@ -32,12 +32,14 @@ FreeBSD.  The package includes the `libsyslog.{a,so}` library with a
 `syslog.h` header replacement, the `syslogd` daemon, and a command
 line tool called `logger`.
 
+- https://man.troglobit.com/man1/logger.1.html
+- https://man.troglobit.com/man8/syslogd.8.html
+- https://man.troglobit.com/man5/syslog.conf.5.html
+
 `libsyslog` and `syslog/syslog.h`, derived directly from NetBSD, expose
 `syslogp()` and other new features available only in [RFC5424][]:
 
 - https://man.troglobit.com/man3/syslogp.3.html
-- https://man.troglobit.com/man8/syslogd.8.html
-- https://man.troglobit.com/man5/syslog.conf.5.html
 - https://netbsd.gw.com/cgi-bin/man-cgi?syslog+3+NetBSD-current
 
 The `syslogd` daemon is an enhanced version of the standard Berkeley
