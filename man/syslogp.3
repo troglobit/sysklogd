@@ -29,7 +29,7 @@
 .\"
 .\"     @(#)syslog.3	8.1 (Berkeley) 6/4/93
 .\"
-.Dd March 22, 2017
+.Dd August 1, 2022
 .Dt SYSLOGP 3
 .Os
 .Sh NAME
@@ -115,37 +115,47 @@ The
 .Fn syslog_r
 function is a multithread-safe version of the
 .Fn syslog
-function.
-It takes a pointer to a
+function.  It takes a pointer to a
 .Fa syslog_data
-structure which is used to store
-information.
-This parameter must be initialized before
+structure which is used to store information.  This parameter must be
+initialized before
 .Fn syslog_r
-is called.
-The
+is called.  The
 .Dv SYSLOG_DATA_INIT
-constant is used for this purpose.
-The
+constant is used for this purpose.  The
 .Fa syslog_data
 structure and the
 .Dv SYSLOG_DATA_INIT
 constant are defined as:
 .Bd -literal -offset indent
 struct syslog_data {
-        int             log_file;
-        int             connected;
-        int             opened;
-        int             log_stat;
-        const char     *log_tag;
-        int             log_fac;
-        int             log_mask;
+    int              log_version;
+    int              log_file;
+    int              log_connected;
+    int              log_opened;
+    int              log_stat;
+    const char      *log_tag;
+    const char      *log_sockpath;
+    char             log_hostname[256];
+    int              log_fac;
+    int              log_mask;
+    struct sockaddr *log_host;
+    int              log_pid;
 };
 
-#define SYSLOG_DATA_INIT {     \e
-    .log_file = -1,            \e
-    .log_fac = LOG_USER,       \e
-    .log_mask = 0xff,          \e
+#define SYSLOG_DATA_INIT {    \e
+    .log_version = 1,         \e
+    .log_file = -1,           \e
+    .log_connected = 0,       \e
+    .log_opened = 0,          \e
+    .log_stat = 0,            \e
+    .log_tag  = 0,            \e
+    .log_sockpath = NULL,     \e
+    .log_hostname = { '\\0' }, \e
+    .log_fac = LOG_USER,      \e
+    .log_mask = 0xff,         \e
+    .log_host = NULL,         \e
+    .log_pid = -1,            \e
 }
 .Ed
 .Pp
@@ -153,9 +163,9 @@ The structure is composed of the following elements:
 .Bl -tag -width connected -offset indent
 .It Va log_file
 contains the file descriptor of the file where the message is logged
-.It Va connected
+.It Va log_connected
 indicates if connect has been done
-.It Va opened
+.It Va log_opened
 indicates if
 .Fn openlog_r
 has been called
@@ -164,10 +174,24 @@ status bits, set by
 .Fn openlog_r
 .It Va log_tag
 string to tag the entry with
+.It Va log_sockpath
+UNIX domain socket used, can be changed by user
+.It Va log_hostname
+Hostname used, initialized to
+.Fn gethostname
+if unset, can be changed by user
 .It Va log_fac
 facility code
 .It Va log_mask
 mask of priorities to be logged
+.It Va log_host
+.Va struct sockaddr *
+host to send UDP message to, if set by user, enables logging to a remote
+syslog server bypassing any local syslog server
+.It Va log_pid
+Process ID used in log message header.  Can be changed by user, if unset
+defaults to call
+.Fn getpid
 .El
 .\" .Pp
 .\" The
@@ -310,6 +334,8 @@ between the ident and the message.)
 .It Dv LOG_PTRIM
 Trim anything syslog added to the message before writing to
 standard error output.
+.It Dv LOG_RFC3164
+Use RFC3164 (BSD) style log messages, the default is new-style RFC5424.
 .El
 .Pp
 The
