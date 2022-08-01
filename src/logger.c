@@ -383,7 +383,7 @@ int main(int argc, char *argv[])
 		while (optind < argc) {
 			size_t bytes;
 
-			bytes = snprintf(&buf[pos], len, "%s ", argv[optind++]);
+			bytes = snprintf(&buf[pos], len, "%s%s", pos ? " " : "", argv[optind++]);
 			pos += bytes;
 			len -= bytes;
 		}
