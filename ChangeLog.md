@@ -4,7 +4,7 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
-[v2.4.1][UNRELEASED]
+[v2.4.1][] - 2022-08-01
 -----------------------
 
 ### Changes
@@ -13,10 +13,11 @@ All relevant changes to the project are documented in this file.
   - in untrusted kernel messages
 - Dropped `debian/` directory (moved to separate branch), to ease
   re-packaging by downstream
+- libsyslog now supports logging to remote servers, bypassing syslogd
 - Major updates to `logger`:
   - Support for logging to a remote host, `-h HOST` and `-P PORT`
-  - Support for logging in RFC3164 format, mostly for remote logging
-    to syslog servers that do not support RFC5424, `-b`
+  - Support for logging in RFC3164 format, `-b`, mostly for remote
+    logging to syslog servers that do not support RFC5424
   - Support for overriding hostname `-H NAME`
   - Support for custom PID, e.g., a shell scripts PID, `-I PID`
 
@@ -31,7 +32,11 @@ All relevant changes to the project are documented in this file.
 - Fix #56: logging to remote machine stops after receiving a few
   SIGHUPs.  Open remote socket count was not reset properly on SIGHUP.
   Problem introduced in v2.4.0.  Reported by Edward K. McGuire
-
+- Fix `gettimeofday()` error handling to use same fallback to `time()`
+- Fix libsyslog opening and connecting to syslogd when `LOG_NLOG` is set
+- Fix libsyslog so it honors `LOG_PTRIM` when logging to stderr
+- Fix issue in RFC3164 output where the tag field could overflow.
+  Spec. mandates tag never exceeds 32 characters
 
 [v2.4.0][] - 2022-05-29
 -----------------------
