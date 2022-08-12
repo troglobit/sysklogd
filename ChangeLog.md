@@ -4,6 +4,17 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.4.3][] - 2022-08-12
+-----------------------
+
+### Changes
+- Ensure output from `syslogd -v` and `logger -v` is the same, so
+  that the project origin is the same, and that both use stdout
+
+### Fixes
+- Fix #57: garbled tag name in std (RFC3164) log file output
+
+
 [v2.4.2][] - 2022-08-01
 -----------------------
 
@@ -506,7 +517,8 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.4.2...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.4.3...HEAD
+[v2.4.3]:     https://github.com/troglobit/sysklogd/compare/v2.4.2...v2.4.3
 [v2.4.2]:     https://github.com/troglobit/sysklogd/compare/v2.4.1...v2.4.2
 [v2.4.1]:     https://github.com/troglobit/sysklogd/compare/v2.4.0...v2.4.1
 [v2.4.0]:     https://github.com/troglobit/sysklogd/compare/v2.3.0...v2.4.0
