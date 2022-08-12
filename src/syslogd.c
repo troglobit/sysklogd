@@ -1932,15 +1932,15 @@ static int fmt3164(struct buf_msg *buffer, char *fmt, struct iovec *iov, size_t 
 	}
 
 	if (buffer->app_name) {
-		char tag[33];
-
 		/*
 		 * RFC3164, sec 4.1.3: "The TAG is a string of ABNF
 		 * alphanumeric characters that MUST NOT exceed 32
 		 * characters."
 		 */
-		strlcpy(tag, buffer->app_name, sizeof(tag));
-		pushiov(iov, i, tag);
+		iov[i].iov_base = buffer->app_name;
+		iov[i].iov_len  = MIN(strlen(buffer->app_name), 32);
+		i++;
+
 		if (buffer->proc_id) {
 			pushiov(iov, i, "[");
 			pushiov(iov, i, buffer->proc_id);
