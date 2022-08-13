@@ -1159,19 +1159,19 @@ parsemsg_rfc3164(const char *from, int pri, char *msg)
 	 */
 	if (strptime(msg, RFC3164_DATEFMT, &tm_parsed) ==
 	    msg + RFC3164_DATELEN && msg[RFC3164_DATELEN] == ' ') {
-		struct timeval tv;
 
 		msg += RFC3164_DATELEN + 1;
 
-		if (gettimeofday(&tv, NULL) == -1) {
-			tv.tv_sec  = time(NULL);
-			tv.tv_usec = 0;
-		}
-
 		if (!RemoteAddDate) {
-			time_t t_now, t_remote;
+			struct timeval tv;
+			time_t t_remote;
 			struct tm tm_now;
 			int year;
+
+			if (gettimeofday(&tv, NULL) == -1) {
+				tv.tv_sec  = time(NULL);
+				tv.tv_usec = 0;
+			}
 
 			/*
 			 * As the timestamp does not contain the year
@@ -1185,24 +1185,21 @@ parsemsg_rfc3164(const char *from, int pri, char *msg)
 			 * This loop can only run for at most three
 			 * iterations before terminating.
 			 */
-			t_now = time(NULL);
-			localtime_r(&t_now, &tm_now);
+			localtime_r(&tv.tv_sec, &tm_now);
 			for (year = tm_now.tm_year + 1;; --year) {
 				if (year < tm_now.tm_year - 1)
 					break;
 				timestamp_remote.tm = tm_parsed;
 				timestamp_remote.tm.tm_year = year;
 				timestamp_remote.tm.tm_isdst = -1;
-				timestamp_remote.usec = 0;
 				t_remote = mktime(&timestamp_remote.tm);
 				if ((t_remote != (time_t)-1) &&
-				    (t_remote - t_now) < 7 * 24 * 60 * 60)
+				    (t_remote - tv.tv_sec) < 7 * 24 * 60 * 60)
 					break;
 			}
 			buffer.timestamp = timestamp_remote;
+			buffer.timestamp.usec = tv.tv_usec;
 		}
-
-		buffer.timestamp.usec = tv.tv_usec;
 	}
 
 	/*
