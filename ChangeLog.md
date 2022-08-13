@@ -4,6 +4,14 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.4.4][] - 2022-08-14
+-----------------------
+
+### Fixes
+- Fix #58: running syslogd with `-T` should use local time for remote
+  messages, but time is always logged with "Jan 0 00:00:00".
+
+
 [v2.4.3][] - 2022-08-12
 -----------------------
 
