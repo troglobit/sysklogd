@@ -49,7 +49,9 @@
 #include "queue.h"
 #include "syslog.h"
 
+#ifndef MAXLINE
 #define MAXLINE        2048            /* maximum line length */
+#endif
 #define MAXSVLINE      MAXLINE         /* maximum saved line length */
 #define DEFUPRI        (LOG_USER | LOG_NOTICE)
 #define DEFSPRI        (LOG_KERN | LOG_CRIT)

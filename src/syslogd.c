@@ -65,8 +65,9 @@ static char sccsid[] __attribute__((unused)) =
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#ifdef HAVE_UTMP_H
 #include <utmp.h>
-
+#endif
 #include <errno.h>
 #include <err.h>
 #include <fnmatch.h>
@@ -83,7 +84,6 @@ static char sccsid[] __attribute__((unused)) =
 #endif
 
 #include <arpa/inet.h>
-#include <arpa/nameser.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <resolv.h>
@@ -95,6 +95,10 @@ static char sccsid[] __attribute__((unused)) =
 #include "socket.h"
 #include "timer.h"
 #include "compat.h"
+
+#ifndef MIN
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
+#endif
 
 #define SecureMode (secure_opt > 0 ? secure_opt : secure_mode)
 
@@ -866,8 +870,10 @@ static void create_inet_socket(struct peer *pe)
 
 void untty(void)
 {
+#ifdef HAVE_SETSID
 	if (!Debug)
 		setsid();
+#endif
 }
 
 /*
@@ -1397,7 +1403,97 @@ void printsys(char *msg)
 		} else if (*p == ' ') {
 			/* Linux /dev/kmsg continuation line w/ SUBSYSTEM= DEVICE=, skip */
 			return;
-		} else {
+		}
+#ifdef __NuttX__
+		else if (*p == '[') {
+				p++;
+#ifdef CONFIG_SYSLOG_TIMESTAMP_FORMATTED
+				if (strptime(p, CONFIG_SYSLOG_TIMESTAMP_FORMAT, &buffer.timestamp.tm) == NULL)
+					return;
+				p = strchr(p, ']');
+				if (p == NULL)
+					return;
+#else
+				time_t sec = boot_time + strtoul(p ,&p, 0);
+				if (*p++ != '.') {
+					return;
+				}
+				localtime_r(&sec, &buffer.timestamp.tm);
+				buffer.timestamp.usec = atoi(p) * 1000;
+				p = strchr(p, ']');
+				if (p == NULL)
+					return;
+#endif
+
+#ifdef CONFIG_SMP
+				p = strchr(p, '[');
+				if (p == NULL)
+					return;
+				buffer.sd = ++p;
+				p = strchr(p, ']');
+				if (p == NULL)
+					return;
+				*p++ = '\0';
+#endif
+
+#ifdef CONFIG_SYSLOG_PROCESSID
+				p = strchr(p, '[');
+				if (p == NULL)
+					return;
+				buffer.proc_id = ++p;
+				p = strchr(p, ']');
+				if (p == NULL)
+					return;
+
+				*p++ = '\0';
+#endif
+
+#ifdef CONFIG_SYSLOG_PRIORITY
+				static const char * PriorityNames[] = {
+					" EMERG", " ALERT", "  CRIT", " ERROR",
+					"  WARN", "NOTICE", "  INFO", " DEBUG"
+				};
+				p = strchr(p, '[');
+				if (p == NULL)
+					return;
+				p = p + 1;
+
+				for (uint8_t i = 0; i <= LOG_DEBUG; i++) {
+					if (strncmp(p, PriorityNames[i],
+						    strlen(PriorityNames[i])) == 0) {
+						buffer.pri = i;
+						p += strlen(PriorityNames[i]);
+						break;
+					}
+				}
+				p = strchr(p, ']');
+				if (p == NULL)
+					return;
+				p += 2;
+#endif
+
+#ifdef CONFIG_SYSLOG_PREFIX
+				p = strchr(p, '[');
+				if (p == NULL)
+					return;
+				buffer.hostname = p + 1;
+				p = strchr(p, ']');
+				if (p == NULL)
+					return;
+				*p++ = '\0';
+#endif
+
+#if CONFIG_TASK_NAME_SIZE > 0 && defined(CONFIG_SYSLOG_PROCESS_NAME)
+				buffer.app_name = p;
+				p = strchr(p, ':');
+				if (p == NULL)
+					return;
+				*(p + 1) = '\0';
+				p += 2;
+#endif
+		}
+#endif
+		else {
 			/* kernel printf's come out on console */
 			buffer.flags |= IGN_CONS;
 		}
@@ -2062,6 +2158,7 @@ void endtty(int signo)
  */
 void wallmsg(struct filed *f, struct iovec *iov, int iovcnt)
 {
+#ifdef HAVE_UTMP_H
 	static int reenter = 0;
 	struct utmp *uptr;
 	struct utmp  ut;
@@ -2153,6 +2250,7 @@ void wallmsg(struct filed *f, struct iovec *iov, int iovcnt)
 	/* close the user login file */
 	endutent();
 	reenter = 0;
+#endif
 }
 
 void reapchild(int signo)
@@ -2422,6 +2520,7 @@ void die(int signo)
  */
 static int waitdaemon(int maxwait)
 {
+#ifdef HAVE_FORK
 	struct sigaction sa;
 	pid_t pid, childpid;
 	int status;
@@ -2470,6 +2569,7 @@ static int waitdaemon(int maxwait)
 		(void)close(fd);
 	}
 
+#endif /* HAVE_FORK */
 	return getppid();
 }
 
@@ -2540,14 +2640,16 @@ static void signal_init(void)
 	SIGNAL(SIGQUIT, Debug ? die : SIG_IGN);
 	SIGNAL(SIGUSR1, Debug ? debug_switch : SIG_IGN);
 	SIGNAL(SIGUSR2, signal_rotate);
+#ifdef SIGXFSZ
 	SIGNAL(SIGXFSZ, SIG_IGN);
+#endif
 	SIGNAL(SIGHUP,  reload);
 	SIGNAL(SIGCHLD, reapchild);
 }
 
 static void boot_time_init(void)
 {
-#ifdef __linux__
+#if defined(__linux__) || defined(__NuttX__)
 	struct sysinfo si;
 	struct timeval tv;
 

@@ -54,6 +54,15 @@ PKG_PROG_PKG_CONFIG
 AC_REPLACE_FUNCS([pidfile strlcpy strlcat utimensat])
 AC_CONFIG_LIBOBJ_DIR([lib])
 
+# Check for utmp.h
+AC_CHECK_HEADERS([utmp.h])
+
+# Check for fork()
+AC_CHECK_FUNCS([fork])
+
+# Check for setsid()
+AC_CHECK_FUNCS([setsid])
+
 # Check for other library functions
 AC_CHECK_FUNCS([getprogname strtobytes])
 
