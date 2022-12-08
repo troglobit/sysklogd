@@ -330,6 +330,16 @@ The size argument takes optional modifiers; k, M, G.  E.g., 100M is
 The optional number of files kept include both gzipped files and the
 first rotated (not zipped) file.  The default for this, when omitted,
 is 5.
+.Pp
+.Sy Note:
+the permissions of the rotated files are kept.  Meaning the
+administrator can create all log files, before starting
+.Nm
+the first time, with the permissions needed for the site.  However, if
+the log files do not exist,
+.Nm
+will create them with the user and group it runs as and 0644
+permissions.
 .It Fl s
 Operate in secure mode.  Do not log messages from remote machines.  If
 specified twice, no network socket will be opened at all, which also

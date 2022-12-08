@@ -107,6 +107,16 @@ a file can reach before it is rotated, and later compressed.  This
 feature is mostly intended for embedded systems that do not want to have
 cron or a separate log rotate daemon.
 .Pp
+.Sy Note:
+the permissions of the rotated files are kept.  Meaning the
+administrator can create all log files, before starting
+.Nm
+the first time, with the permissions needed for the site.  However, if
+the log files do not exist,
+.Nm
+will create them with the user and group it runs as and 0644
+permissions.
+.Pp
 Comments, lines starting with a hash mark ('#'), and empty lines are
 ignored.  If an error occurs during parsing the whole line is ignored.
 .Pp
