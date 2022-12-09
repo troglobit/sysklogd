@@ -45,7 +45,7 @@ jobs:
         run: |
           cd build/dir
           make V=1 install-strip
-          tree /tmp
+          tree /tmp || true
           ldd /tmp/sbin/syslogd
           size /tmp/sbin/syslogd
           /tmp/sbin/syslogd -?
