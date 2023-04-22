@@ -4,6 +4,24 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.5.0][UNRELEASED]
+-----------------------
+
+### Changes
+- Issue #59: initial port to NuttX, contributed by Xiaomi
+- Issue #61: add support for `-c` and `-cc` to disable log compression.
+  A single `-c` disables compression for pipes, another `-c` (or `-cc`)
+  disables compression for all other log targets
+- The default `syslog.conf` now logs debug messages again (disabled in
+  v2.4.0) due to problems (confusion) reported in the field
+- Dropped not recommend `KillMode=process` from systemd unit file
+
+### Fixes
+- Issue #60: document how to set side-wide permissions on log files
+- Issue #62: early log messages lost when running under systemd, found
+  by Wind River Systems, including initial fix
+
+
 [v2.4.4][] - 2022-08-14
 -----------------------
 
@@ -525,7 +543,9 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.4.3...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.4.4...HEAD
+[v2.5.0]:     https://github.com/troglobit/sysklogd/compare/v2.4.4...v2.5.0
+[v2.4.4]:     https://github.com/troglobit/sysklogd/compare/v2.4.3...v2.4.4
 [v2.4.3]:     https://github.com/troglobit/sysklogd/compare/v2.4.2...v2.4.3
 [v2.4.2]:     https://github.com/troglobit/sysklogd/compare/v2.4.1...v2.4.2
 [v2.4.1]:     https://github.com/troglobit/sysklogd/compare/v2.4.0...v2.4.1
