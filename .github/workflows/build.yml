@@ -28,7 +28,7 @@ jobs:
         run: |
           sudo apt-get -y update
           sudo apt-get -y install tree tshark valgrind
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Configure
         run: |
           set -x
