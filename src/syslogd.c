@@ -144,6 +144,7 @@ static int	  MarkInterval = 20 * 60; /* interval between marks in seconds */
 static int	  family = PF_UNSPEC;	  /* protocol family (IPv4, IPv6 or both) */
 static int	  mask_C1 = 1;		  /* mask characters from 0x80 - 0x9F */
 static int	  send_to_all;		  /* send message to all IPv4/IPv6 addresses */
+static int	  no_compress;		  /* don't compress messages (1=pipes, 2=all) */
 static int	  secure_opt;		  /* sink for others, log to remote, or only unix domain socks */
 static int	  secure_mode;		  /* same as above but from syslog.conf, only if cmdline unset */
 
@@ -396,7 +397,7 @@ int main(int argc, char *argv[])
 	char *ptr;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "468Aa:b:C:dHFf:Kkm:nP:p:r:sTtv?")) != EOF) {
+	while ((ch = getopt(argc, argv, "468Aa:b:C:cdHFf:Kkm:nP:p:r:sTtv?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -432,6 +433,10 @@ int main(int argc, char *argv[])
 
 		case 'C': /* kernel seqno cache file */
 			CacheFile = optarg;
+			break;
+
+		case 'c':
+			no_compress++;
 			break;
 
 		case 'd': /* debug */
@@ -1680,7 +1685,8 @@ static void logmsg(struct buf_msg *buffer)
 		/*
 		 * suppress duplicate lines to this file
 		 */
-		if ((buffer->flags & MARK) == 0 && savedlen == f->f_prevlen &&
+		if (no_compress - (f->f_type != F_PIPE) < 1 &&
+		    (buffer->flags & MARK) == 0 && savedlen == f->f_prevlen &&
 		    !strcmp(saved, f->f_prevline)) {
 			f->f_lasttime = buffer->timestamp;
 			f->f_prevcount++;

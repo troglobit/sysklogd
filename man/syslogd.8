@@ -38,7 +38,7 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm
-.Op Fl ?468AdFHKknsTtv
+.Op Fl ?468AcdFHKknsTtv
 .Op Fl a Ar addr[/len][:port]
 .Op Fl a Ar name[:port]
 .Op Fl b Ar addr[:port]
@@ -245,6 +245,12 @@ relies on this file being removed at system reboot.  The default
 location depends on the system and how
 .Nm
 was configured.
+.It Fl c
+Disable the compression of repeated instances of the same line into a
+single line of the form
+.Dq Li "last message repeated N times"
+when the output is a pipe to another program.  If specified twice,
+disable this compression in all cases.
 .It Fl d
 Put
 .Nm
