@@ -33,7 +33,7 @@ if ENABLE_LOGGER
 bin_PROGRAMS	     += logger
 endif
 
-AM_CFLAGS             = -W -Wall -Wextra -std=c99
+AM_CFLAGS             = -W -Wall -Wextra -std=c99 -gdwarf-4
 AM_CFLAGS            += -Wno-unused-result -Wno-unused-parameter -fno-strict-aliasing
 AM_CPPFLAGS           = -DSYSCONFDIR=\"@sysconfdir@\" -DRUNSTATEDIR=\"@runstatedir@\"
 AM_CPPFLAGS          += -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_GNU_SOURCE
