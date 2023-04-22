@@ -106,7 +106,7 @@ static int __timer_start(void)
 	if (sec <= 0)
 		sec = 1;
 
-	return alarm(sec);
+	return alarm((unsigned int)sec);
 }
 
 /*
