@@ -6,7 +6,7 @@ Requires=syslog.socket
 
 [Service]
 EnvironmentFile=-@SYSCONFDIR@/default/syslogd
-ExecStart=@SBINDIR@/syslogd -F -p /run/systemd/journal/syslog $SYSLOGD_OPTS
+ExecStart=@SBINDIR@/syslogd -F $SYSLOGD_OPTS
 StandardOutput=null
 Restart=on-failure
 

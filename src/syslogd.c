@@ -193,6 +193,7 @@ void        untty(void);
 static void parsemsg(const char *from, char *msg);
 static int  opensys(const char *file);
 static void printsys(char *msg);
+static void unix_cb(int sd, void *arg);
 static void logmsg(struct buf_msg *buffer);
 static void logrotate(struct filed *f);
 static void rotate_file(struct filed *f, struct stat *stp_or_null);
@@ -521,12 +522,20 @@ int main(int argc, char *argv[])
 				.pe_serv = "syslog",
 			});
 
-	/* Default to _PATH_LOG for the UNIX domain socket */
-	if (!pflag)
-		addpeer(&(struct peer) {
-				.pe_name = _PATH_LOG,
-				.pe_mode = 0666,
-			});
+	/* Figure out where to read system log messages from */
+	if (!pflag) {
+		/* Do we run under systemd-journald (Requires=syslog.socket)? */
+		if (fcntl(3, F_GETFD) != -1) {
+			if (socket_register(3, NULL, unix_cb, NULL) == -1)
+				err(1, "failed registering syslog.socket (3)");
+		} else {
+			/* Default to _PATH_LOG for the UNIX domain socket */
+			addpeer(&(struct peer) {
+					.pe_name = _PATH_LOG,
+					.pe_mode = 0666,
+				});
+		}
+	}
 
 	if (!Foreground && !Debug) {
 		ppid = waitdaemon(30);
