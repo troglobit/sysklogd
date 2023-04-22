@@ -9,7 +9,6 @@ EnvironmentFile=-@SYSCONFDIR@/default/syslogd
 ExecStart=@SBINDIR@/syslogd -F -p /run/systemd/journal/syslog $SYSLOGD_OPTS
 StandardOutput=null
 Restart=on-failure
-KillMode=process
 
 [Install]
 WantedBy=multi-user.target
