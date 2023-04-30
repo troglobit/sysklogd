@@ -21,12 +21,20 @@
 #endif
 #include <sys/time.h>		/* lutimes(), utimes(), utimensat() */
 
+#ifndef TIMESPEC_TO_TIMEVAL
+#define TIMESPEC_TO_TIMEVAL(tv, ts) {		\
+	(tv)->tv_sec = (ts)->tv_sec;		\
+	(tv)->tv_usec = (ts)->tv_nsec / 1000;	\
+}
+#endif
+
 int
 __utimensat(int dirfd, const char *pathname, const struct timespec ts[2], int flags)
 {
 	int ret = -1;
 	struct timeval tv[2];
 
+	(void)flags;
 	if (dirfd != 0) {
 		errno = ENOTSUP;
 		return -1;
