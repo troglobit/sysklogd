@@ -4,7 +4,7 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
-[v2.5.0][UNRELEASED]
+[v2.5.0][] - 2023-04-30
 -----------------------
 
 ### Changes
@@ -14,7 +14,7 @@ All relevant changes to the project are documented in this file.
   disables compression for all other log targets
 - The default `syslog.conf` now logs debug messages again (disabled in
   v2.4.0) due to problems (confusion) reported in the field
-- Dropped not recommend `KillMode=process` from systemd unit file
+- Dropped not recommended `KillMode=process` from systemd unit file
 
 ### Fixes
 - Issue #60: document how to set side-wide permissions on log files
@@ -543,7 +543,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.4.4...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.5.0...HEAD
 [v2.5.0]:     https://github.com/troglobit/sysklogd/compare/v2.4.4...v2.5.0
 [v2.4.4]:     https://github.com/troglobit/sysklogd/compare/v2.4.3...v2.4.4
 [v2.4.3]:     https://github.com/troglobit/sysklogd/compare/v2.4.2...v2.4.3
