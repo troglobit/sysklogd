@@ -217,7 +217,7 @@ struct syslog_data {
     .log_connected = 0, \
     .log_opened = 0, \
     .log_stat = 0, \
-    .log_tag  = 0, \
+    .log_tag  = NULL, \
     .log_sockpath = NULL, \
     .log_hostname = { '\0' }, \
     .log_fac = LOG_USER, \
