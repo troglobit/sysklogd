@@ -1404,7 +1404,7 @@ void printsys(char *msg)
 					tv.tv_sec  = time(NULL);
 					tv.tv_usec = 0;
 				}
-				ustime = tv.tv_usec * 1000000;
+				ustime = tv.tv_usec;
 			}
 
 			localtime_r(&now, &buffer.timestamp.tm);
