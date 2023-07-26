@@ -296,7 +296,9 @@ facility is reserved for messages read directly from
 Select the number of minutes between
 .Dq mark
 messages; the default is 20 minutes.  Setting this to zero disables log
-marks.
+marks.  See the
+.Sx BUGS
+section for more information.
 .It Fl n
 Disable DNS query for every request.
 .It Fl p Ar socket
@@ -621,6 +623,22 @@ peer groups where frequent messages are being anticipated
 from should be put early into the
 .Fl a
 list.
+.Pp
+The mark interval, as controlled by the
+.Fl m Ar INTV
+option, relies on an internal timer with 30 second granularity.  Every
+30 seconds
+.Nm
+will attempt to log the text
+.Cd "-- MARK --"
+with (the internal) facility
+.Cd mark
+and priority
+.Cd info .
+Every log target is traversed, if at least
+.Ar INTV
+minutes have passed since the log target was written to, the mark is
+logged.  Hence, it may be off by up to 30 seconds, this is by design.
 .Pp
 As mentioned in the
 .Sx DESCRIPTION ,

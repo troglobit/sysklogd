@@ -585,13 +585,8 @@ no_klogd:
 	/*
 	 * Set up timer callbacks for -- MARK -- et al
 	 */
-	if (MarkInterval > 0) {
-		int interval = MarkInterval / 2;
-
-		if (interval < 30)
-			interval = 30;
-		timer_add(interval, domark, NULL);
-	}
+	if (MarkInterval > 0)
+		timer_add(TIMERINTVL, domark, NULL);
 	timer_add(TIMERINTVL, doflush, NULL);
 
 	/* Start 'em */
@@ -1674,11 +1669,7 @@ static void logmsg(struct buf_msg *buffer)
 
 		/* don't output marks to recently written files */
 		if (buffer->flags & MARK) {
-			time_t t_now = timer_now();
-
-			if (f->f_time + MarkInterval > t_now)
-				continue;
-			if (t_now - f->f_time < MarkInterval / 2)
+			if (timer_now() - f->f_time < MarkInterval)
 				continue;
 		}
 
@@ -2423,14 +2414,7 @@ static void forw_lookup(struct filed *f)
 
 void domark(void *arg)
 {
-	static time_t t_last = 0;
-	time_t t_now;
-
-	t_now = timer_now();
-	if (t_now >= t_last + MarkInterval) {
-		flog(INTERNAL_MARK | LOG_INFO, "-- MARK --");
-		t_last = t_now;
-	}
+	flog(INTERNAL_MARK | LOG_INFO, "-- MARK --");
 }
 
 void doflush(void *arg)
