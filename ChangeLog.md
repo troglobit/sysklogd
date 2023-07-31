@@ -4,6 +4,19 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.5.1][] - 2023-08-01
+-----------------------
+
+Minor fix release.
+
+### Fixes
+- Issue #37: improved accuracy of the MARK timer, optional, default: 20
+  minutes.  Generates log messages to files, which have had no activity
+  within the MARK interval.  Was off by up to `interval / 2` minutes.
+  It may now be off by up to `1 / 2` minutes, i.e.g, 30 seconds.
+- Issue #64: sub-second faking of kernel timestamps was always zero
+
+
 [v2.5.0][] - 2023-04-30
 -----------------------
 
@@ -544,6 +557,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 
 
 [UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.5.0...HEAD
+[v2.5.1]:     https://github.com/troglobit/sysklogd/compare/v2.5.0...v2.5.1
 [v2.5.0]:     https://github.com/troglobit/sysklogd/compare/v2.4.4...v2.5.0
 [v2.4.4]:     https://github.com/troglobit/sysklogd/compare/v2.4.3...v2.4.4
 [v2.4.3]:     https://github.com/troglobit/sysklogd/compare/v2.4.2...v2.4.3
