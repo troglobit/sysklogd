@@ -4,6 +4,16 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.5.2][] - 2023-08-21
+-----------------------
+
+Minor fix release.
+
+### Fixes
+- Issue #67: restore support for reading kernel logs from `/proc/kmsg`,
+  regression introduced in v2.4.0, issue #48.
+
+
 [v2.5.1][] - 2023-08-01
 -----------------------
 
@@ -556,7 +566,8 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.5.0...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.5.2...HEAD
+[v2.5.2]:     https://github.com/troglobit/sysklogd/compare/v2.5.1...v2.5.2
 [v2.5.1]:     https://github.com/troglobit/sysklogd/compare/v2.5.0...v2.5.1
 [v2.5.0]:     https://github.com/troglobit/sysklogd/compare/v2.4.4...v2.5.0
 [v2.4.4]:     https://github.com/troglobit/sysklogd/compare/v2.4.3...v2.4.4
