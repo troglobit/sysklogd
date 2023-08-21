@@ -703,12 +703,14 @@ static int opensys(const char *file)
 
 	/*
 	 * In some (container) use-cases /dev/kmsg might not be a proper
-	 * FIFO, which may lead to CPU overload and possible loss of
-	 * function.  This check, along with the in_container() function
-	 * is an attempt to remedy such scenarios.  It's merely a sanity
-	 * check, so ignore any TOCTOU warnings this might cause.
+	 * device node, which may lead to CPU overload and possible loss
+	 * of function.  This check, and the in_container() function is
+	 * an attempt to remedy such scenarios.  The newer /dev/kmsg is
+	 * a (should be a) character device and the older /proc/kmsg a
+	 * pseudo-fifo device.  However, /proc on Linux does not give us
+	 * any information other than a read-only (root only) file.
 	 */
-	if (stat(file, &st) || !S_ISCHR(st.st_mode))
+	if (stat(file, &st) || (!S_ISCHR(st.st_mode) && strcmp(file, "/proc/kmsg")))
 		return 1;
 
 	fd = open(file, O_RDONLY | O_NONBLOCK | O_CLOEXEC, 0);
