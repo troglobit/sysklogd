@@ -201,15 +201,15 @@ static void rotate_file(struct filed *f, struct stat *stp_or_null);
 static void rotate_all_files(void);
 static void fprintlog_first(struct filed *f, struct buf_msg *buffer);
 static void fprintlog_successive(struct filed *f, int flags);
-void        endtty();
+void        endtty(int);
 void        wallmsg(struct filed *f, struct iovec *iov, int iovcnt);
-void        reapchild();
+void        reapchild(int);
 const char *cvtaddr(struct sockaddr_storage *f, int len);
 const char *cvthname(struct sockaddr *f, socklen_t len);
 static void forw_lookup(struct filed *f);
 void        domark(void *arg);
 void        doflush(void *arg);
-void        debug_switch();
+void        debug_switch(int);
 void        die(int sig);
 static void signal_init(void);
 static void boot_time_init(void);
@@ -2697,7 +2697,7 @@ static void init(void)
 		 * Good software also always checks its return values...
 		 * If syslogd starts up before DNS is up & /etc/hosts
 		 * doesn't have LocalHostName listed, gethostbyname will
-		 * return NULL. 
+		 * return NULL.
 		 */
 		hent = gethostbyname(LocalHostName);
 		if (hent)
