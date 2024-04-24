@@ -329,30 +329,27 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 	if (!(data->log_stat & LOG_NLOG)) {
 		prlen = snprintf(p, tbuf_left, "<%d>1 ", pri);
 		DEC();
-	} else
-		prlen = 0;
+	}
 
-	{
-		prlen = strftime(p, tbuf_left, "%FT%T", &tmnow);
-		DEC();
-		prlen = snprintf(p, tbuf_left, ".%06ld", (long)tv.tv_usec);
-		DEC();
-		prlen = strftime(p, tbuf_left-1, "%z", &tmnow);
-		/* strftime gives eg. "+0200", but we need "+02:00" */
-		if (prlen == 5) {
-			p[prlen+1] = p[prlen];
-			p[prlen]   = p[prlen-1];
-			p[prlen-1] = p[prlen-2];
-			p[prlen-2] = ':';
-			prlen += 1;
-		}
+	prlen = strftime(p, tbuf_left, "%FT%T", &tmnow);
+	DEC();
+	prlen = snprintf(p, tbuf_left, ".%06ld", (long)tv.tv_usec);
+	DEC();
+	prlen = strftime(p, tbuf_left-1, "%z", &tmnow);
+	/* strftime gives eg. "+0200", but we need "+02:00" */
+	if (prlen == 5) {
+		p[prlen+1] = p[prlen];
+		p[prlen]   = p[prlen-1];
+		p[prlen-1] = p[prlen-2];
+		p[prlen-2] = ':';
+		prlen += 1;
+	}
 
-		if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG)) {
-			strftime(dbuf, sizeof(dbuf), "%b %d %Y %T ", &tmnow);
-			iov[iovcnt].iov_base = dbuf;
-			iov[iovcnt].iov_len = strlen(dbuf);
-			iovcnt++;
-		}
+	if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG)) {
+		strftime(dbuf, sizeof(dbuf), "%b %d %Y %T ", &tmnow);
+		iov[iovcnt].iov_base = dbuf;
+		iov[iovcnt].iov_len = strlen(dbuf);
+		iovcnt++;
 	}
 
 	if (data == &sdata)
