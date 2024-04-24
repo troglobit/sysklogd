@@ -272,8 +272,7 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 		if (!(data->log_stat & LOG_NLOG)) {
 			prlen = snprintf(p, tbuf_left, "<%d>", pri);
 			DEC();
-		} else
-			prlen = 0;
+		}
 
 		prlen = strftime(dbuf, sizeof(dbuf), "%b %d %T ", &tmnow);
 
