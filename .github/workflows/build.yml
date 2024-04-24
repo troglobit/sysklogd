@@ -28,7 +28,7 @@ jobs:
         run: |
           sudo apt-get -y update
           sudo apt-get -y install tree tshark valgrind
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Configure
         run: |
           set -x
@@ -60,7 +60,7 @@ jobs:
         run: |
           cd build/dir
           make check || (cat test/test-suite.log; false)
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.compiler }}-test-logs
           path: build/dir/test/*.log
