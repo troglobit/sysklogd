@@ -154,6 +154,7 @@ static int	  RemoteHostname;	  /* Log remote hostname from the message */
 static int	  KernLog = 1;		  /* Track kernel logs by default */
 static int	  KeepKernFac;		  /* Keep remotely logged kernel facility */
 static int	  KeepKernTime;		  /* Keep kernel timestamp, evern after initial read */
+static int	  KeepKernConsole;	  /* Keep kernel logging to console */
 
 static off_t	  RotateSz = 0;		  /* Max file size (bytes) before rotating, disabled by default */
 static int	  RotateCnt = 5;	  /* Max number (count) of log files to keep, set with -c <NUM> */
@@ -363,6 +364,9 @@ int usage(int code)
 	       "  -H        Use hostname from message instead of address for remote messages\n"
 	       "  -K        Disable kernel logging, useful in container use-cases\n"
 	       "  -k        Allow logging with facility 'kernel', otherwise remapped to 'user'\n"
+#ifdef __linux__
+	       "  -l        Keep kernel logging to console, use sysctl to adjust kernel.printk\n"
+#endif
 	       "  -m MINS   Interval between MARK messages, 0 to disable, default: 20 min\n"
 	       "  -n        Disable DNS query for every request\n"
 	       "  -P FILE   File to store the process ID, default: %s\n"
@@ -397,7 +401,7 @@ int main(int argc, char *argv[])
 	char *ptr;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "468Aa:b:C:cdHFf:Kkm:nP:p:r:sTtv?")) != EOF) {
+	while ((ch = getopt(argc, argv, "468Aa:b:C:cdHFf:Kklm:nP:p:r:sTtv?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -462,6 +466,10 @@ int main(int argc, char *argv[])
 
 		case 'k':		/* keep remote kern fac */
 			KeepKernFac = 1;
+			break;
+
+		case 'l':
+			KeepKernConsole = 1;
 			break;
 
 		case 'm': /* mark interval */

@@ -169,8 +169,8 @@
 #define SYSLOG_ACTION_CONSOLE_ON  7
 
 #ifdef __linux__
-#define kern_console_off() klogctl(SYSLOG_ACTION_CONSOLE_OFF, NULL, 0)
-#define kern_console_on()  klogctl(SYSLOG_ACTION_CONSOLE_ON, NULL, 0)
+#define kern_console_off() if (!KeepKernConsole) klogctl(SYSLOG_ACTION_CONSOLE_OFF, NULL, 0)
+#define kern_console_on()  if (!KeepKernConsole) klogctl(SYSLOG_ACTION_CONSOLE_ON, NULL, 0)
 #else
 #define kern_console_off() do { } while (0)
 #define kern_console_on()  do { } while (0)

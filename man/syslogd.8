@@ -38,7 +38,7 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm
-.Op Fl ?468AcdFHKknsTtv
+.Op Fl ?468AcdFHKklnsTtv
 .Op Fl a Ar addr[/len][:port]
 .Op Fl a Ar name[:port]
 .Op Fl b Ar addr[:port]
@@ -292,6 +292,22 @@ Usually the
 .Dq kern
 facility is reserved for messages read directly from
 .Pa /dev/kmsg .
+.It Fl l
+Keep kernel console logging.  By default
+.Nm
+call
+.Xr klogctl 2
+to disable the kernel's logging to console after having opened
+.Pa /dev/kmsg .
+With this option the kernel's log level can be adjusted using
+.Xr sysctl 8 ,
+or the kernel command line, to suit your logging needs to the console.
+.Pp
+Please note, this does not affect logging of kernel messages, see
+.Fl K ,
+only what the kernel logs to
+.Pa /dev/console .
+Also, this is only applicable to Linux.
 .It Fl m Ar interval
 Select the number of minutes between
 .Dq mark
