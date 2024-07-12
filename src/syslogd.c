@@ -156,6 +156,7 @@ static int	  KeepKernFac;		  /* Keep remotely logged kernel facility */
 static int	  KeepKernTime;		  /* Keep kernel timestamp, evern after initial read */
 static int	  KeepKernConsole;	  /* Keep kernel logging to console */
 
+static int	  rotate_opt;	          /* Set if command line option has been given (wins) */
 static off_t	  RotateSz = 0;		  /* Max file size (bytes) before rotating, disabled by default */
 static int	  RotateCnt = 5;	  /* Max number (count) of log files to keep, set with -c <NUM> */
 
@@ -180,13 +181,17 @@ static SIMPLEQ_HEAD(, allowedpeer) aphead = SIMPLEQ_HEAD_INITIALIZER(aphead);
  * parser moves the argument to the beginning of the parsed line.
  */
 char *secure_str;			  /* string value of secure_mode */
+char *rotate_sz_str;			  /* string value of RotateSz    */
+char *rotate_cnt_str;			  /* string value of RotateCnt   */
 
 const struct cfkey {
 	const char  *key;
 	char       **var;
 } cfkey[] = {
-	{ "notify",      NULL        },
-	{ "secure_mode", &secure_str },
+	{ "notify",       NULL            },
+	{ "secure_mode",  &secure_str     },
+	{ "rotate_size",  &rotate_sz_str  },
+	{ "rotate_count", &rotate_cnt_str },
 };
 
 /* Function prototypes. */
@@ -499,6 +504,7 @@ int main(int argc, char *argv[])
 
 		case 'r':
 			parse_rotation(optarg, &RotateSz, &RotateCnt);
+			rotate_opt++;
 			break;
 
 		case 's':
@@ -3294,6 +3300,32 @@ static int cfparse(FILE *fp, struct files *newf, struct notifiers *newn)
 
 		free(secure_str);
 		secure_str = NULL;
+	}
+
+	if (rotate_sz_str) {
+		if (rotate_opt) {
+			logit("Skipping 'rotate_size', already set on command line.");
+		} else {
+			int val = strtobytes(rotate_sz_str);
+			if (val > 0)
+				RotateSz = val;
+		}
+
+		free(rotate_sz_str);
+		rotate_sz_str = NULL;
+	}
+
+	if (rotate_cnt_str) {
+		if (rotate_opt) {
+			logit("Skipping 'rotate_count', already set on command line.");
+		} else {
+			int val = atoi(rotate_cnt_str);
+			if (val > 0)
+				RotateCnt = val;
+		}
+
+		free(rotate_cnt_str);
+		rotate_cnt_str = NULL;
 	}
 
 	return 0;

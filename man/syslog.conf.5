@@ -71,6 +71,9 @@ OPTION   := [OPTION,]
 
 secure_mode [0,1,2]
 
+rotate_size  SIZE
+rotate_count NUMBER
+
 include /etc/syslog.d/*.conf
 notify  /path/to/script-on-rotate
 .Ed
@@ -107,6 +110,15 @@ a file can reach before it is rotated, and later compressed.  This
 feature is mostly intended for embedded systems that do not want to have
 cron or a separate log rotate daemon.
 .Pp
+The
+.Ql rotate_size SIZE
+and
+.Ql rotate_count COUNT
+are the same as the
+.Nm syslogd Fl r Ar SIZE:COUNT
+command line option.  Remember, command line options take precedence
+over .conf file settings.
+.Pp
 .Sy Note:
 the permissions of the rotated files are kept.  Meaning the
 administrator can create all log files, before starting
@@ -120,13 +132,13 @@ permissions.
 Comments, lines starting with a hash mark ('#'), and empty lines are
 ignored.  If an error occurs during parsing the whole line is ignored.
 .Pp
-Additional options include
+The
 .Ql secure_mode <0-2>
-which is the same as the
+option is the same as the
 .Nm syslogd Fl s
-commandline option.
+command line option.
 .Sy Note:
-command line option always wins, so you need to drop
+again, command line option always wins, so you need to drop
 .Fl s
 from the command line to use this .conf file option instead.
 .Pp
