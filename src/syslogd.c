@@ -1732,21 +1732,34 @@ static void logmsg(struct buf_msg *buffer)
 static void logrotate(struct filed *f)
 {
 	struct stat statf;
+	off_t sz;
 
-	if (!f->f_rotatesz)
+	if (!f->f_rotatesz && !RotateSz)
 		return;
+
+	if (f->f_rotatesz)
+		sz = f->f_rotatesz;
+	else
+		sz = RotateSz;
 
 	if (fstat(f->f_file, &statf))
 		return;
 
 	/* bug (mostly harmless): can wrap around if file > 4gb */
-	if (S_ISREG(statf.st_mode) && statf.st_size > f->f_rotatesz)
+	if (S_ISREG(statf.st_mode) && statf.st_size > sz)
 		rotate_file(f, &statf);
 }
 
 static void rotate_file(struct filed *f, struct stat *stp_or_null)
 {
-	if (f->f_rotatecount > 0) { /* always 0..999 */
+	int cnt;
+
+	if (f->f_rotatecount)
+		cnt = f->f_rotatecount;
+	else
+		cnt = RotateCnt;
+
+	if (cnt > 0) { /* always 0..999 */
 		struct stat st_stack;
 		int  len = strlen(f->f_un.f_fname) + 10 + 5;
 		int  i;
@@ -1754,7 +1767,7 @@ static void rotate_file(struct filed *f, struct stat *stp_or_null)
 		char newFile[len];
 
 		/* First age zipped log files */
-		for (i = f->f_rotatecount; i > 1; i--) {
+		for (i = cnt; i > 1; i--) {
 			snprintf(oldFile, len, "%s.%d.gz", f->f_un.f_fname, i - 1);
 			snprintf(newFile, len, "%s.%d.gz", f->f_un.f_fname, i);
 
@@ -1808,7 +1821,14 @@ static void rotate_all_files(void)
 	struct filed *f;
 
 	SIMPLEQ_FOREACH(f, &fhead, f_link) {
-		if (f->f_type == F_FILE && f->f_rotatesz)
+		off_t sz;
+
+		if (f->f_rotatesz)
+			sz = f->f_rotatesz;
+		else
+			sz = RotateSz;
+
+		if (f->f_type == F_FILE && sz)
 			rotate_file(f, NULL);
 	}
 }
@@ -3140,13 +3160,6 @@ static struct filed *cfline(char *line)
 		break;
 
 	case F_FILE:
-		/* default rotate from command line */
-		if (f->f_rotatesz == 0) {
-			f->f_rotatecount = RotateCnt;
-			f->f_rotatesz = RotateSz;
-		}
-		/* fallthrough */
-
 	default:
 		/* All other targets default to RFC3164 */
 		if (f->f_flags & (RFC3164 | RFC5424))
