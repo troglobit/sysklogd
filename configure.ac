@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2023  Joachim Wiberg <troglobit@gmail.com>
+# Copyright (c) 2018-2024  Joachim Wiberg <troglobit@gmail.com>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-AC_INIT([sysklogd], [2.5.3-beta1], [https://github.com/troglobit/sysklogd/issues],,
+AC_INIT([sysklogd], [2.6.0-beta1], [https://github.com/troglobit/sysklogd/issues],,
 	[https://github.com/troglobit/sysklogd])
 AC_CONFIG_AUX_DIR(aux)
 AM_INIT_AUTOMAKE([1.11 foreign subdir-objects])

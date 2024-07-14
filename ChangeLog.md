@@ -4,6 +4,32 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.6.0][] - 2024-07-15
+-----------------------
+
+### Changes
+- Add reload command for systemd service, by Paweł Jasiak
+- Add global log rotation options to .conf file, issue #80.  Introducing
+  two new settings: `rotate_size SIZE` and `rotate_count COUNT`
+- Semantic change for per-file log rotation settings, no longer possible
+  to disable log rotation for a file by setting `rotate=0:0`
+- Possible to set only size or count rotation per file
+
+### Fixes
+- Fix #72: loss of raw kernel log messages to console.  
+  This adds a new command line flag `-l` to keep kernel logs to console.
+  A feature requested by embedded Linux users who often navigate issues
+  by console output.
+
+  With properly configured kernel logging, e.g., `quiet`, only error and
+  above in severity is logged by the kernel directly to the console.  So
+  for most users this would be a useful behavior.
+- Fix #81: blocking delay for unreachable remote log server.  If DNS
+  name is used as remote log server, the system may not be able to
+  resolve it to an IP address (for various reasons).  This may lead
+  to blocking delays in `syslogd` causing loss of log messages
+
+
 [v2.5.2][] - 2023-08-21
 -----------------------
 
@@ -509,7 +535,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
      machines.
 - Greg Trounson <gregt@maths.otago.ac.nz>
    - Improved README.linux
-- Ulf H�rnhammar <Ulf.Harnhammar.9485@student.uu.se>
+- Ulf Härnhammar <Ulf.Harnhammar.9485@student.uu.se>
    - Boundary check for fscanf() in InitKsyms() and CheckMapVersion()
 - Colin Phipps <cph@cph.demon.co.uk>
    - Don't block on the network socket in case of packet loss
