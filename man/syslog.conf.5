@@ -67,7 +67,10 @@ ACTION   := /path/to/file
 OPTION   := [OPTION,]
 	 |= RFC3164
 	 |= RFC5424
-         |= rotate=SIZE:COUNT
+         |= rotate=ROT
+ROT      := SIZE:COUNT
+         |= SIZE
+	 |= :COUNT
 
 secure_mode [0,1,2]
 
@@ -108,7 +111,10 @@ The log rotation, which is only relevant for files, details the max
 .Ar SIZE:COUNT
 a file can reach before it is rotated, and later compressed.  This
 feature is mostly intended for embedded systems that do not want to have
-cron or a separate log rotate daemon.
+cron or a separate log rotate daemon.  It is possible to specify only
+size or count, in which case the global setting covers the other.  E.g.,
+to set only the rotation count, use:
+.Ar rotate=:COUNT .
 .Pp
 The
 .Ql rotate_size SIZE

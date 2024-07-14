@@ -2876,13 +2876,12 @@ static void cfrot(char *ptr, struct filed *f)
 		*c++ = 0;
 		cnt = atoi(c);
 	}
+	if (cnt > 0)
+		f->f_rotatecount = cnt;
 
 	sz = strtobytes(ptr);
-	if (sz > 0 && cnt > 0) {
-		logit("Set rotate size %d bytes, %d rotations\n", sz, cnt);
-		f->f_rotatecount = cnt;
+	if (sz > 0)
 		f->f_rotatesz = sz;
-	}
 }
 
 static int cfopt(char **ptr, const char *opt)
