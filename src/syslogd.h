@@ -119,6 +119,10 @@
 #define MAXUNAMES      20     /* maximum number of user names */
 #define MAXFNAME       200    /* max file pathname length */
 
+#ifndef INET_DNS_DELAY
+#define INET_DNS_DELAY 60
+#endif
+
 #ifndef INET_SUSPEND_TIME
 #define INET_SUSPEND_TIME 180 /* equal to 3 minutes */
 #endif
@@ -185,7 +189,6 @@
 #define MARK      0x008  /* this message is a mark */
 #define RFC3164   0x010  /* format log message according to RFC 3164 */
 #define RFC5424   0x020  /* format log message according to RFC 5424 */
-#define SUSP_RETR 0x040  /* suspend/forw_unkn, retrying nslookup */
 
 /* Syslog timestamp formats. */
 #define	BSDFMT_DATELEN	0

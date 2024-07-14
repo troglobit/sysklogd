@@ -837,6 +837,11 @@ static void inet_cb(int sd, void *arg)
 	parsemsg(hname, msg);
 }
 
+/*
+ * Depending on the setup of /etc/resolv.conf, and the system resolver,
+ * a call to this function may be blocked for 10 seconds, or even more,
+ * waiting for a response.  See https://serverfault.com/a/562108/122484
+ */
 static int nslookup(const char *host, const char *service, struct addrinfo **ai)
 {
 	struct addrinfo hints;
@@ -2405,8 +2410,8 @@ static void forw_lookup(struct filed *f)
 	char *host = f->f_un.f_forw.f_hname;
 	char *serv = f->f_un.f_forw.f_serv;
 	struct addrinfo *ai;
+	time_t now, diff;
 	int err, first;
-	time_t diff;
 
 	if (SecureMode > 1) {
 		if (f->f_un.f_forw.f_addr)
@@ -2419,27 +2424,27 @@ static void forw_lookup(struct filed *f)
 	/* Called from cfline() for initial lookup? */
 	first = f->f_type == F_UNUSED ? 1 : 0;
 
+	now = timer_now();
+	diff = now - f->f_time;
+
 	/*
-	 * Not INET_SUSPEND_TIME, but back off a few seconds at least
-	 * to prevent syslogd from hammering the resolver for every
-	 * little message that is logged.  E.g., at boot when we read
-	 * the kernel ring buffer.
+	 * Back off a minute to prevent unnecessary delays on other log
+	 * targets due to being blockd in nslookup().  This means bootup
+	 * log messages may not be logged for named remote targets since
+	 * networking may not be available until later.
 	 */
-	diff = timer_now() - f->f_time;
-	if (!first && diff < 5)
+	if (!first && diff < INET_DNS_DELAY)
 		return;
 
 	err = nslookup(host, serv, &ai);
 	if (err) {
 		f->f_type = F_FORW_UNKN;
-		f->f_time = timer_now();
-		if (!first && !(f->f_flags & SUSP_RETR))
+		f->f_time = now;
+		if (!first)
 			WARN("Failed resolving '%s:%s': %s", host, serv, gai_strerror(err));
-		f->f_flags |= SUSP_RETR; /* Retry silently */
 		return;
 	}
 
-	f->f_flags &= ~SUSP_RETR;
 	f->f_type = F_FORW;
 	f->f_un.f_forw.f_addr = ai;
 	f->f_prevcount = 0;

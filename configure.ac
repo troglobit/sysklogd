@@ -67,6 +67,10 @@ AC_CHECK_FUNCS([setsid])
 AC_CHECK_FUNCS([getprogname strtobytes])
 
 # Command line options
+AC_ARG_WITH(dns-delay,
+        AS_HELP_STRING([--with-dns-delay=SEC], [Retry delay resolving DNS names, default: 60]),
+	[dns_delay=$withval], [dns_delay='no'])
+
 AC_ARG_WITH(suspend-time,
         AS_HELP_STRING([--with-suspend-time=SEC], [Retry delay for sending to remote, default: 180]),
 	[suspend_time=$withval], [suspend_time='no'])
@@ -81,6 +85,13 @@ AC_ARG_WITH(logger,
 
 AS_IF([test "x$logger" != "xno"], with_logger="yes", with_logger="no")
 AM_CONDITIONAL([ENABLE_LOGGER], [test "x$with_logger" != "xno"])
+
+AS_IF([test "x$dns_delay" != "xno"],[
+	AS_IF([test "x$dns_delay" = "xyes"],[
+		AC_MSG_ERROR([Must supply argument])])
+	]
+	AC_DEFINE_UNQUOTED(INET_DNS_DELAY, $dns_delay, [Retry delay for resolving DNS names, default: 60]),
+	dns_delay=60)
 
 AS_IF([test "x$suspend_time" != "xno"],[
 	AS_IF([test "x$suspend_time" = "xyes"],[
@@ -134,6 +145,7 @@ cat <<EOF
 
  Optional features:
   logger.........: $with_logger
+  dns retry delay: $dns_delay sec
   suspend time...: $suspend_time sec
   systemd........: $with_systemd
 
