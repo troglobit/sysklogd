@@ -1786,10 +1786,11 @@ static void rotate_file(struct filed *f, struct stat *stp_or_null)
 			snprintf(newFile, len, "%s.%d", f->f_un.f_fname, i);
 
 			if (!rename(oldFile, newFile) && i > 0) {
-				size_t clen = 18 + strlen(newFile) + 1;
+				const char *gzip = "gzip -f";
+				size_t clen = strlen(gzip) + len + 1;
 				char cmd[clen];
 
-				snprintf(cmd, sizeof(cmd), "gzip -f %s", newFile);
+				snprintf(cmd, clen, "%s %s", gzip, newFile);
 				system(cmd);
 			}
 		}
