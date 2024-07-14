@@ -3653,8 +3653,7 @@ static int validate(struct sockaddr *sa, const char *hname)
 			} else
 				continue;
 		} else {
-			if (fnmatch(ap->a_name, name, FNM_NOESCAPE) ==
-			    FNM_NOMATCH) {
+			if (fnmatch(ap->a_name, name, FNM_NOESCAPE) == FNM_NOMATCH) {
 				logit("rejected in rule %d due to name mismatch.\n", i);
 				continue;
 			}
