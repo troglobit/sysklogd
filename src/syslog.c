@@ -267,7 +267,7 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 	/* Default log format is RFC5424, continues below BSD format */
 	if (data->log_stat & LOG_RFC3164) {
 		const char *tag = data->log_tag;
-		char tmp[33];
+		char tmp[256];
 
 		if (!(data->log_stat & LOG_NLOG)) {
 			prlen = snprintf(p, tbuf_left, "<%d>", pri);
@@ -302,12 +302,12 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 
 		/*
 		 * When sending remote we MUST follow RFC3164 sec 4.1.3,
-		 * otherwise we "cheat" and allow max lenght hostname,
+		 * otherwise we "cheat" and allow max length hostname,
 		 * for either log file or local syslogd -- it is up to
 		 * the local syslogd then to fulfill RFC req. on output
 		 */
 		if (data->log_host) {
-			strlcpy(tmp, data->log_tag, sizeof(tbuf));
+			strlcpy(tmp, data->log_tag, sizeof(tmp));
 			tag = tmp;
 		}
 
