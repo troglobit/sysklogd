@@ -225,9 +225,10 @@
  * Struct to hold records of peers and sockets
  */
 struct peer {
-	SIMPLEQ_ENTRY(peer)	pe_link;
+	TAILQ_ENTRY(peer)	pe_link;
 	const char	*pe_name;
 	const char	*pe_serv;
+	int		 pe_mark;
 	mode_t		 pe_mode;
 	int		 pe_sock[16];
 	size_t		 pe_socknum;

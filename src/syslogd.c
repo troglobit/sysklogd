@@ -168,12 +168,12 @@ static TAILQ_HEAD(notifiers, notifier) nothead = TAILQ_HEAD_INITIALIZER(nothead)
 /*
  * List of peers and sockets for binding.
  */
-static SIMPLEQ_HEAD(, peer) pqueue = SIMPLEQ_HEAD_INITIALIZER(pqueue);
+static TAILQ_HEAD(peers, peer) pqueue = TAILQ_HEAD_INITIALIZER(pqueue);
 
 /*
  * List fo peers allowed to log to us.
  */
-static SIMPLEQ_HEAD(, allowedpeer) aphead = SIMPLEQ_HEAD_INITIALIZER(aphead);
+static SIMPLEQ_HEAD(allowed, allowedpeer) aphead = SIMPLEQ_HEAD_INITIALIZER(aphead);
 
 /*
  * central list of recognized configuration keywords with an optional
@@ -211,6 +211,7 @@ static void signal_init(void);
 static void boot_time_init(void);
 static void init(void);
 static int  strtobytes(char *arg);
+static void cflisten(char *ptr, void *arg);
 static int  cfparse(FILE *fp, struct files *newf);
 int         decode(char *name, struct _code *codetab);
 static void logit(char *, ...);
@@ -232,6 +233,7 @@ const struct cfkey {
 	void       (*cb)(char *, void *);
 	void        *arg;
 } cfkey[] = {
+	{ "listen",       NULL,            cflisten, NULL         },
 	{ "notify",       NULL,            notifier_add, &nothead },
 	{ "rotate_size",  &rotate_sz_str,  NULL, NULL             },
 	{ "rotate_count", &rotate_cnt_str, NULL, NULL             },
@@ -276,11 +278,24 @@ static int addpeer(struct peer *pe0)
 {
 	struct peer *pe;
 
+	TAILQ_FOREACH(pe, &pqueue, pe_link) {
+		if (((pe->pe_name == NULL && pe0->pe_name == NULL) ||
+		     (pe->pe_name != NULL && pe0->pe_name != NULL && strcmp(pe->pe_name, pe0->pe_name) == 0)) &&
+		    ((pe->pe_serv == NULL && pe0->pe_serv == NULL) ||
+		     (pe->pe_serv != NULL && pe0->pe_serv != NULL && strcmp(pe->pe_serv, pe0->pe_serv) == 0))) {
+			/* update flags */
+			pe->pe_mark = pe0->pe_mark;
+			pe->pe_mode = pe0->pe_mode;
+
+			return 0;
+		}
+	}
+
 	pe = calloc(1, sizeof(*pe));
 	if (pe == NULL)
 		err(1, "malloc failed");
 	*pe = *pe0;
-	SIMPLEQ_INSERT_TAIL(&pqueue, pe, pe_link);
+	TAILQ_INSERT_TAIL(&pqueue, pe, pe_link);
 
 	return 0;
 }
@@ -406,7 +421,6 @@ int main(int argc, char *argv[])
 	pid_t ppid = 1;
 	int no_sys = 0;
 	int pflag = 0;
-	int bflag = 0;
 	char *ptr;
 	int ch;
 
@@ -434,13 +448,13 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'b':
-			bflag = 1;
 			ptr = strchr(optarg, ':');
 			if (ptr)
 				*ptr++ = 0;
 			addpeer(&(struct peer) {
 				.pe_name = optarg,
 				.pe_serv = ptr,
+				.pe_mark = -1,
 			});
 			break;
 
@@ -503,6 +517,7 @@ int main(int argc, char *argv[])
 			addpeer(&(struct peer) {
 				.pe_name = optarg,
 				.pe_mode = 0666,
+				.pe_mark = -1,
 			});
 			break;
 
@@ -538,13 +553,6 @@ int main(int argc, char *argv[])
 	if ((argc -= optind))
 		return usage(1);
 
-	/* Default to listen to :514 (syslog/udp) */
-	if (!bflag)
-		addpeer(&(struct peer) {
-				.pe_name = NULL,
-				.pe_serv = "syslog",
-			});
-
 	/* Figure out where to read system log messages from */
 	if (!pflag) {
 		/* Do we run under systemd-journald (Requires=syslog.socket)? */
@@ -556,6 +564,7 @@ int main(int argc, char *argv[])
 			addpeer(&(struct peer) {
 					.pe_name = _PATH_LOG,
 					.pe_mode = 0666,
+					.pe_mark = -1,
 				});
 		}
 	}
@@ -2545,7 +2554,9 @@ void die(int signo)
 	/*
 	 * Close all UNIX and inet sockets
 	 */
-	SIMPLEQ_FOREACH_SAFE(pe, &pqueue, pe_link, next) {
+	TAILQ_FOREACH_SAFE(pe, &pqueue, pe_link, next) {
+		TAILQ_REMOVE(&pqueue, pe, pe_link);
+
 		for (size_t i = 0; i < pe->pe_socknum; i++) {
 			logit("Closing socket %d ...\n", pe->pe_sock[i]);
 			socket_close(pe->pe_sock[i]);
@@ -2713,8 +2724,9 @@ static void boot_time_init(void)
 static void init(void)
 {
 	struct files newf = SIMPLEQ_HEAD_INITIALIZER(newf);
+	struct peer *pe, *penext;
 	struct filed *f;
-	struct peer *pe;
+	int bflag = 0;
 	FILE *fp;
 	char *p;
 
@@ -2766,6 +2778,16 @@ static void init(void)
 	tzset();
 
 	/*
+	 * mark
+	 */
+	TAILQ_FOREACH(pe, &pqueue, pe_link) {
+		if (pe->pe_mark == -1)
+			continue;
+
+		pe->pe_mark = 1;
+	}
+
+	/*
 	 * Free all notifiers
 	 */
 	notifier_free_all();
@@ -2798,9 +2820,30 @@ static void init(void)
 	fhead = newf;
 
 	/*
+	 * Ensure a default listen *:514 exists (compat)
+	 */
+	TAILQ_FOREACH(pe, &pqueue, pe_link) {
+		if (pe->pe_mark == 1)
+			continue; /* marked for deletion */
+		if (pe->pe_name && pe->pe_name[0] == '/')
+			continue; /* named pipe */
+		if (pe->pe_name || pe->pe_serv) {
+			bflag = 1;
+			break;	/* static or from .conf */
+		}
+	}
+	if (!bflag) {
+		/* Default to listen to :514 (syslog/udp) */
+		addpeer(&(struct peer) {
+				.pe_name = NULL,
+				.pe_serv = "514",
+			});
+	}
+
+	/*
 	 * Open or close sockets for local and remote communication
 	 */
-	SIMPLEQ_FOREACH(pe, &pqueue, pe_link) {
+	TAILQ_FOREACH(pe, &pqueue, pe_link) {
 		if (pe->pe_name && pe->pe_name[0] == '/') {
 			create_unix_socket(pe);
 		} else {
@@ -2808,9 +2851,21 @@ static void init(void)
 				socket_close(pe->pe_sock[i]);
 			pe->pe_socknum = 0;
 
-			if (SecureMode < 2)
+			/* skip any marked for deletion */
+			if (SecureMode < 2 && pe->pe_mark <= 0)
 				create_inet_socket(pe);
 		}
+	}
+
+	/*
+	 * Sweep
+	 */
+	TAILQ_FOREACH_SAFE(pe, &pqueue, pe_link, penext) {
+		if (pe->pe_mark <= 0)
+			continue;
+
+		TAILQ_REMOVE(&pqueue, pe, pe_link);
+		free(pe);
 	}
 
 	Initialized = 1;
@@ -2872,6 +2927,19 @@ static void init(void)
 
 	flog(LOG_SYSLOG | LOG_INFO, "syslogd v" VERSION ": restart.");
 	logit("syslogd: restarted.\n");
+}
+
+static void cflisten(char *ptr, void *arg)
+{
+	char *peer = ptr;
+
+	ptr = strchr(peer, ':');
+	if (ptr)
+		*ptr++ = 0;
+	addpeer(&(struct peer) {
+			.pe_name = peer,
+			.pe_serv = ptr,
+		});
 }
 
 static void cfrot(char *ptr, struct filed *f)
@@ -3096,7 +3164,7 @@ static struct filed *cfline(char *line)
 		if (bp)
 			*bp++ = 0;
 		else
-			bp = "syslog"; /* default: 514/udp */
+			bp = "514"; /* default: 514/udp */
 
 		strlcpy(f->f_un.f_forw.f_hname, p, sizeof(f->f_un.f_forw.f_hname));
 		strlcpy(f->f_un.f_forw.f_serv, bp, sizeof(f->f_un.f_forw.f_serv));
@@ -3426,7 +3494,7 @@ static int allowaddr(char *s)
 				goto err;
 		}
 	} else {
-		if ((se = getservbyname("syslog", "udp")))
+		if ((se = getservbyname("514", "udp")))
 			ap->port = ntohs(se->s_port);
 		else
 			/* sanity, should not happen */
