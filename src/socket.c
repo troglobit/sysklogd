@@ -217,6 +217,7 @@ int socket_ffs(int family)
 			return entry->sd;
 	}
 
+	errno = ENONET;
 	return -1;
 }
 
