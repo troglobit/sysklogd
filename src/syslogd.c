@@ -163,7 +163,7 @@ static int	  RotateCnt = 5;	  /* Max number (count) of log files to keep, set wi
 /*
  * List of notifiers
  */
-static SIMPLEQ_HEAD(notifiers, notifier) nothead = SIMPLEQ_HEAD_INITIALIZER(nothead);
+static TAILQ_HEAD(notifiers, notifier) nothead = TAILQ_HEAD_INITIALIZER(nothead);
 
 /*
  * List of peers and sockets for binding.
@@ -183,16 +183,6 @@ static SIMPLEQ_HEAD(, allowedpeer) aphead = SIMPLEQ_HEAD_INITIALIZER(aphead);
 char *secure_str;			  /* string value of secure_mode */
 char *rotate_sz_str;			  /* string value of RotateSz    */
 char *rotate_cnt_str;			  /* string value of RotateCnt   */
-
-const struct cfkey {
-	const char  *key;
-	char       **var;
-} cfkey[] = {
-	{ "notify",       NULL            },
-	{ "secure_mode",  &secure_str     },
-	{ "rotate_size",  &rotate_sz_str  },
-	{ "rotate_count", &rotate_cnt_str },
-};
 
 /* Function prototypes. */
 static int  allowaddr(char *s);
@@ -221,10 +211,10 @@ static void signal_init(void);
 static void boot_time_init(void);
 static void init(void);
 static int  strtobytes(char *arg);
-static int  cfparse(FILE *fp, struct files *newf, struct notifiers *newn);
+static int  cfparse(FILE *fp, struct files *newf);
 int         decode(char *name, struct _code *codetab);
 static void logit(char *, ...);
-static void notifier_add(struct notifiers *newn, const char *program);
+static void notifier_add(char *program, void *arg);
 static void notifier_invoke(const char *logfile);
 static void notifier_free_all(void);
 void        reload(int);
@@ -233,6 +223,20 @@ static int  validate(struct sockaddr *sa, const char *hname);
 static int  waitdaemon(int);
 static void timedout(int);
 
+/*
+ * Configuration file keywords, variables, and optional callbacks
+ */
+const struct cfkey {
+	const char  *key;
+	char       **var;
+	void       (*cb)(char *, void *);
+	void        *arg;
+} cfkey[] = {
+	{ "notify",       NULL,            notifier_add, &nothead },
+	{ "rotate_size",  &rotate_sz_str,  NULL, NULL             },
+	{ "rotate_count", &rotate_cnt_str, NULL, NULL             },
+	{ "secure_mode",  &secure_str,     NULL, NULL             },
+};
 
 /*
  * Very basic, and incomplete, check if we're running in a container.
@@ -1816,7 +1820,7 @@ static void rotate_file(struct filed *f, struct stat *stp_or_null)
 			return;
 		}
 
-		if (!SIMPLEQ_EMPTY(&nothead))
+		if (!TAILQ_EMPTY(&nothead))
 			notifier_invoke(f->f_un.f_fname);
 	}
 	ftruncate(f->f_file, 0);
@@ -2708,7 +2712,6 @@ static void boot_time_init(void)
  */
 static void init(void)
 {
-	struct notifiers newn = SIMPLEQ_HEAD_INITIALIZER(newn);
 	struct files newf = SIMPLEQ_HEAD_INITIALIZER(newf);
 	struct filed *f;
 	struct peer *pe;
@@ -2763,6 +2766,11 @@ static void init(void)
 	tzset();
 
 	/*
+	 * Free all notifiers
+	 */
+	notifier_free_all();
+
+	/*
 	 * Read configuration file(s)
 	 */
 	fp = fopen(ConfFile, "r");
@@ -2776,7 +2784,7 @@ static void init(void)
 		}
 	}
 
-	if (cfparse(fp, &newf, &newn)) {
+	if (cfparse(fp, &newf)) {
 		fclose(fp);
 		return;
 	}
@@ -2788,13 +2796,6 @@ static void init(void)
 	close_open_log_files();
 
 	fhead = newf;
-
-	/*
-	 * Free all notifiers
-	 */
-	notifier_free_all();
-
-	nothead = newn;
 
 	/*
 	 * Open or close sockets for local and remote communication
@@ -2815,11 +2816,12 @@ static void init(void)
 	Initialized = 1;
 
 	if (Debug) {
-		if (!SIMPLEQ_EMPTY(&nothead)) {
+		if (!TAILQ_EMPTY(&nothead)) {
 			struct notifier *np;
 
-			SIMPLEQ_FOREACH(np, &nothead, n_link)
+			TAILQ_FOREACH(np, &nothead, n_link) {
 				printf("notify %s\n", np->n_program);
+			}
 			printf("\n");
 		}
 
@@ -3208,6 +3210,8 @@ const struct cfkey *cfkey_match(char *cline)
 
 		if (cfk->var)
 			*cfk->var = strdup(p);
+		else if (cfk->cb)
+			cfk->cb(p, cfk->arg);
 		else
 			memmove(cline, p, strlen(p) + 1);
 
@@ -3220,7 +3224,7 @@ const struct cfkey *cfkey_match(char *cline)
 /*
  * Parse .conf file and append to list
  */
-static int cfparse(FILE *fp, struct files *newf, struct notifiers *newn)
+static int cfparse(FILE *fp, struct files *newf)
 {
 	const struct cfkey *cfk;
 	struct filed *f;
@@ -3286,7 +3290,7 @@ static int cfparse(FILE *fp, struct files *newf, struct notifiers *newn)
 				}
 
 				logit("Parsing %s ...\n", gl.gl_pathv[i]);
-				cfparse(fpi, newf, newn);
+				cfparse(fpi, newf);
 				fclose(fpi);
 			}
 			globfree(&gl);
@@ -3294,11 +3298,8 @@ static int cfparse(FILE *fp, struct files *newf, struct notifiers *newn)
 		}
 
 		cfk = cfkey_match(cline);
-		if (cfk) {
-			if (!strcmp(cfk->key, "notify"))
-				notifier_add(newn, cline);
+		if (cfk)
 			continue;
-		}
 
 		f = cfline(cline);
 		if (!f)
@@ -3680,8 +3681,10 @@ static void logit(char *fmt, ...)
 	fflush(stdout);
 }
 
-static void notifier_add(struct notifiers *newn, const char *program)
+static void notifier_add(char *program, void *arg)
 {
+	struct notifiers *newn = (struct notifiers *)arg;
+
 	while (*program && isspace(*program))
 		++program;
 
@@ -3700,7 +3703,7 @@ static void notifier_add(struct notifiers *newn, const char *program)
 			ERR("Cannot allocate memory for a notify program");
 			return;
 		}
-		SIMPLEQ_INSERT_TAIL(newn, np, n_link);
+		TAILQ_INSERT_TAIL(newn, np, n_link);
 	} else
 		logit("notify: non-existing, or not executable program\n");
 }
@@ -3713,7 +3716,7 @@ static void notifier_invoke(const char *logfile)
 
 	logit("notify: rotated %s, invoking hooks\n", logfile);
 
-	SIMPLEQ_FOREACH(np, &nothead, n_link) {
+	TAILQ_FOREACH(np, &nothead, n_link) {
 		childpid = fork();
 
 		switch (childpid) {
@@ -3738,7 +3741,8 @@ static void notifier_free_all(void)
 {
 	struct notifier *np, *npnext;
 
-	SIMPLEQ_FOREACH_SAFE(np, &nothead, n_link, npnext) {
+	TAILQ_FOREACH_SAFE(np, &nothead, n_link, npnext) {
+		TAILQ_REMOVE(&nothead, np, n_link);
 		free(np->n_program);
 		free(np);
 	}

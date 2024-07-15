@@ -314,7 +314,7 @@ struct filed {
  * Log rotation notifiers
  */
 struct notifier {
-	SIMPLEQ_ENTRY(notifier)	 n_link;
+	TAILQ_ENTRY(notifier)	 n_link;
 	char			*n_program;
 };
 
