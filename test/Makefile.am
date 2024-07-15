@@ -1,7 +1,7 @@
 EXTRA_DIST       = lib.sh opts.sh
 EXTRA_DIST      += api.sh local.sh unicode.sh remote.sh fwd.sh mark.sh      \
 		   memleak.sh facility.sh notify.sh rotate_all.sh secure.sh \
-		   logger.sh
+		   logger.sh listen.sh
 CLEANFILES       = *~ *.trs *.log
 TEST_EXTENSIONS  = .sh
 TESTS_ENVIRONMENT= unshare -mrun
@@ -20,6 +20,7 @@ TESTS           += remote.sh
 TESTS           += api.sh
 TESTS           += facility.sh
 TESTS           += fwd.sh
+TESTS           += listen.sh
 TESTS           += memleak.sh
 TESTS           += mark.sh
 TESTS           += notify.sh

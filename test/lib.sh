@@ -127,9 +127,9 @@ do_setup()
 
     print "Starting $order syslogd ..."
     if [ -z "$VALGRIND" ]; then
-	    ../src/syslogd -dKF ${opts} &
+	../src/syslogd -dKF ${opts} &
     else
-	    ${VALGRIND} ../src/syslogd -KF ${opts} &
+	${VALGRIND} ../src/syslogd -KF ${opts} &
     fi
 
     sleep 2
@@ -138,10 +138,22 @@ do_setup()
 
     # Enable debugging ...
     if [ -z "$VALGRIND" ]; then
-	    kill -USR1 $(cat "${pidfn}")
+	dprint "Enabling debugging USR1 ..."
+	kill -USR1 $(cat "${pidfn}")
     fi
 
     sleep 1
+}
+
+# stand-alone single syslogd
+setup0()
+{
+    ip link set lo up state up
+    ip link add eth0 type dummy
+    ip link set eth0 up state up
+    ip addr add 10.0.0.1/24 dev eth0
+    ip -br a
+    do_setup "stand-alone" "${PID}" "$*" -f "${CONF}" -p "${SOCK}" -C "${CACHE}" -P "${PID}"
 }
 
 # set up and start primary syslogd
@@ -181,7 +193,11 @@ setup2()
 
 is_running()
 {
-	kill -0 $(cat "$PID")
+    if [ -f "$PID" ]; then
+	kill -0 "$(cat "$PID")"
+    else
+	false
+    fi
 }
 
 do_reload()
