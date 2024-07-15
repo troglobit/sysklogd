@@ -14,6 +14,7 @@ All relevant changes to the project are documented in this file.
 - Semantic change for per-file log rotation settings, no longer possible
   to disable log rotation for a file by setting `rotate=0:0`
 - Possible to set only size or count rotation per file
+- Add support for 'listen addr:port' to .conf file, issue #83
 
 ### Fixes
 - Fix #72: loss of raw kernel log messages to console.  
@@ -28,6 +29,9 @@ All relevant changes to the project are documented in this file.
   name is used as remote log server, the system may not be able to
   resolve it to an IP address (for various reasons).  This may lead
   to blocking delays in `syslogd` causing loss of log messages
+- Fix #82: retry creating UNIX and network sockets on failure.  This now
+  allows syslogd to "discover" and bind to addresses that are not yet
+  set when it starts up.
 
 
 [v2.5.2][] - 2023-08-21
