@@ -77,6 +77,8 @@ secure_mode [0,1,2]
 rotate_size  SIZE
 rotate_count NUMBER
 
+listen [address:port | :port | address]
+
 include /etc/syslog.d/*.conf
 notify  /path/to/script-on-rotate
 .Ed
@@ -162,6 +164,16 @@ no Internet ports open at all, and no remote logging possible
 # Example: only allow logging to remote servers
 secure_mode 1
 .Ed
+.Pp
+The
+.Ql listen Op Ar address:port | address | :port
+option is the same as the
+.Nm syslogd Fl b Ar addr[:port]
+command line option.  Like its counterpart it has no effect unless the
+.Ql secure_mode
+option is disabled.  Multiple listen statements are allowed and any
+command line directives are treated as "static" and cannot be removed
+or modified using the configuration file.
 .Pp
 The
 .Ql notify <PATH>
