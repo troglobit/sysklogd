@@ -3400,7 +3400,7 @@ static int cfparse(FILE *fp, struct files *newf)
 				p++;
 
 			logit("Searching for %s ...\n", p);
-			if (glob(p, GLOB_NOSORT, NULL, &gl))
+			if (glob(p, 0, NULL, &gl))
 				logit("No files match %s\n", p);
 
 			for (size_t i = 0; i < gl.gl_pathc; i++) {
