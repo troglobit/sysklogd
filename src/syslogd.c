@@ -2079,7 +2079,9 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 		f->f_time = timer_now();
 		logit("\n");
 		pushiov(iov, iovcnt, "\r\n");
-		wallmsg(f, &iov[0], iovcnt);
+		/* Make sure it's seen, may be followed by reboot */
+		pushiov(iov, iovcnt, "\r\n");
+		wallmsg(f, iov, iovcnt);
 		break;
 	} /* switch */
 
