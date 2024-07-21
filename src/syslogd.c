@@ -2581,11 +2581,6 @@ void die(int signo)
 	timer_exit();
 
 	/*
-	 * Close all open log files.
-	 */
-	close_open_log_files();
-
-	/*
 	 * Close all UNIX and inet sockets
 	 */
 	TAILQ_FOREACH_SAFE(pe, &pqueue, pe_link, next) {
@@ -2593,6 +2588,11 @@ void die(int signo)
 		close_socket(pe);
 		free(pe);
 	}
+
+	/*
+	 * Close all open log files.
+	 */
+	close_open_log_files();
 
 	kern_console_on();
 
