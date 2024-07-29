@@ -4,6 +4,17 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.6.1][] - 2024-07-29
+-----------------------
+
+### Changes
+- Read `.conf` files from include directories sorted alphabetically
+
+### Fixes
+- Add extra linefeed to wall messages to ensure they are seen
+- Issue #87: segfault on `SIGTERM`, regression from v2.6.0
+
+
 [v2.6.0][] - 2024-07-15
 -----------------------
 
@@ -596,7 +607,8 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.6.0...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.6.1...HEAD
+[v2.6.1]:     https://github.com/troglobit/sysklogd/compare/v2.6.0...v2.6.1
 [v2.6.0]:     https://github.com/troglobit/sysklogd/compare/v2.5.2...v2.6.0
 [v2.5.2]:     https://github.com/troglobit/sysklogd/compare/v2.5.1...v2.5.2
 [v2.5.1]:     https://github.com/troglobit/sysklogd/compare/v2.5.0...v2.5.1
