@@ -13,7 +13,7 @@ MSG="fwd and allow"
 
 cat <<EOF >"${CONFD}/fwd.conf"
 kern.*		/dev/null
-ntp.*		@127.0.0.2:${PORT2}	;RFC5424
+ntp.*		@[::1]:${PORT2}	;RFC5424
 EOF
 
 reload
@@ -23,7 +23,7 @@ kern.*		/dev/null
 *.*;kern.none	${LOG2}			;RFC5424
 EOF
 
-setup2 -m0 -a 127.0.0.2:* -b ":${PORT2}"
+setup2 -m0 -a "[::1]:*" -b ":${PORT2}"
 
 print "TEST: Starting"
 

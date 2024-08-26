@@ -3218,8 +3218,19 @@ static struct filed *cfline(char *line)
 	switch (*p) {
 	case '@':
 		cfopts(p, f);
+		p++;
+		if (*p == '[') {
+			p++;
 
-		bp = strchr(++p, ':');
+			q = strchr(p, ']');
+			if (!q) {
+				ERR("Invalid IPv6 address in remote target, missing ']'");
+				break;
+			}
+			*q++ = 0;
+			bp = strchr(q, ':');
+		} else
+			bp = strchr(p, ':');
 		if (bp)
 			*bp++ = 0;
 		else
