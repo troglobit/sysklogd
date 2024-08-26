@@ -871,8 +871,14 @@ static int nslookup(const char *host, const char *service, struct addrinfo **ai)
 	if (!node || !node[0])
 		node = NULL;
 
-	/* Reset resolver cache and retry name lookup */
+	/*
+	 * Reset resolver cache and retry name lookup.  The use of
+	 * `_res` here seems to be the most portable way to adjust
+	 * the per-process timeout and retry.
+	 */
 	res_init();
+	_res.retrans = 1;
+	_res.retry = 1;
 
 	logit("nslookup '%s:%s'\n", node ?: "*", service);
 	memset(&hints, 0, sizeof(hints));
