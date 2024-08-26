@@ -118,8 +118,10 @@ CODE prioritynames[] = {
 #define	LOG_FTP		(11<<3)	/* ftp daemon */
 #define	LOG_NTP		(12<<3)	/* NTP subsystem */
 #define	LOG_SECURITY	(13<<3)	/* Log audit, for audit trails */
+#define LOG_AUDIT LOG_SECURITY	/* Alias for RFC5424 compat. */
 #define	LOG_CONSOLE	(14<<3)	/* Log alert */
 #define	LOG_CRON_SOL	(15<<3)	/* clock daemon (Solaris) */
+#define LOG_CRON2 LOG_CRON_SOL	/* Alias for RFC5424 compat. */
 #define	LOG_LOCAL0	(16<<3)	/* reserved for local use */
 #define	LOG_LOCAL1	(17<<3)	/* reserved for local use */
 #define	LOG_LOCAL2	(18<<3)	/* reserved for local use */
@@ -141,6 +143,7 @@ CODE facilitynames[] = {
 	{ "console",	LOG_CONSOLE },
 	{ "cron",	LOG_CRON },
 	{ "cron_sol",	LOG_CRON_SOL },		/* Solaris cron */
+	{ "cron2",	LOG_CRON2 },
 	{ "daemon",	LOG_DAEMON },
 	{ "ftp",	LOG_FTP },
 	{ "kern",	LOG_KERN },
@@ -150,6 +153,7 @@ CODE facilitynames[] = {
 	{ "news",	LOG_NEWS },
 	{ "ntp",	LOG_NTP },
 	{ "security",	LOG_SECURITY },
+	{ "audit",	LOG_AUDIT },
 	{ "syslog",	LOG_SYSLOG },
 	{ "user",	LOG_USER },
 	{ "uucp",	LOG_UUCP },
