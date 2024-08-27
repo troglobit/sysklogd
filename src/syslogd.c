@@ -298,10 +298,41 @@ static int addpeer(struct peer *pe0)
 	pe = calloc(1, sizeof(*pe));
 	if (pe == NULL)
 		err(1, "malloc failed");
+
 	*pe = *pe0;
+	if (pe0->pe_name)
+		pe->pe_name = strdup(pe0->pe_name);
+	if (pe0->pe_serv)
+		pe->pe_serv = strdup(pe0->pe_serv);
+
 	TAILQ_INSERT_TAIL(&pqueue, pe, pe_link);
 
 	return 0;
+}
+
+static void close_socket(struct peer *pe)
+{
+	for (size_t i = 0; i < pe->pe_socknum; i++) {
+		if (pe->pe_mode & 01000)
+			NOTE("Closing inet socket %s:%s", pe->pe_name ?: "*", pe->pe_serv);
+		socket_close(pe->pe_sock[i]);
+	}
+	pe->pe_socknum = 0;
+}
+
+static void delpeer(struct peer *pe)
+{
+	if (!pe)
+		return;
+
+	close_socket(pe);
+
+	if (pe->pe_name)
+		free(pe->pe_name);
+	if (pe->pe_serv)
+		free(pe->pe_serv);
+
+	free(pe);
 }
 
 static void sys_seqno_load(void)
@@ -936,16 +967,6 @@ static int create_inet_socket(struct peer *pe)
 		return rc;
 
 	return 0;
-}
-
-static void close_socket(struct peer *pe)
-{
-	for (size_t i = 0; i < pe->pe_socknum; i++) {
-		if (pe->pe_mode & 01000)
-			NOTE("Closing inet socket %s:%s", pe->pe_name ?: "*", pe->pe_serv);
-		socket_close(pe->pe_sock[i]);
-	}
-	pe->pe_socknum = 0;
 }
 
 void untty(void)
@@ -2591,8 +2612,7 @@ void die(int signo)
 	 */
 	TAILQ_FOREACH_SAFE(pe, &pqueue, pe_link, next) {
 		TAILQ_REMOVE(&pqueue, pe, pe_link);
-		close_socket(pe);
-		free(pe);
+		delpeer(pe);
 	}
 
 	/*
@@ -2909,8 +2929,7 @@ static void init(void)
 			continue;
 
 		TAILQ_REMOVE(&pqueue, pe, pe_link);
-		close_socket(pe);
-		free(pe);
+		delpeer(pe);
 	}
 
 	Initialized = 1;
