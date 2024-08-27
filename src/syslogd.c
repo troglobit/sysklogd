@@ -3016,8 +3016,26 @@ static void init(void)
 static void cflisten(char *ptr, void *arg)
 {
 	char *peer = ptr;
+	char *p;
 
-	ptr = strchr(peer, ':');
+	while (*peer && isspace(*peer))
+		++peer;
+
+	logit("cflisten[%s]\n", peer);
+
+	p = peer;
+	if (*p == '[') {
+		p++;
+
+		p = strchr(p, ']');
+		if (!p) {
+			ERR("Invalid IPv6 address in listen '%s', missing ']'", peer);
+			return;
+		}
+		*p++ = 0;
+	}
+
+	ptr = strchr(p, ':');
 	if (ptr)
 		*ptr++ = 0;
 	addpeer(&(struct peer) {
