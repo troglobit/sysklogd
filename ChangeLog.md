@@ -4,6 +4,24 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.6.2][UNRELEASED]
+-----------------------
+
+### Changes
+- `syslog.conf`: misplaced continuation character in example
+- Adapt facilities for RFC5424 compliance.  Add aliases for the standard
+  `LOG_CRON2` and `LOG_AUDIT`, including `facilitynames[]`, issue #86
+- Add support for IPv6 addresses in `listen` directive, issue #90
+
+### Fixes
+- Fix #85: logging to remote IPv6 address does not work.  Add support
+  for parsing `[fdd5::6979:c0ff:ee87:8f92]:123` style addresses
+- Fix #88: initial delay for unresolvable remote target.  When a DNS
+  name cannot be resolved, e.g., critically at boot, `syslogd` was
+  blocked with default resolver timeout (5 * 2 sec)
+- Fix #89: data corruption using the `listen` directive in .conf files
+
+
 [v2.6.1][] - 2024-07-29
 -----------------------
 
@@ -608,6 +626,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 
 
 [UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.6.1...HEAD
+[v2.6.2]:     https://github.com/troglobit/sysklogd/compare/v2.6.1...v2.6.2
 [v2.6.1]:     https://github.com/troglobit/sysklogd/compare/v2.6.0...v2.6.1
 [v2.6.0]:     https://github.com/troglobit/sysklogd/compare/v2.5.2...v2.6.0
 [v2.5.2]:     https://github.com/troglobit/sysklogd/compare/v2.5.1...v2.5.2
