@@ -4,7 +4,7 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
-[v2.6.2][UNRELEASED]
+[v2.6.2][] - 2024-09-08
 -----------------------
 
 ### Changes
@@ -625,7 +625,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.6.1...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.6.2...HEAD
 [v2.6.2]:     https://github.com/troglobit/sysklogd/compare/v2.6.1...v2.6.2
 [v2.6.1]:     https://github.com/troglobit/sysklogd/compare/v2.6.0...v2.6.1
 [v2.6.0]:     https://github.com/troglobit/sysklogd/compare/v2.5.2...v2.6.0
