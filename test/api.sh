@@ -60,4 +60,20 @@ grep "exampleSDID@32473" "${LOGV1}" || (echo "== ${LOGV1}"; tail -10  "${LOGV1}"
 
 
 ##############################################################################
+print "Phase 6 - Verify localN with logger(1)"
+cat <<EOF >"${CONFD}/notice.conf"
+*.notice	-${LOG2}
+EOF
+reload
+
+../src/logger -p local7.info -u "${SOCK}" "nopenope"
+sleep 2
+grep "nopenope" "${LOG2}" && FAIL "local7.info leaks to ${LOG2}"
+
+../src/logger -p local7.notice -u "${SOCK}" "aye matey"
+sleep 2
+grep "aye matey" "${LOG2}" || FAIL "local7.notice does not log to ${LOG2}"
+
+
+##############################################################################
 OK
