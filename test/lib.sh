@@ -177,7 +177,7 @@ setup()
 		EOF
     fi
 
-    do_setup "primary" "${PID}" "$*" -b ":${PORT}" -f "${CONF}" -p "${SOCK}" \
+    do_setup "primary" "${PID}" "$*" -H -b ":${PORT}" -f "${CONF}" -p "${SOCK}" \
 	     -p "${ALTSOCK}" -C "${CACHE}" -P "${PID}"
 }
 

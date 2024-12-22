@@ -53,11 +53,17 @@ grep "troglobit - MSGID - ${MSG}" "${LOGV1}" || (echo "== ${LOGV1}"; tail -10 "$
 
 
 ##############################################################################
-print "Phase 5 - Verify RFC5424 API with logger(1)"
+print "Phase 5a - Verify RFC5424 API with logger(1)"
 ../src/logger -p ftp.notice -u "${SOCK}" -m "MSDSD" -d '[exampleSDID@32473 iut="3" eventSource="Application" eventID="1011"]' "waldo"
 sleep 2
 grep "exampleSDID@32473" "${LOGV1}" || (echo "== ${LOGV1}"; tail -10  "${LOGV1}"; FAIL "Cannot find exampleSDID@32473")
 
+
+##############################################################################
+print "Phase 5b - Verify RFC5424 FQDN logging logger(1)"
+../src/logger -p ftp.notice -u "${SOCK}" -m "MSDSD" -H "baz.example.com" "Xyzzy"
+sleep 2
+grep "baz.example.com" "${LOGV1}" || FAIL "RFC5424 FQDN logging broken."
 
 ##############################################################################
 print "Phase 6 - Verify localN with logger(1)"
