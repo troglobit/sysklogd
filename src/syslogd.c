@@ -190,7 +190,7 @@ char *rotate_cnt_str;			  /* string value of RotateCnt   */
 /* Function prototypes. */
 static int  allowaddr(char *s);
 void        untty(void);
-static void parsemsg(const char *from, char *msg);
+static void parsemsg(char *from, size_t from_len, char *msg);
 static int  opensys(const char *file);
 static void printsys(char *msg);
 static void unix_cb(int sd, void *arg);
@@ -204,7 +204,7 @@ void        endtty(int);
 void        wallmsg(struct filed *f, struct iovec *iov, int iovcnt);
 void        reapchild(int);
 const char *cvtaddr(struct sockaddr_storage *f, int len);
-const char *cvthname(struct sockaddr *f, socklen_t len);
+static char *cvthname(struct sockaddr *f, socklen_t len, size_t *from_len);
 static void forw_lookup(struct filed *f);
 void        domark(void *arg);
 void        doflush(void *arg);
@@ -804,7 +804,7 @@ static void unix_cb(int sd, void *arg)
 	}
 	msg[msglen] = 0;
 
-	parsemsg(LocalHostName, msg);
+	parsemsg(LocalHostName, strlen(LocalHostName), msg);
 }
 
 static int create_unix_socket(struct peer *pe)
@@ -865,10 +865,10 @@ static void inet_cb(int sd, void *arg)
 {
 	struct sockaddr_storage ss;
 	struct sockaddr *sa = (struct sockaddr *)&ss;
-	const char *hname;
+	char *hname, msg[MAXLINE + 1] = { 0 };
+	size_t hname_len;
 	socklen_t sslen;
 	ssize_t len;
-	char msg[MAXLINE + 1] = { 0 };
 
 	sslen = sizeof(ss);
 	len = recvfrom(sd, msg, sizeof(msg) - 1, 0, sa, &sslen);
@@ -879,14 +879,14 @@ static void inet_cb(int sd, void *arg)
 	}
 	msg[len] = 0;
 
-	hname = cvthname((struct sockaddr *)&ss, sslen);
+	hname = cvthname((struct sockaddr *)&ss, sslen, &hname_len);
 	unmapped(sa);
 	if (!validate(sa, hname)) {
 		logit("Message from %s was ignored.\n", hname);
 		return;
 	}
 
-	parsemsg(hname, msg);
+	parsemsg(hname, hname_len, msg);
 }
 
 /*
@@ -1350,7 +1350,7 @@ parsemsg_rfc3164(const char *from, int pri, char *msg)
  * standards and prints the message on the appropriate log files.
  */
 static void
-parsemsg(const char *from, char *msg)
+parsemsg(char *from, size_t from_len, char *msg)
 {
 	char *q;
 	long n;
@@ -1400,9 +1400,15 @@ parsemsg(const char *from, char *msg)
 
 	/* Parse VERSION. */
 	msg += i + 1;
-	if (msg[0] == '1' && msg[1] == ' ')
+	if (msg[0] == '1' && msg[1] == ' ') {
+		size_t len = from ? strlen(from) : 0;
+
+		/* RFC5424 sec. 6.2.4, *should* be FQDN */
+		if (len > 0 && len < from_len)
+			from[len] = '.';
+
 		parsemsg_rfc5424(from, pri, msg + 2);
-	else
+	} else
 		parsemsg_rfc3164(from, pri, msg);
 }
 
@@ -2406,11 +2412,14 @@ const char *cvtaddr(struct sockaddr_storage *f, int len)
  * Callers of cvthname() need to know that if NULL is returned then
  * the host is to be ignored.
  */
-const char *cvthname(struct sockaddr *f, socklen_t len)
+static char *cvthname(struct sockaddr *f, socklen_t len, size_t *from_len)
 {
 	static char hname[NI_MAXHOST], ip[NI_MAXHOST];
 	char *p;
 	int err;
+
+	if (from_len)
+		*from_len = 0;
 
 	err = getnameinfo(f, len, ip, sizeof(ip), NULL, 0, NI_NUMERICHOST);
 	if (err) {
@@ -2435,6 +2444,13 @@ const char *cvthname(struct sockaddr *f, socklen_t len)
 		if (isupper(*p))
 			*p = tolower(*p);
 	}
+
+	/*
+	 * For RFC5424 logging we should use the FQDN, so save the
+	 * FQDN length here for RFC5424 log targets.
+	 */
+	if (from_len)
+		*from_len = strlen(hname);
 
 	/*
 	 * BSD has trimdomain(h1, ...), we implement our own here.
