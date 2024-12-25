@@ -56,7 +56,7 @@
 #define DEFUPRI        (LOG_USER | LOG_NOTICE)
 #define DEFSPRI        (LOG_KERN | LOG_CRIT)
 #define TIMERINTVL     30              /* interval for checking flush/nslookup */
-#define RCVBUF_MINSIZE (80 * MAXLINE)  /* minimum size of dgram rcv buffer */
+#define RCVBUF_MINSIZE (80 * 1024)     /* minimum size of dgram rcv buffer */
 
 /*
  * Linux uses EIO instead of EBADFD (mrn 12 May 96)
