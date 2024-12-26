@@ -3132,12 +3132,12 @@ static void cfopts(char *ptr, struct filed *f)
  */
 static struct filed *cfline(char *line)
 {
-	struct filed *f;
-	char buf[MAXLINE];
+	char buf[LINE_MAX];
 	char *p, *q, *bp;
 	int ignorepri = 0;
 	int singlpri = 0;
 	int syncfile, pri;
+	struct filed *f;
 	int i, i2;
 
 	logit("cfline[%s]\n", line);
