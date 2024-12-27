@@ -4,6 +4,19 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.7.0][UNRELEASED]
+-----------------------
+
+### Changes
+- `syslogd` now caps forwarded messages to 1024 bytes.  This can be
+  adjusted using `-M size` or the config file setting `udp_size`.  See
+  the documentation for more information and reasoning behind this
+- `syslogd` socket buffering has been reduced from 160 kiB to 80 kiB
+
+### Fixes
+- `syslogd` now logs the hostname as the FQDN in RFC5424 output format
+
+
 [v2.6.2][] - 2024-09-08
 -----------------------
 
