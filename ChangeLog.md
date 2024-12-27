@@ -12,6 +12,7 @@ All relevant changes to the project are documented in this file.
   adjusted using `-M size` or the config file setting `udp_size`.  See
   the documentation for more information and reasoning behind this
 - `syslogd` socket buffering has been reduced from 160 kiB to 80 kiB
+- Allow slashes in process names to support, e.g., `postfix/qmgr`
 
 ### Fixes
 - `syslogd` now logs the hostname as the FQDN in RFC5424 output format
