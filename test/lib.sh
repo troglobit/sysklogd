@@ -31,12 +31,14 @@ export SYSLOG_UNIX_PATH=${SOCK}
 # Print heading for test phases
 print()
 {
-    printf "\e[7m>> %-76s\e[0m\n" "$1"
+    printf "\e[7m>> %-78s\e[0m\n" "$1"
 }
 
+# Dimmed text
 dprint()
 {
-    printf "\e[2m%-76s\e[0m\n" "$1"
+    printf "\e[2m%-78s\e[0m\n" "$1"
+}
 
 step()
 {
