@@ -160,6 +160,9 @@ static int	  rotate_opt;	          /* Set if command line option has been given 
 static off_t	  RotateSz = 0;		  /* Max file size (bytes) before rotating, disabled by default */
 static int	  RotateCnt = 5;	  /* Max number (count) of log files to keep, set with -c <NUM> */
 
+static int	  UdpPayloadSz = 1024;	  /* max size of UPD payload when forwarding messages, default from RFC3164 */
+static int	  udpsz_opt;		  /* Set if command line option has been given */
+
 struct timeval   *retry = NULL;		  /* Set by init() to &init_tv whenever retry jobs exist */
 struct timeval    init_tv = { 5, 0 };	  /* Retry every 5 seconds. */
 
@@ -183,9 +186,10 @@ static SIMPLEQ_HEAD(allowed, allowedpeer) aphead = SIMPLEQ_HEAD_INITIALIZER(aphe
  * address for their values as strings.  If there is no value ptr, the
  * parser moves the argument to the beginning of the parsed line.
  */
-char *secure_str;			  /* string value of secure_mode */
-char *rotate_sz_str;			  /* string value of RotateSz    */
-char *rotate_cnt_str;			  /* string value of RotateCnt   */
+static char *udpsz_str;			  /* string value of udp_size     */
+static char *secure_str;		  /* string value of secure_mode  */
+static char *rotate_sz_str;		  /* string value of RotateSz     */
+static char *rotate_cnt_str;		  /* string value of RotateCnt    */
 
 /* Function prototypes. */
 static int  allowaddr(char *s);
@@ -239,6 +243,7 @@ const struct cfkey {
 } cfkey[] = {
 	{ "listen",       NULL,            cflisten, NULL         },
 	{ "notify",       NULL,            notifier_add, &nothead },
+	{ "udp_size",     &udpsz_str,      NULL, NULL             },
 	{ "rotate_size",  &rotate_sz_str,  NULL, NULL             },
 	{ "rotate_count", &rotate_cnt_str, NULL, NULL             },
 	{ "secure_mode",  &secure_str,     NULL, NULL             },
@@ -389,7 +394,7 @@ static void sys_seqno_save(void)
 int usage(int code)
 {
 	printf("Usage:\n"
-	       "  syslogd [-468AdFHKknsTtv?] [-a PEER] [-b NAME] [-f FILE] [-m INTERVAL]\n"
+	       "  syslogd [-468AdFHKknsTtv?] [-a PEER] [-b NAME] [-f FILE] [-m MINS] [-M SIZE]\n"
 	       "                             [-P PID_FILE] [-p SOCK_PATH] [-r SIZE[:NUM]]\n"
 	       "Options:\n"
 	       "  -4        Force IPv4 only\n"
@@ -427,6 +432,7 @@ int usage(int code)
 	       "  -l        Keep kernel logging to console, use sysctl to adjust kernel.printk\n"
 #endif
 	       "  -m MINS   Interval between MARK messages, 0 to disable, default: 20 min\n"
+	       "  -M SIZE   Max size of UDP payload for forwarded messages, default: %d\n"
 	       "  -n        Disable DNS query for every request\n"
 	       "  -P FILE   File to store the process ID, default: %s\n"
 	       "  -p PATH   Path to UNIX domain socket, multiple -p create multiple sockets.\n"
@@ -443,7 +449,7 @@ int usage(int code)
 	       "  -v        Show program version and exit\n"
 	       "\n"
 	       "Bug report address: %s\n",
-	       _PATH_CACHE, _PATH_LOGCONF, _PATH_LOGPID, _PATH_LOG, _PATH_LOGCONF, PACKAGE_BUGREPORT);
+	       _PATH_CACHE, _PATH_LOGCONF, UdpPayloadSz, _PATH_LOGPID, _PATH_LOG, _PATH_LOGCONF, PACKAGE_BUGREPORT);
 #ifdef PACKAGE_URL
 	printf("Project home page:  %s\n", PACKAGE_URL);
 #endif
@@ -459,7 +465,7 @@ int main(int argc, char *argv[])
 	char *ptr;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "468Aa:b:C:cdHFf:Kklm:nP:p:r:sTtv?")) != EOF) {
+	while ((ch = getopt(argc, argv, "468Aa:b:C:cdHFf:Kklm:M:nP:p:r:sTtv?")) != EOF) {
 		switch ((char)ch) {
 		case '4':
 			family = PF_INET;
@@ -532,6 +538,13 @@ int main(int argc, char *argv[])
 
 		case 'm': /* mark interval */
 			MarkInterval = atoi(optarg) * 60;
+			break;
+
+		case 'M':
+			UdpPayloadSz = atoi(optarg);
+			if (UdpPayloadSz < 480)
+				errx(1, "minimum UDP size is 480 bytes");
+			udpsz_opt++;
 			break;
 
 		case 'n':
@@ -1928,6 +1941,31 @@ static void rotate_all_files(void)
 		cnt++;				\
 	} while (0);
 
+int trunciov(struct iovec *iov, int cnt, size_t sz)
+{
+	size_t len = 0;
+
+	for (int i = 0; i < cnt; i++)
+		len += iov[i].iov_len;
+
+	while (len > sz) {
+		struct iovec *last = &iov[cnt - 1];
+		size_t diff = len - sz;
+
+		if (diff >= last->iov_len) {
+			/* Remove the last iovec */
+			len -= last->iov_len;
+			cnt--;
+		} else {
+			/* Truncate the last iovec */
+			last->iov_len -= diff;
+			len           -= diff;
+		}
+	}
+
+	return cnt;
+}
+
 void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 {
 	struct addrinfo *ai;
@@ -1968,14 +2006,15 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 		logit(" %s:%s\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
 		f->f_time = timer_now();
 
+		/* RFC5426 sec 3.2, customizable using -M or forw_length */
+		iovcnt = trunciov(iov, iovcnt, UdpPayloadSz);
+
 		memset(&msg, 0, sizeof(msg));
 		msg.msg_iov = iov;
 		msg.msg_iovlen = iovcnt;
 
-		for (int i = 0; i < iovcnt; i++) {
-//			logit("iov[%d] => %s\n", i, (char *)iov[i].iov_base);
+		for (int i = 0; i < iovcnt; i++)
 			len += iov[i].iov_len;
-		}
 
 		lsent = 0;
 		for (ai = f->f_un.f_forw.f_addr; ai; ai = ai->ai_next) {
@@ -3503,6 +3542,19 @@ static int cfparse(FILE *fp, struct files *newf)
 			continue;
 
 		SIMPLEQ_INSERT_TAIL(newf, f, f_link);
+	}
+
+	if (udpsz_str) {
+		int val;
+
+		val = atoi(udpsz_str);
+		if (val < 480)
+			logit("Invalid value to udp_size = %s\n", udpsz_str);
+		else
+			UdpPayloadSz = val;
+
+		free(udpsz_str);
+		udpsz_str = NULL;
 	}
 
 	if (secure_str) {
