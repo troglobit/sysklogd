@@ -22,6 +22,7 @@ CONFD2=$DIR/${FN2}.d
 SOCK=$DIR/${FN}.sock
 SOCK2=$DIR/${FN2}.sock
 ALTSOCK=$DIR/${FN}-alt.sock
+STEP=1
 PORT=5514
 PORT2=5555
 
@@ -36,6 +37,19 @@ print()
 dprint()
 {
     printf "\e[2m%-76s\e[0m\n" "$1"
+
+step()
+{
+    heading=${1:-}
+    if [ -n "$heading" ]; then
+	num=$((72 - ${#heading} - 1))
+	printf "\n\e[1mStep $STEP ― %s " "$heading"
+	STEP=$((STEP + 1))
+	printf -- "―%.0s" $(seq 1 $num)
+	printf "\e[0m\n"
+    else
+	printf "\e[1m――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――\e[0m\n"
+    fi
 }
 
 SKIP()
@@ -57,6 +71,19 @@ OK()
     print "TEST: OK"
     [ $# -gt 0 ] && echo "$*"
     exit 0
+}
+
+run_step()
+{
+    desc=$1
+    func=$2
+
+    step "${desc}"
+    if eval "${func}"; then
+	dprint "OK"
+    else
+        FAIL "${desc} failed."
+    fi
 }
 
 # shellcheck disable=SC2068,SC2086

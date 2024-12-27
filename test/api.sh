@@ -1,85 +1,108 @@
 #!/bin/sh
-# shellcheck disable=SC1090
-if [ x"${srcdir}" = x ]; then
+#
+# shellcheck disable=SC1090,SC2317
+
+if [ -z "${srcdir}" ]; then
     srcdir=.
 fi
-. ${srcdir}/lib.sh
-setup
+
+. "${srcdir}/lib.sh"
+setup -m0
 
 export MSG="no-openlog-apitest"
 
+#
+# Test steps
+#
 
-##############################################################################
-print "Phase 1 - simple syslog(), no openlog()"
-./api
-grep "api: ${MSG}" "${LOG}"
+verify_basic_syslog()
+{
+    ./api
+    grep "api: ${MSG}" "${LOG}"
+}
 
-
-##############################################################################
-print "Phase 2 - syslog() with openlog() & custom facility"
-cat <<EOF >"${CONFD}/console.conf"
+verify_basic_openlog()
+{
+    cat <<EOF >"${CONFD}/console.conf"
 console.*	-${LOGCONS}
 EOF
-reload
+    reload
 
-./api -i foo
-grep "foo: ${MSG}" "${LOGCONS}"
+    ./api -i foo
+    grep "foo: ${MSG}" "${LOGCONS}"
+}
 
+verify_setlogmask_all()
+{
+    ./api -i xyzzy
+    grep "xyzzy: ${MSG}" "${LOGCONS}"
+}
 
-##############################################################################
-print "Phase 3 - Verify setlogmask()"
+# Expected to fail, logs with LOG_INFO
+verify_setlogmask_notice()
+{
+    ./api -i bar -l
+    grep "bar: ${MSG}" "${LOGCONS}" || return 0
+}
 
-# 1. Verify default log mask (all)
-./api -i xyzzy
-grep "xyzzy: ${MSG}" "${LOGCONS}" || FAIL "Default logmask filtering broken"
-echo "Filtering w/ default logmask works fine"
-
-# 2. Verify setlogmask()
-./api -i bar -l
-grep "bar: ${MSG}" "${LOGCONS}" && FAIL "Filtering w/ setlogmask() broken"
-echo "Filtering w/ setlogmask() works fine"
-
-
-##############################################################################
-print "Phase 4 - Verify RFC5424 API with syslogp()"
-cat <<EOF >"${CONFD}/v1.conf"
+verify_syslogp()
+{
+    cat <<EOF >"${CONFD}/v1.conf"
 ftp.*		-${LOGV1}	;RFC5424
 EOF
-reload
+    reload
 
-./api -i troglobit -p
-sleep 2
-grep "troglobit - MSGID - ${MSG}" "${LOGV1}" || (echo "== ${LOGV1}"; tail -10 "${LOGV1}"; echo "== ${LOG}"; tail -10 "${LOG}"; cat "${CONFD}/v1.conf"; FAIL "Cannot find troglobit")
+    ./api -i troglobit -p
+    #sleep 2
+    grep "troglobit - MSGID - ${MSG}" "${LOGV1}"
+}
 
+verify_rfc5424()
+{
+    ../src/logger -p ftp.notice -u "${SOCK}" -m "MSDSD" -d '[exampleSDID@32473 iut="3" eventSource="Application" eventID="1011"]' "waldo"
+    #sleep 2
+    grep "exampleSDID@32473" "${LOGV1}"
+}
 
-##############################################################################
-print "Phase 5a - Verify RFC5424 API with logger(1)"
-../src/logger -p ftp.notice -u "${SOCK}" -m "MSDSD" -d '[exampleSDID@32473 iut="3" eventSource="Application" eventID="1011"]' "waldo"
-sleep 2
-grep "exampleSDID@32473" "${LOGV1}" || (echo "== ${LOGV1}"; tail -10  "${LOGV1}"; FAIL "Cannot find exampleSDID@32473")
+verify_fqdn()
+{
+    ../src/logger -p ftp.notice -u "${SOCK}" -m "MSDSD" -H "baz.example.com" "Xyzzy"
+    #sleep 2
+    grep "baz.example.com" "${LOGV1}"
+}
 
-
-##############################################################################
-print "Phase 5b - Verify RFC5424 FQDN logging logger(1)"
-../src/logger -p ftp.notice -u "${SOCK}" -m "MSDSD" -H "baz.example.com" "Xyzzy"
-sleep 2
-grep "baz.example.com" "${LOGV1}" || FAIL "RFC5424 FQDN logging broken."
-
-##############################################################################
-print "Phase 6 - Verify localN with logger(1)"
-cat <<EOF >"${CONFD}/notice.conf"
+# Expected to fail, logs with LOG_INFO
+verify_localN_info()
+{
+    cat <<EOF >"${CONFD}/notice.conf"
 *.notice	-${LOG2}
 EOF
-reload
+    reload
 
-../src/logger -p local7.info -u "${SOCK}" "nopenope"
-sleep 2
-grep "nopenope" "${LOG2}" && FAIL "local7.info leaks to ${LOG2}"
+    ../src/logger -p local7.info -u "${SOCK}" "nopenope"
+    #sleep 2
+    grep "nopenope" "${LOG2}" || return 0
+}
 
-../src/logger -p local7.notice -u "${SOCK}" "aye matey"
-sleep 2
-grep "aye matey" "${LOG2}" || FAIL "local7.notice does not log to ${LOG2}"
+verify_localN_notice()
+{
+    ../src/logger -p local7.notice -u "${SOCK}" "aye matey"
+    #sleep 2
+    grep "aye matey" "${LOG2}"
+}
 
+#
+# Run test steps
+#
 
-##############################################################################
+run_step "Verify syslog(), no openlog()"          verify_basic_syslog
+run_step "Verify openlog() with custom facility"  verify_basic_openlog
+run_step "Verify setlogmask() default behavior"   verify_setlogmask_all
+run_step "Verify setlogmask() LOG_NOTICE"         verify_setlogmask_notice
+run_step "Verify RFC5424 API with syslogp()"      verify_syslogp
+run_step "Verify RFC5424 API with logger(1)"      verify_rfc5424
+run_step "Verify RFC5424 FQDN with logger(1)"     verify_fqdn
+run_step "Verify localN info leak with logger(1)" verify_localN_info
+run_step "Verify localN notice with logger(1)"    verify_localN_notice
+
 OK
