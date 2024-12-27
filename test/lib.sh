@@ -144,25 +144,49 @@ logger()
 	fi
 }
 
+# Helper to poll for a file with a timeout
+poll()
+{
+    file=$1
+    timeout=${2:-10} # Default timeout 10 seconds
+    start_time=$(date +%s.%N)
+
+    while [ ! -f "$file" ]; do
+        sleep 0.1
+        current_time=$(date +%s.%N)
+        elapsed=$(echo "$current_time - $start_time" | bc)
+        if [ "$(echo "$elapsed >= $timeout" | bc)" -eq 1 ]; then
+            return 1
+        fi
+    done
+
+    return 0
+}
+
 # shellcheck disable=SC2046,SC2086
 do_setup()
 {
     order=$1
     pidfn=$2
+    logfn=${2}.log
     shift 2
     opts="$*"
 
     ip link set lo up
 
     print "Starting $order syslogd ..."
-    if [ -z "$VALGRIND" ]; then
-	../src/syslogd -dKF ${opts} &
+    cmd="../src/syslogd -dKF ${opts}"
+    [ -n "$VALGRIND" ] && cmd="${VALGRIND} ${cmd}"
+
+    if [ -z "$DEBUG" ]; then
+        $cmd >"$logfn" 2>&1 &
     else
-	${VALGRIND} ../src/syslogd -KF ${opts} &
+        $cmd &
     fi
 
-    sleep 2
-    [ -f "${pidfn}" ] || FAIL "Failed starting $order syslogd"
+    if ! poll "${pidfn}"; then
+        FAIL "Failed starting $order syslogd"
+    fi
     cat "${pidfn}" >> "$DIR/PIDs"
 
     # Enable debugging ...
@@ -171,7 +195,7 @@ do_setup()
 	kill -USR1 $(cat "${pidfn}")
     fi
 
-    sleep 1
+#    sleep 1
 }
 
 # stand-alone single syslogd

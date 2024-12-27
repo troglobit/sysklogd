@@ -10,6 +10,7 @@ cat <<EOF > "${CONF}"
 *.*       -${LOG}    ;rotate=10M:5,RFC5424
 EOF
 
+DEBUG=true
 setup -m0 >"${LOG2}"
 
 grep ';RFC5424,rotate=10000000:5' "${LOG2}" || FAIL "Failed parsing RFC5424 .conf"
