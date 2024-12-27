@@ -1,11 +1,10 @@
 #!/bin/sh
 # shellcheck disable=SC1090
-set -x
-
-if [ x"${srcdir}" = x ]; then
+#set -x
+if [ -z "${srcdir}" ]; then
     srcdir=.
 fi
-. ${srcdir}/lib.sh
+. "${srcdir}/lib.sh"
 
 NOT1=${DIR}/${NM}-1.sh
 NOT1STAMP=${DIR}/${NM}-1.stamp

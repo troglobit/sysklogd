@@ -2,11 +2,11 @@
 # Currently only same as local.sh but with unicode messages
 # From https://github.com/troglobit/sysklogd/issues/49
 # shellcheck disable=SC1090
-if [ x"${srcdir}" = x ]; then
+if [ -z "${srcdir}" ]; then
     srcdir=.
 fi
+. "${srcdir}/lib.sh"
 
-. ${srcdir}/lib.sh
 setup -8
 
 MSG="öäüÖÄÜß€¢§"

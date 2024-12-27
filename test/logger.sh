@@ -2,11 +2,11 @@
 # Verify logger capabilities, for now just remote logger
 # shellcheck disable=SC1090
 #set -x
-
-if [ x"${srcdir}" = x ]; then
+if [ -z "${srcdir}" ]; then
     srcdir=.
 fi
-. ${srcdir}/lib.sh
+. "${srcdir}/lib.sh"
+
 ip link set lo up
 
 print "Starting stand-alone logger test ..."

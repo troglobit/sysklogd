@@ -4,10 +4,10 @@
 # works as intended.
 #
 # shellcheck disable=SC1090
-if [ x"${srcdir}" = x ]; then
+if [ -z "${srcdir}" ]; then
     srcdir=.
 fi
-. ${srcdir}/lib.sh
+. "${srcdir}/lib.sh"
 
 MSG="Kilroy was here"
 

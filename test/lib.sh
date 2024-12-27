@@ -113,8 +113,8 @@ cap_start()
 cap_stop()
 {
 	sleep 1
-	kill -TERM ${TPID}
-	wait ${TPID}
+	kill -TERM "${TPID}"
+	wait "${TPID}"
 }
 
 cap_dump()

@@ -2,14 +2,13 @@
 # Start, SIGHUP, and log a run of syslogd under Valgrind
 # shellcheck disable=SC1090
 #set -x
-
-if [ x"${srcdir}" = x ]; then
+if [ -z "${srcdir}" ]; then
     srcdir=.
 fi
 
 # shellcheck disable=SC2034
 VALGRIND="valgrind --leak-check=full --show-leak-kinds=all"
-. ${srcdir}/lib.sh
+. "${srcdir}/lib.sh"
 
 # Only needed for verifying correct RFC3164 parsing
 cat <<-EOF >"${CONFD}/99-wall.conf"

@@ -6,13 +6,13 @@
 # opportunity to perform a regression test of SIGHUP:ing syslogd.
 #
 # shellcheck disable=SC1090
-set -x
-
-if [ x"${srcdir}" = x ]; then
+#set -x
+if [ -z "${srcdir}" ]; then
     srcdir=.
 fi
-. ${srcdir}/lib.sh
-setup
+. "${srcdir}/lib.sh"
+
+setup -m0
 
 export MSG="kilroy"
 

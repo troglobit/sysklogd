@@ -1,10 +1,10 @@
 #!/bin/sh -e
 # Test '-- MARK --' in log, depends on fwd.sh
 # shellcheck disable=SC1090
-if [ x"${srcdir}" = x ]; then
+if [ -z "${srcdir}" ]; then
     srcdir=.
 fi
-. ${srcdir}/lib.sh
+. "${srcdir}/lib.sh"
 
 # Enable MARK messages every minute, full secure mode
 setup -m1 -ss
