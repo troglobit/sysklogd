@@ -72,6 +72,8 @@ ROT      := SIZE:COUNT
          |= SIZE
 	 |= :COUNT
 
+udp_size 480..2048
+
 secure_mode [0,1,2]
 
 rotate_size  SIZE
@@ -139,6 +141,17 @@ permissions.
 .Pp
 Comments, lines starting with a hash mark ('#'), and empty lines are
 ignored.  If an error occurs during parsing the whole line is ignored.
+.Pp
+The
+.Ql udp_size 480..2048
+option controls the maximum size of the UDP payload, which is the full
+syslog message including the header.  This setting is the same as the
+command line option
+.Fl M ,
+which like all command line options take precedence.  The default (1024
+bytes) follow RFC3164.  Before tweaking this, please read section 3.2 of
+RFC5426, it recommends 480 bytes for IPv4 and 1180 bytes for IPv6 to
+avoid fragmentation.
 .Pp
 The
 .Ql secure_mode <0-2>

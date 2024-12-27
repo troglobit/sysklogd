@@ -46,6 +46,7 @@
 .Op Fl C Ar file
 .Op Fl f Ar file
 .Op Fl m Ar interval
+.Op Fl M Ar size
 .Op Fl P Ar file
 .Op Fl p Ar sock
 .Op Fl r Ar size[:count]
@@ -315,6 +316,22 @@ messages; the default is 20 minutes.  Setting this to zero disables log
 marks.  See the
 .Sx BUGS
 section for more information.
+.It Fl M Ar size
+Limit (truncate) the UDP payload size in forwarded messages, default:
+1024.  This value is from RFC3164, which defines a max message length of
+1024 bytes.  Please note, the message length includes the header, which
+varies with the length of the hostname field or any RFC5424 fields if
+that output format is used.
+.Pp
+The lower limit to this setting is 480, which is the minimum a syslog
+daemon must support.  The upper limit is capped at 2048 bytes for a
+single message, which is the size a daemon should support according to
+RFC5424.
+.Pp
+Please note, section 3.2 of RFC5426,
+.Em Transmission of Syslog Messages over UDP ,
+recommends 480 bytes for IPv4 and 1180 bytes for IPv6 to avoid
+fragmentation.
 .It Fl n
 Disable DNS query for every request.
 .It Fl p Ar socket
@@ -580,6 +597,18 @@ kernel log device
 .Xr syslogp 3 ,
 .Xr services 5 ,
 .Xr syslog.conf 5 ,
+.Sh STANDARDS
+.Nm
+support both RFC3164 and RFC5424, as well as the pre-RFC BSD logging
+support.  It also supports RFC5426, the command line option
+.Fl M Ar length
+can be used to ensure no fragmentation occurs.
+.Pp
+.Bl -tag -width RFC3164 -compact
+.It Lk https://datatracker.ietf.org/doc/html/rfc3164 RFC3164
+.It Lk https://datatracker.ietf.org/doc/html/rfc5424 RFC5424
+.It Lk https://datatracker.ietf.org/doc/html/rfc5426 RFC5426
+.El
 .Sh HISTORY
 .Nm
 was originally ported to Linux by
@@ -641,7 +670,7 @@ from should be put early into the
 list.
 .Pp
 The mark interval, as controlled by the
-.Fl m Ar INTV
+.Fl m Ar interval
 option, relies on an internal timer with 30 second granularity.  Every
 30 seconds
 .Nm
@@ -662,5 +691,5 @@ As mentioned in the
 transparently supports the standard C library
 .Xr syslog 3
 API.  If a binary linked to the standard C libraries does not operate
-correctly, this should be reported as a bug to the
-.Lk https://github.com/troglobit/sysklogd/issues sysklogd issue tracker
+correctly, this should be reported as a bug to the project's
+.Lk https://github.com/troglobit/sysklogd/issues tracker
