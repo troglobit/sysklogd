@@ -20,29 +20,11 @@ verify_remote()
 {
     MSG="kilroy"
 
-    # Start collector in background, note: might need sudo!
-    tshark -Qni lo -w "${CAP}" port 514 2>/dev/null &
-    TPID="$!"
-    echo "$TPID" >> "$DIR/PIDs"
+    cap_start
+    logger   "${MSG}"
+    cap_stop
 
-    # While waiting for tshark to start we take the opportunity
-    # to verify syslogd can survive a few SIGHUP's.
-    for _ in $(seq 3); do
-	reload
-    done
-
-    # Now send the message and see if we sent it ...
-    logger "${MSG}"
-
-    # Wait for any OS delays, in particular CI
-    sleep 1
-
-    # Stop tshark collector
-    kill -TERM "${TPID}"
-    wait "${TPID}"
-
-    # Analyze content, should have $MSG now ...
-    tshark -r "${CAP}" 2>/dev/null | grep "${MSG}"
+    cap_find "${MSG}"
 }
 
 run_step "Setup remote syslog, RFC3164" setup_remote

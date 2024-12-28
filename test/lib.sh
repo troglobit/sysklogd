@@ -103,6 +103,7 @@ tenacious()
     FAIL "Timeed out $*"
 }
 
+# Start collector in background, note: might need sudo!
 cap_start()
 {
 	tshark -Qni lo -w "${CAP}" port 514 2>/dev/null &
