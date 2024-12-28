@@ -312,11 +312,12 @@ signal()
 }
 
 # props to https://stackoverflow.com/a/2183063/1708249
+# shellcheck disable=SC2064
 trapit()
 {
-    func="$1" ; shift
-    for sig ; do
-        trap '$func $sig' "$sig"
+    func=$1; shift
+    for sig; do
+        trap "$func $sig" "$sig"
     done
 }
 
