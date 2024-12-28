@@ -275,22 +275,10 @@ kill_pids()
 teardown()
 {
     kill_pids
-    sleep 1
-
-    rm -f "${LOG}"
-    rm -f "${LOGV1}"
-    rm -f "${LOG2}"
-    rm -f "${LOGCONS}"
-    rm -f "${PID}"
-    rm -f "${PID2}"
-    rm -f "${CAP}"
-    rm -f "${SOCK}"
-    rm -f "${CACHE}"
-    rm -f "${CACHE2}"
-    rm -f "${CONF}"
-    rm -f "${CONF2}"
-    rm -rf "${CONFD}"
-    rm -rf "${CONFD2}"
+    if [ -z "$DEBUG" ]; then
+	sleep 1
+	rm -rf "${DIR}"
+    fi
 }
 
 signal()
