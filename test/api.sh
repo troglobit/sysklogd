@@ -4,7 +4,7 @@
 if [ -z "${srcdir}" ]; then
     srcdir=.
 fi
-. "${srcdir}/lib.sh"
+. ${srcdir}/lib.sh
 
 setup -m0
 
@@ -103,5 +103,3 @@ run_step "Verify RFC5424 API with logger(1)"      verify_rfc5424
 run_step "Verify RFC5424 FQDN with logger(1)"     verify_fqdn
 run_step "Verify localN info leak with logger(1)" verify_localN_info
 run_step "Verify localN notice with logger(1)"    verify_localN_notice
-
-OK

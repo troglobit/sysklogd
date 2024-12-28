@@ -26,7 +26,7 @@ STEP=1
 PORT=5514
 PORT2=5555
 
-export SYSLOG_UNIX_PATH=${SOCK}
+export SYSLOG_UNIX_PATH="${SOCK}"
 
 # Print heading for test phases
 print()
@@ -194,8 +194,6 @@ do_setup()
 	dprint "Enabling debugging USR1 ..."
 	kill -USR1 $(cat "${pidfn}")
     fi
-
-#    sleep 1
 }
 
 # stand-alone single syslogd
@@ -286,27 +284,27 @@ teardown()
     kill_pids
     sleep 1
 
-    rm -f ${LOG}
-    rm -f ${LOGV1}
-    rm -f ${LOG2}
-    rm -f ${LOGCONS}
-    rm -f ${PID}
-    rm -f ${PID2}
-    rm -f ${CAP}
-    rm -f ${SOCK}
-    rm -f ${CACHE}
-    rm -f ${CACHE2}
-    rm -f ${CONF}
-    rm -f ${CONF2}
-    rm -rf ${CONFD}
-    rm -rf ${CONFD2}
+    rm -f "${LOG}"
+    rm -f "${LOGV1}"
+    rm -f "${LOG2}"
+    rm -f "${LOGCONS}"
+    rm -f "${PID}"
+    rm -f "${PID2}"
+    rm -f "${CAP}"
+    rm -f "${SOCK}"
+    rm -f "${CACHE}"
+    rm -f "${CACHE2}"
+    rm -f "${CONF}"
+    rm -f "${CONF2}"
+    rm -rf "${CONFD}"
+    rm -rf "${CONFD2}"
 }
 
 signal()
 {
     echo
     if [ "$1" != "EXIT" ]; then
-	print "Got signal, cleaning up"
+	print "Got signal $1, cleaning up ..."
     fi
     teardown
 }
