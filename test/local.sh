@@ -5,17 +5,21 @@ if [ -z "${srcdir}" ]; then
 fi
 . "${srcdir}/lib.sh"
 
-setup -m0
 
-print "TEST: Starting"
+verify_plain()
+{
+    MSG="foobar"
+    logger "${MSG}"
+    grep ${MSG} "${LOG}"
+}
 
-MSG="foobar"
-MSG2="xyzzy"
+verify_alt()
+{
+    MSG="xyzzy"
+    logger "${ALTSOCK}" ${MSG}
+    grep ${MSG} "${LOG}"
+}
 
-logger "${MSG}"
-grep ${MSG} "${LOG}" || FAIL "Cannot find: ${MSG}"
-
-logger "${ALTSOCK}" ${MSG2}
-grep ${MSG2} "${LOG}" || FAIL "Cannot find: ${MSG2}"
-
-OK
+run_step "Set up local syslog daemon" setup -m0
+run_step "Verify basic logging"       verify_plain
+run_step "Verify alternate socket"    verify_alt
