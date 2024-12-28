@@ -79,9 +79,10 @@ run_step()
 {
     desc=$1
     func=$2
+    shift 2
 
     step "${desc}"
-    if eval "${func}"; then
+    if eval "${func} $*"; then
 	dprint "OK"
     else
         FAIL "${desc} failed."
@@ -174,7 +175,7 @@ do_setup()
 
     ip link set lo up
 
-    print "Starting $order syslogd ..."
+    dprint "Starting $order syslogd ..."
     cmd="../src/syslogd -dKF ${opts}"
     [ -n "$VALGRIND" ] && cmd="${VALGRIND} ${cmd}"
 

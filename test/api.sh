@@ -4,9 +4,7 @@
 if [ -z "${srcdir}" ]; then
     srcdir=.
 fi
-. ${srcdir}/lib.sh
-
-setup -m0
+. "${srcdir}/lib.sh"
 
 export MSG="no-openlog-apitest"
 
@@ -94,6 +92,7 @@ verify_localN_notice()
 # Run test steps
 #
 
+run_step "Set up local syslog daemon"             setup -m0
 run_step "Verify syslog(), no openlog()"          verify_basic_syslog
 run_step "Verify openlog() with custom facility"  verify_basic_openlog
 run_step "Verify setlogmask() default behavior"   verify_setlogmask_all
