@@ -7,13 +7,10 @@
 #  3. A too long message, truncated to the udp_size value
 #
 # shellcheck disable=SC1090
-
 if [ -z "${srcdir}" ]; then
     srcdir=.
 fi
-
 . "${srcdir}/lib.sh"
-setup -m0
 
 # Constants
 MAX_UDP_PAYLOAD=480
@@ -28,22 +25,25 @@ MSG="short message"
 LONG_MSG=$(printf "%-${AVAILABLE_MSG_LEN}s" | tr ' ' 'A')
 TOO_LONG_MSG=$(printf "%-$((AVAILABLE_MSG_LEN + 100))s" | tr ' ' 'B')
 
-print "Setting up sender syslogd to cap UDP payload to 480 octets"
-cat <<EOF >"${CONFD}/fwd.conf"
-udp_size        ${MAX_UDP_PAYLOAD}
-kern.*		/dev/null
-ntp.*		@[::1]:${PORT2}	;RFC5424
-EOF
+setup_sender()
+{
+    # Cap UDP payload to 480 octets
+    cat <<-EOF >"${CONFD}/fwd.conf"
+	udp_size        ${MAX_UDP_PAYLOAD}
+	kern.*		/dev/null
+	ntp.*		@[::1]:${PORT2}	;RFC5424
+	EOF
+    setup -m0
+}
 
-reload
-
-print "Setting up receiver syslogd to log to file in RFC5424 format"
-cat <<EOF >"${CONFD2}/50-default.conf"
-kern.*		/dev/null
-*.*;kern.none	${LOG2}			;RFC5424
-EOF
-
-setup2 -m0 -a "[::1]:*" -b ":${PORT2}"
+setup_receiver()
+{
+    cat <<-EOF >"${CONFD2}/50-default.conf"
+	kern.*		/dev/null
+	*.*;kern.none	${LOG2}			;RFC5424
+	EOF
+    setup2 -m0 -a "[::1]:*" -b ":${PORT2}"
+}
 
 # Helper function to send and verify reception
 send_and_verify()
@@ -64,14 +64,24 @@ send_and_verify()
     dprint "OK, got: $logged_msg"
 }
 
-# Test Cases
-print "Verify forward of normal message"
-send_and_verify "${MSG}" "${MSG}"
+verify_msg()
+{
+    send_and_verify "${MSG}" "${MSG}"
+}
 
-print "Verify forward of long message (480 chars)"
-send_and_verify "${LONG_MSG}" "${LONG_MSG}"
+verify_forward()
+{
+    send_and_verify "${LONG_MSG}" "${LONG_MSG}"
+}
 
-print "Verify truncation of too-long message"
-send_and_verify "${TOO_LONG_MSG}" "$(echo "${TOO_LONG_MSG}" | cut -c1-${AVAILABLE_MSG_LEN})"
+verify_capped()
+{
+    send_and_verify "${TOO_LONG_MSG}" \
+		    "$(echo "${TOO_LONG_MSG}" | cut -c1-${AVAILABLE_MSG_LEN})"
+}
 
-OK
+run_step "Set up sender syslogd to log in RFC5424 format"            setup_sender
+run_step "Set up receiver syslogd to log to file in RFC5424 format"  setup_receiver
+run_step "Verify forward of normal message"                          verify_msg
+run_step "Verify forward of long message (480 chars)"                verify_forward
+run_step "Verify truncation of too-long message"                     verify_capped
