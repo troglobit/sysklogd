@@ -1,55 +1,49 @@
 #!/bin/sh
-# Verify that the sending to a remote IP:PORT works, note not receiving,
-# there's a test fwd.sh that verifies that.
+# Verify that the sending to a remote IP:PORT works.
 #
-# Also, instead of "sleep 3" after starting thsark, below, we take the
-# opportunity to perform a regression test of SIGHUP:ing syslogd.
-#
-# shellcheck disable=SC1090
-#set -x
+# shellcheck disable=SC1090,SC2317
 if [ -z "${srcdir}" ]; then
     srcdir=.
 fi
 . "${srcdir}/lib.sh"
 
-setup -m0
-
-export MSG="kilroy"
-
-# Only needed for verifying correct RFC3164 parsing
-cat <<-EOF >"${CONFD2}/50-default.conf"
-	*.*	${LOG2}
+setup_remote()
+{
+    cat <<-EOF > "${CONF}"
+	*.* @127.0.0.2
+	*.* @127.0.0.2:${PORT2}	;RFC3164
 	EOF
+    setup -m0
+}
 
-setup2 -m0 -a 127.0.0.2:* -b ":${PORT2}"
+verify_remote()
+{
+    MSG="kilroy"
 
-print "TEST: Starting"
+    # Start collector in background, note: might need sudo!
+    tshark -Qni lo -w "${CAP}" port 514 2>/dev/null &
+    TPID="$!"
+    echo "$TPID" >> "$DIR/PIDs"
 
-# Start collector in background, note: might need sudo!
-#tshark -Qni lo -w ${CAP} port ${PORT} &
-tshark -Qni lo -w "${CAP}" port 514 2>/dev/null &
-TPID="$!"
-echo "$TPID" >> "$DIR/PIDs"
-
-# While Waiting for tshark to start up properly we take the opportunity
-# to verify syslogd survives a few SIGHUP's.  The pe_sock[] has max 16
-# elements, which should get closed and refilled on SIGHUP.
-for i in $(seq 1 20); do
+    # While waiting for tshark to start we take the opportunity
+    # to verify syslogd can survive a few SIGHUP's.
+    for _ in $(seq 3); do
 	reload
-done
+    done
 
-# Now send the message and see if we sent it ...
-logger ${MSG}
+    # Now send the message and see if we sent it ...
+    logger "${MSG}"
 
-# Wait for any OS delays, in particular on Travis
-sleep 1
+    # Wait for any OS delays, in particular CI
+    sleep 1
 
-# Stop tshark collector
-kill -TERM ${TPID}
-wait ${TPID}
+    # Stop tshark collector
+    kill -TERM "${TPID}"
+    wait "${TPID}"
 
-# Analyze content, should have $MSG now ...
-#tshark -d udp.port==${PORT},syslog -r ${CAP} | grep ${MSG}
-tshark -r "${CAP}" 2>/dev/null | grep "${MSG}" || FAIL "Cannot find: ${MSG}"
+    # Analyze content, should have $MSG now ...
+    tshark -r "${CAP}" 2>/dev/null | grep "${MSG}"
+}
 
-OK
+run_step "Setup remote syslog, RFC3164" setup_remote
+run_step "Verify sending to remote"     verify_remote

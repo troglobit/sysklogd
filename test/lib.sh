@@ -214,18 +214,9 @@ setup()
 {
     if [ ! -f "${CONF}" ]; then
 	cat <<-EOF > "${CONF}"
-		include ${CONFD}/*.conf
-		EOF
-
-	cat <<-EOF > "${CONFD}/foo.conf"
-		# Local log file, avoid sync to disk
+		# Local log file, needed by most tests
 		*.* -${LOG}
-		EOF
-
-	cat <<-EOF > "${CONFD}/bar.conf"
-		# For remote logging
-		*.* @127.0.0.2
-		*.* @127.0.0.2:${PORT2}	;RFC3164
+		include ${CONFD}/*.conf
 		EOF
     fi
 
