@@ -201,12 +201,14 @@ do_setup()
 # stand-alone single syslogd
 setup0()
 {
+    addr=$1; shift
+
     ip link set lo up state up
-    ip addr add ::1/128 dev lo
+    ip addr add ::1/128 dev lo 2>/dev/null
     ip link add eth0 type dummy
     ip link set eth0 up state up
-    ip addr add 10.0.0.1/24 dev eth0
-    ip -br a
+    ip addr add "$addr" dev eth0
+
     do_setup "stand-alone" "${PID}" "$*" -f "${CONF}" -p "${SOCK}" -C "${CACHE}" -P "${PID}"
 }
 

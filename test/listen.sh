@@ -2,12 +2,14 @@
 # Verify listen changes in .conf file at runtime w/o having to restart
 # syslogd.  We want to ensure adding and removing listen addresses work
 # as intended.
-#
-# shellcheck disable=SC1090
-if [ x"${srcdir}" = x ]; then
+if [ -z "${srcdir}" ]; then
     srcdir=.
 fi
-. ${srcdir}/lib.sh
+. "${srcdir}/lib.sh"
+
+#
+# Helper functions
+#
 
 set_listen()
 {
@@ -21,7 +23,7 @@ set_listen()
 	reload
     else
 	dprint "Not running, calling setup0 -m0"
-	setup0 -m0
+	setup0 10.0.0.1/24 -m0
     fi
 }
 
@@ -33,50 +35,78 @@ do_port_check()
 
 check_not_open()
 {
-    PORT=$1
-    shift 1
-    do_port_check "$PORT" && FAIL "$@"
+    do_port_check "$1" || return 0
 }
 
 check_port_open()
 {
-    PORT=$1
-    shift 1
-    do_port_check "$PORT" || FAIL "$@"
+    do_port_check "$1"
 }
 
-print "Listen off - no remote no ports"
-set_listen 2
-check_not_open 514 "Listen off, yet ports are opened!"
+#
+# Test steps
+#
 
-print "Listen off - only send to remote, no ports"
-set_listen 1
-check_not_open 514 "Listen still off, yet ports are opened!"
+verify_secure_daemon()
+{
+    set_listen 2
+    check_not_open 514
+}
 
-print "Listen on, default"
-set_listen 0
-check_port_open 514 "Expected port 514 to be open!"
+verify_safe_daemon()
+{
+    set_listen 1
+    check_not_open 514
+}
 
-print "Listen on 127.0.0.1:510"
-set_listen 0 127.0.0.1:510
-check_not_open  514 "Port 514 still open!"
-check_port_open 510 "Expected port 510 to be open!"
+verify_default_daemon()
+{
+    set_listen 0
+    check_port_open 514
+}
 
-print "Listen on 10.0.0.1:512"
-set_listen 0 10.0.0.1:512
-check_not_open  510 "Port 510 still open!"
-check_port_open 512 "Expected port 512 to be open!"
+verify_local_daemon()
+{
+    set_listen 0 127.0.0.1:510
+    check_port_open 510
+}
 
-print "Listen on 10.0.0.2:513"
-set_listen 0 10.0.0.2:513
-sleep 1
-dprint "Delayed add of bind address ..."
-ip addr add 10.0.0.2/24 dev eth0
-ip -br a
-dprint "Waiting for syslogd to react ..."
-sleep 5
-netstat -atnu
-check_not_open  512 "Port 512 still open!"
-check_port_open 513 "Expected port 513 to be open!"
+verify_bind()
+{
+    set_listen 0 10.0.0.1:512
+    check_port_open 512
+}
 
-OK
+verify_delayed_bind()
+{
+    addr=10.0.0.2
+    port=513
+
+    set_listen 0 $addr:$port
+    sleep 1
+
+    dprint "Delayed add of bind address $addr:$port ..."
+    ip addr add "$addr"/24 dev eth0
+
+    dprint "Waiting for syslogd to react ..."
+    sleep 5
+
+    check_port_open $port
+}
+
+#
+# Run test steps
+#
+
+run_step "Verify listen off - no remote no ports"             verify_secure_daemon
+run_step "Verify listen off - only send to remote, no ports"  verify_safe_daemon
+run_step "Verify listen on, default"                          verify_default_daemon
+
+run_step "Verfiy listen on 127.0.0.1:510"                     verify_local_daemon
+run_step "Verify port 514 is closed"                          check_not_open 514
+
+run_step "Verfiy listen on 10.0.0.1:512"                      verify_bind
+run_step "Verify port 510 is closed"                          check_not_open 510
+
+run_step "Verify delayed bind to new address 10.0.0.2:513"    verify_delayed_bind
+run_step "Verify port 512 is closed"                          check_not_open 512
