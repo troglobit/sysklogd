@@ -265,6 +265,12 @@ reload2()
     do_reload "${PID2}"
 }
 
+rotate()
+{
+    kill -USR2 "$(cat "${PID}")"
+    sleep 1
+}
+
 # Stop all lingering collectors and other tools
 kill_pids()
 {

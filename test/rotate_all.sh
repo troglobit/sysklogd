@@ -1,96 +1,79 @@
 #!/bin/sh
-# shellcheck disable=SC1090
-set -x
-
-if [ x"${srcdir}" = x ]; then
+if [ -z "${srcdir}" ]; then
     srcdir=.
 fi
-. ${srcdir}/lib.sh
+. "${srcdir}/lib.sh"
 
-[ -x ../src/logger ] || SKIP 'logger missing'
-command -v zgrep >/dev/null 2>&1 || SKIP 'zgrep(1) missing'
+MSG1="notrotall-1"
+MSG2="notrotall-2"
+MSG3="notrotall-3"
 
-NOT1=${DIR}/${NM}-1.sh
-NOT1STAMP=${DIR}/${NM}-1.stamp
-NOT2=${DIR}/${NM}-2.sh
-NOT2STAMP=${DIR}/${NM}-2.stamp
+NOT=${DIR}/${NM}-1.sh
+STP=${DIR}/${NM}-1.stamp
 
-printf '#!/bin/sh -\necho script 1: $* >> '${NOT1STAMP}'\n' > ${NOT1}
-chmod 0755 ${NOT1}
+check_deps()
+{
+    [ -x ../src/logger ]             || SKIP 'logger missing'
+    command -v zgrep >/dev/null 2>&1 || SKIP 'zgrep(1) missing'
+}
 
-cat <<EOF > ${CONFD}/rotate_all.conf
-notify ${NOT1}
-*.*       -${LOG}    ;rotate=10k:2,RFC5424
-*.*       -${LOG}X   ;rotate=10k:2,RFC5424
-EOF
+# shellcheck disable=SC2059
+setup_notifier()
+{
+    printf "#!/bin/sh -\necho script 1: \$* >>${STP}\n" > "${NOT}"
+    chmod 0755 "${NOT}"
+}
 
-setup
+setup_syslogd()
+{
+    cat <<-EOF > "${CONFD}/rotate_all.conf"
+	notify ${NOT}
+	*.*       -${LOG}    ;rotate=10k:2,RFC5424
+	*.*       -${LOG}X   ;rotate=10k:2,RFC5424
+	EOF
+    setup -m0
+}
 
-rm -f ${NOT1STAMP}
-logger notrotall-1
+log_rotate()
+{
+    rm -f  "$STP"
+    logger "$1"
 
-kill -USR2 `cat ${PID}`
-sleep 3
-if [ -f ${LOG}.0 ] && [ -f ${LOG}X.0 ] &&
-		grep notrotall-1 ${LOG}.0 &&
-		grep notrotall-1 ${LOG}X.0; then
-	:
-else
-	FAIL 'Missing log entries, I.'
-fi
-if [ -f ${NOT1STAMP} ] && grep 'script 1' ${NOT1STAMP} &&
-		grep ${LOG} ${NOT1STAMP} && grep ${LOG}X ${NOT1STAMP}; then
-	:
-else
-	FAIL 'Notifier did not run, I.'
-fi
+    rotate
+}
 
-rm -f ${NOT1STAMP}
-logger notrotall-2
+check_rotate()
+{
+    NUM=$1; [ "$NUM" -gt 0 ] && NUM=$NUM.gz
+    MSG=$2
 
-kill -USR2 `cat ${PID}`
-sleep 3
-if [ -f ${LOG}.0 ] && [ -f ${LOG}X.0 ] &&
-		[ -f ${LOG}.1.gz ] && [ -f ${LOG}X.1.gz ] &&
-		grep notrotall-2 ${LOG}.0 &&
-		grep notrotall-2 ${LOG}X.0 &&
-		zgrep notrotall-1 ${LOG}.1.gz &&
-		zgrep notrotall-1 ${LOG}X.1.gz; then
-	:
-else
-	FAIL 'Missing log entries, II.'
-fi
-if [ -f ${NOT1STAMP} ] && grep 'script 1' ${NOT1STAMP} &&
-		grep ${LOG} ${NOT1STAMP} && grep ${LOG}X ${NOT1STAMP}; then
-	:
-else
-	FAIL 'Notifier did not run, II.'
-fi
+    test -f "${LOG}.$NUM" && test -f "${LOG}X.$NUM" \
+	&& zgrep -H "$MSG" "${LOG}.$NUM" \
+	&& zgrep -H "$MSG" "${LOG}X.$NUM"
+}
 
-cp $NOT1STAMP /tmp/
-rm -f ${NOT1STAMP}
-logger notrotall-3
+check_notifier()
+{
+    test -f "$STP" && grep "script 1" "$STP" \
+	&& grep -H "$LOG"    "$STP" \
+	&& grep -H "${LOG}X" "$STP"
+}
 
-kill -USR2 `cat ${PID}`
-sleep 3
-if [ -f ${LOG}.0 ] && [ -f ${LOG}X.0 ] &&
-		[ -f ${LOG}.1.gz ] && [ -f ${LOG}X.1.gz ] &&
-		[ -f ${LOG}.2.gz ] && [ -f ${LOG}X.2.gz ] &&
-		grep notrotall-3 ${LOG}.0 &&
-		grep notrotall-3 ${LOG}X.0 &&
-		zgrep notrotall-2 ${LOG}.1.gz &&
-		zgrep notrotall-2 ${LOG}X.1.gz &&
-		zgrep notrotall-1 ${LOG}.2.gz &&
-		zgrep notrotall-1 ${LOG}X.2.gz; then
-	:
-else
-	FAIL 'Missing log entries, III.'
-fi
-if [ -f ${NOT1STAMP} ] && grep 'script 1' ${NOT1STAMP} &&
-		grep ${LOG} ${NOT1STAMP} && grep ${LOG}X ${NOT1STAMP}; then
-	:
-else
-	FAIL 'Notifier did not run, III.'
-fi
+run_step "Check dependencies (logger + zgrep)" check_deps
+run_step "Create notifier script"              setup_notifier
+run_step "Set up syslogd with notifier"        setup_syslogd
 
-OK
+run_step "Rotate and log $MSG1"                log_rotate     "$MSG1"
+run_step "Check first rotation for $MSG1"      check_rotate 0 "$MSG1"
+run_step "Check notifier"                      check_notifier
+
+run_step "Rotate and log $MSG2"                log_rotate     "$MSG2"
+run_step "Check first rotation for $MSG2"      check_rotate 0 "$MSG2"
+run_step "Check second rotation for $MSG1"     check_rotate 1 "$MSG1"
+run_step "Check notifier"                      check_notifier
+
+run_step "Rotate and log $MSG3"                log_rotate     "$MSG3"
+run_step "Check first rotation for $MSG3"      check_rotate 0 "$MSG3"
+run_step "Check second rotation for $MSG2"     check_rotate 1 "$MSG2"
+run_step "Check third rotation for $MSG1"      check_rotate 2 "$MSG1"
+run_step "Check notifier"                      check_notifier
