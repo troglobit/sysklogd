@@ -146,6 +146,15 @@ logger()
 	fi
 }
 
+log_find()
+{
+    [ $# -gt 1 ] && altsock="$1" && shift
+    message="$1"
+
+    logger "${altsock}" "$message"
+    grep   "$message"   "$LOG"
+}
+
 # Helper to poll for a file with a timeout
 poll()
 {
