@@ -1,5 +1,4 @@
 #!/bin/sh
-
 # Test name, used everywhere as /tmp/sysklogd/$NM/foo
 NM=$(basename "$0" .sh)
 DIR=/tmp/sysklogd/$NM
@@ -314,3 +313,10 @@ mkdir -p "${CONFD}"
 mkdir -p "${CONFD2}"
 touch "$DIR/PIDs"
 trapit signal INT TERM QUIT EXIT
+
+# When running tests standalone, not for `make check`
+if [ -z "$srcdir" ]; then
+    export srcdir="."
+    print "Reexec $0 in an unshare ..."
+    exec unshare -mrun "$0"
+fi
