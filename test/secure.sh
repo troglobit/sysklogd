@@ -2,10 +2,7 @@
 # Verify secure_mode changes at runtime w/o having to restart syslogd.
 # We want to ensure goint from most secure, to no security, and back,
 # works as intended.
-if [ -z "${srcdir}" ]; then
-    srcdir=.
-fi
-. "${srcdir}/lib.sh"
+. "${srcdir:-.}/lib.sh"
 
 MSG="Kilroy was here"
 

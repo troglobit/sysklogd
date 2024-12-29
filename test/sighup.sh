@@ -1,10 +1,7 @@
 #!/bin/sh
 # Verify syslogd can survive a few SIGHUP's
 # shellcheck disable=SC1090
-if [ -z "${srcdir}" ]; then
-    srcdir=.
-fi
-. "${srcdir}/lib.sh"
+. "${srcdir:-.}/lib.sh"
 
 verify_logging()
 {

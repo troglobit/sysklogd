@@ -1,9 +1,6 @@
 #!/bin/sh
 # Start, SIGHUP, and log a run of syslogd under Valgrind
-if [ -z "${srcdir}" ]; then
-    srcdir=.
-fi
-. "${srcdir}/lib.sh"
+. "${srcdir:-.}/lib.sh"
 
 setup_valgrind()
 {

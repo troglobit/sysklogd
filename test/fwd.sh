@@ -6,11 +6,7 @@
 #  2. A long message, matching the udp_size value
 #  3. A too long message, truncated to the udp_size value
 #
-# shellcheck disable=SC1090
-if [ -z "${srcdir}" ]; then
-    srcdir=.
-fi
-. "${srcdir}/lib.sh"
+. "${srcdir:-.}/lib.sh"
 
 # Constants
 MAX_UDP_PAYLOAD=480

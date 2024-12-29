@@ -1,8 +1,5 @@
 #!/bin/sh
-if [ -z "${srcdir}" ]; then
-    srcdir=.
-fi
-. "${srcdir}/lib.sh"
+. "${srcdir:-.}/lib.sh"
 
 setup_debug()
 {

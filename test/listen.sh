@@ -2,10 +2,7 @@
 # Verify listen changes in .conf file at runtime w/o having to restart
 # syslogd.  We want to ensure adding and removing listen addresses work
 # as intended.
-if [ -z "${srcdir}" ]; then
-    srcdir=.
-fi
-. "${srcdir}/lib.sh"
+. "${srcdir:-.}/lib.sh"
 
 #
 # Helper functions

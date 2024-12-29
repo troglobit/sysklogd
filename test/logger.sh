@@ -1,9 +1,6 @@
 #!/bin/sh
 # Verify logger capabilities, for now just remote logger
-if [ -z "${srcdir}" ]; then
-    srcdir=.
-fi
-. "${srcdir}/lib.sh"
+. "${srcdir:-.}/lib.sh"
 
 setup_loopback()
 {

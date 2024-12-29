@@ -1,10 +1,7 @@
 #!/bin/sh
 # Currently only same as local.sh but with unicode messages
 # From https://github.com/troglobit/sysklogd/issues/49
-if [ -z "${srcdir}" ]; then
-    srcdir=.
-fi
-. "${srcdir}/lib.sh"
+. "${srcdir:-.}/lib.sh"
 
 MSG1="öäüÖÄÜß€¢§"
 MSG2="…‘’•"

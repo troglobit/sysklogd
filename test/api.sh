@@ -1,10 +1,6 @@
 #!/bin/sh
-#
-# shellcheck disable=SC1090,SC2317
-if [ -z "${srcdir}" ]; then
-    srcdir=.
-fi
-. "${srcdir}/lib.sh"
+# shellcheck disable=SC2317
+. "${srcdir:-.}/lib.sh"
 
 export MSG="no-openlog-apitest"
 

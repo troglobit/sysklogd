@@ -1,10 +1,7 @@
 #!/bin/sh
 # Test message to various facilities
 # shellcheck disable=SC2317
-if [ -z "${srcdir}" ]; then
-    srcdir=.
-fi
-. "${srcdir}/lib.sh"
+. "${srcdir:-.}/lib.sh"
 
 LOGFILE="${DIR}/sudo.log"
 LOGDIR="$DIR/log"

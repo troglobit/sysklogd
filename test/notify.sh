@@ -1,8 +1,5 @@
 #!/bin/sh
-if [ -z "${srcdir}" ]; then
-    srcdir=.
-fi
-. "${srcdir}/lib.sh"
+. "${srcdir:-.}/lib.sh"
 
 NOT1=${DIR}/${NM}-1.sh
 NOT2=${DIR}/${NM}-2.sh

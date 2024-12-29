@@ -1,10 +1,4 @@
 #!/bin/sh
-# shellcheck disable=SC1090
-if [ -z "${srcdir}" ]; then
-    srcdir=.
-fi
-. "${srcdir}/lib.sh"
-
 
 verify_plain()
 {

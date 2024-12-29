@@ -1,8 +1,5 @@
 #!/bin/sh
-if [ -z "${srcdir}" ]; then
-    srcdir=.
-fi
-. "${srcdir}/lib.sh"
+. "${srcdir:-.}/lib.sh"
 
 MSG1="notrotall-1"
 MSG2="notrotall-2"
