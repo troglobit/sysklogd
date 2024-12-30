@@ -146,10 +146,10 @@ logger()
 	fi
 }
 
-log_find()
+log_and_find()
 {
     [ $# -gt 1 ] && altsock="$1" && shift
-    message="$1"
+    message="$*"
 
     logger "${altsock}" "$message"
     grep   "$message"   "$LOG"

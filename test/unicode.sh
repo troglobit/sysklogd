@@ -4,5 +4,5 @@
 . "${srcdir:-.}/lib.sh"
 
 run_step "Set up unicode capable syslogd" setup -8 -m0
-run_step "Verify logger"                  log_find            "öäüÖÄÜß€¢§"
-run_step "Verify logger w/ alt. socket"   log_find "$ALTSOCK" "…‘’•"
+run_step "Verify logger"                  log_and_find "öäüÖÄÜß€¢§"
+run_step "Verify logger w/ alt. socket"   log_and_find "$ALTSOCK" "…‘’•"
