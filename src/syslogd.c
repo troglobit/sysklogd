@@ -1612,7 +1612,7 @@ void printsys(char *msg)
 				p += 2;
 #endif
 		}
-#endif
+#endif /* __NuttX__ */
 		else {
 			/* kernel printf's come out on console */
 			buffer.flags |= IGN_CONS;
