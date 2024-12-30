@@ -1,5 +1,5 @@
 #!/bin/sh
-# Verify property based filtering, including ident/tag.
+# Verify log filtering based on ident/tag.
 . "${srcdir:-.}/lib.sh"
 
 TG1=pimd
