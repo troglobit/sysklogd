@@ -44,7 +44,7 @@ file is the configuration file for
 .Xr syslogd 8 ,
 it consists of rules for logging and controlling daemon behavior.
 Logging rules are blocks of lines separated by optional
-.Em program-based
+.Em program or hostname-based
 filter specifications.  Each rule in such a block contains at least two
 fields: the
 .Em selector
@@ -65,6 +65,8 @@ single backslash ('\\') character.
 PROGRAM  := !IDENT[,IDENT]
          |= !+IDENT[,IDENT]
 	 |= !-IDENT[,IDENT]
+HOSTNAME := +IDENT[,IDENT]
+	 |= -IDENT[,IDENT]
 RULE     := SELECTOR  ACTION  [;OPTION]
 SELECTOR := [SELECTOR;]facility[,facility].[!=]severity
 ACTION   := /path/to/file
@@ -92,11 +94,22 @@ notify  /path/to/script-on-rotate
 .Ed
 .Pp
 Each block of rules is separated from the previous block by a
-.Em program filter
-specification.  A block will only log messages corresponding to the most
+.Em program
+or
+.Em hostname filter
+specification.  A block only logs messages corresponding to the most
 recent
+.Em program or hostname filter
+specification given.  Thus, a block with a
+.Ql ppp
 .Em program filter
-specification given.
+directly followed by another block
+.Ql dialhost
+.Em hostname filter
+will only log
+.Xr ppp 8
+messages from dialhost.  For an example, see
+.Sx Program and Hostname Filtering .
 .Pp
 A
 .Em program
@@ -128,6 +141,27 @@ You can reset the program specification at any time using the
 .Ql !*
 syntax.  The program specification is also reset for each included .conf
 file.
+.Pp
+A
+.Em hostname
+specification of the form
+.Ql #+hostname
+or
+.Ql +hostname
+means the following blocks will be applied to messages received from the
+specified hostname.  Alternatively, the
+.Em hostname
+specification
+.Ql #-hostname
+or
+.Ql -hostname
+causes the following blocks to be applied to messages from any host
+.Em except
+the one(s) specified.  If the hostname is given as
+.Ql @ ,
+the local hostname will be used.  Similar to program specifications,
+multiple comma-separated values may be specified for hostname
+specifications.
 .Pp
 The
 .Em selector
@@ -505,7 +539,9 @@ five files in total are kept, including the non-rotated file.
 *.*                          /var/log/critical    ;rotate=10M:5,RFC5424
 .Ed
 .Ss Program Based Filtering
-Ensure multicast programs from log only to their own log files.
+In this example we funnel logs from a couple of multicast routing
+daemons to their own log files.  The first exclusion filter ensure
+the syslog file does not get either daemon's logs.
 .Bd -literal -offset indent
 # Match all log messages, except from certain programs
 #
@@ -515,6 +551,41 @@ Ensure multicast programs from log only to their own log files.
 *.*                          /var/log/pimd
 !+mrouted
 *.*                          /var/log/mrouted
+.Ed
+.Ss Hostname Based Filtering
+Redirect logs from two remote hosts:
+.Ql finlandia
+and
+.Ql sibelius ,
+to their own dedicated log files.
+.Bd -literal -offset indent
+# Match all log messages, except from certain programs
+#
+-finlandia,sibelius
+*.*                          /var/log/syslog
++finlandia
+*.*                          /var/log/finlandia
++sibelius
+*.*                          /var/log/sibelius
+.Ed
+.Ss Program and Hostname Filtering
+This example shows one combination of program and hostname filters.
+.Bd -literal -offset indent
+# Log all local messages, except pppd
+-finlandia,sibelius
+!-ppp
+*.*                          /var/log/syslog
+# Local pppd messages of severity info, or higer, go to its own log file
+!+ppp
+*.info                       /var/log/ppp.log
+# All pppd messages from host finlandia
++finlandia
+*.*                          /var/log/finlandia.ppp.log
+# All mrouted messages from host sibelius
+# Note, any pppd messages from siblius are dropped
++sibelius
+!+mrouted
+*.*                          /var/log/sibelius.mrouted.log
 .Ed
 .Ss Critical
 This stores all messages of priority

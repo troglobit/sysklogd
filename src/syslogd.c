@@ -1819,6 +1819,11 @@ static void logmsg(struct buf_msg *buffer)
 		    ((f->f_pmask[fac] & (1 << prilev)) == 0))
 			continue;
 
+		/* skip messages with the incorrect hostname */
+		if (skip_message(buffer->hostname, f->f_host, 0))
+			continue;
+
+		/* skip messages with the incorrect program name */
 		if (skip_message(buffer->app_name ?: "", f->f_program, 1))
 			continue;
 
@@ -2694,6 +2699,8 @@ static void close_open_log_files(void)
 
 		if (f->f_program)
 			free(f->f_program);
+		if (f->f_host)
+			free(f->f_host);
 		free(f);
 	}
 }
@@ -3107,6 +3114,8 @@ static void init(void)
 
 			if (f->f_program)
 				printf(" (%s)", f->f_program);
+			if (f->f_host)
+				printf(" [%s]", f->f_host);
 
 			if (f->f_flags & RFC5424)
 				printf("\t;RFC5424");
@@ -3222,7 +3231,7 @@ static void cfopts(char *ptr, struct filed *f)
 /*
  * Crack a configuration file line
  */
-static struct filed *cfline(char *line, const char *prog)
+static struct filed *cfline(char *line, const char *prog, const char *host)
 {
 	char buf[LINE_MAX];
 	char *p, *q, *bp;
@@ -3472,6 +3481,8 @@ static struct filed *cfline(char *line, const char *prog)
 
 	if (prog && *prog != '*')
 		f->f_program = strdup(prog);
+	if (host && *host != '*')
+		f->f_host = strdup(host);
 
 	return f;
 }
@@ -3519,6 +3530,7 @@ const struct cfkey *cfkey_match(char *cline)
 static int cfparse(FILE *fp, struct files *newf)
 {
 	const struct cfkey *cfk;
+	char host[LINE_MAX] = "*";
 	char prog[LINE_MAX] = "*";
 	char cbuf[LINE_MAX];
 	struct filed *f;
@@ -3546,10 +3558,36 @@ static int cfparse(FILE *fp, struct files *newf)
 			continue;
 		if (*p == '#') {
 			p++;
-			if (*p == '\0' || !strchr("!", *p))
+			if (*p == '\0' || !strchr("!+-", *p))
 				continue;
 		}
 
+		if (*p == '+' || *p == '-') {
+			host[i++] = *p++;
+
+			while (isblank(*p))
+				p++;
+
+			if (*p == '*') {
+				(void)strlcpy(host, "*", sizeof(host));
+				continue;
+			}
+
+			while (*p != '\0') {
+				if (*p == '@') {
+					char *local = LocalHostName;
+
+					while (i < sizeof(host) - 1 && *local)
+						host[i++] = *local;
+					p++;
+				} else if (!isprint(*p) || isblank(*p))
+					break;
+				else
+					host[i++] = *p++;
+			}
+			host[i] = '\0';
+			continue;
+		}
 
 		if (*p == '!') {
 			p++;
@@ -3622,7 +3660,7 @@ static int cfparse(FILE *fp, struct files *newf)
 		if (cfk)
 			continue;
 
-		f = cfline(cline, prog);
+		f = cfline(cline, prog, host);
 		if (!f)
 			continue;
 
