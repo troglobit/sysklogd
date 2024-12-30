@@ -295,6 +295,8 @@ teardown()
     if [ -z "$DEBUG" ]; then
 	sleep 1
 	rm -rf "${DIR}"
+    else
+	dprint "In DEBUG mode, not cleaning up log files in $DIR"
     fi
 }
 

@@ -46,21 +46,18 @@ EOF
     reload
 
     ./api -i troglobit -p
-    #sleep 2
     grep "troglobit - MSGID - ${MSG}" "${LOGV1}"
 }
 
 verify_rfc5424()
 {
     ../src/logger -p ftp.notice -u "${SOCK}" -m "MSDSD" -d '[exampleSDID@32473 iut="3" eventSource="Application" eventID="1011"]' "waldo"
-    #sleep 2
     grep "exampleSDID@32473" "${LOGV1}"
 }
 
 verify_fqdn()
 {
     ../src/logger -p ftp.notice -u "${SOCK}" -m "MSDSD" -H "baz.example.com" "Xyzzy"
-    #sleep 2
     grep "baz.example.com" "${LOGV1}"
 }
 
@@ -73,14 +70,12 @@ EOF
     reload
 
     ../src/logger -p local7.info -u "${SOCK}" "nopenope"
-    #sleep 2
     grep "nopenope" "${LOG2}" || return 0
 }
 
 verify_localN_notice()
 {
     ../src/logger -p local7.notice -u "${SOCK}" "aye matey"
-    #sleep 2
     grep "aye matey" "${LOG2}"
 }
 
