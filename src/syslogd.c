@@ -2560,9 +2560,9 @@ static char *cvthname(struct sockaddr *f, socklen_t len, size_t *from_len)
 void flog(int pri, char *fmt, ...)
 {
 	struct buf_msg buffer;
-	va_list ap;
+	char buf[LINE_MAX];
 	char proc_id[10];
-	char buf[BUFSIZ];
+	va_list ap;
 
 	va_start(ap, fmt);
 	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
@@ -3519,8 +3519,8 @@ const struct cfkey *cfkey_match(char *cline)
 static int cfparse(FILE *fp, struct files *newf)
 {
 	const struct cfkey *cfk;
-	char  prog[64] = "*";
-	char  cbuf[BUFSIZ];
+	char prog[LINE_MAX] = "*";
+	char cbuf[LINE_MAX];
 	struct filed *f;
 	char *cline;
 	char *p;
@@ -3533,6 +3533,8 @@ static int cfparse(FILE *fp, struct files *newf)
 	 */
 	cline = cbuf;
 	while (fgets(cline, sizeof(cbuf) - (cline - cbuf), fp) != NULL) {
+		size_t i = 0;
+
 		/*
 		 * check for end-of-section, comments, strip off trailing
 		 * spaces and newline character. #!prog is treated specially:
@@ -3548,18 +3550,19 @@ static int cfparse(FILE *fp, struct files *newf)
 				continue;
 		}
 
-		if (*p == '!') {
-			size_t i;
 
+		if (*p == '!') {
 			p++;
-			while (isspace(*p))
+			while (isblank(*p))
 				p++;
+
 			if (*p == '\0' || *p == '*') {
 				(void)strlcpy(prog, "*", sizeof(prog));
 				continue;
 			}
+
 			for (i = 0; i < sizeof(prog) - 1; i++) {
-				if (!isprint(p[i]) || isspace(p[i]))
+				if (!isprint(p[i]) || isblank(p[i]))
 					break;
 				prog[i] = p[i];
 			}
@@ -3572,7 +3575,7 @@ static int cfparse(FILE *fp, struct files *newf)
 			;
 
 		if (*p == '\\') {
-			if ((p - cbuf) > BUFSIZ - 30) {
+			if ((p - cbuf) > LINE_MAX - 30) {
 				/* Oops the buffer is full - what now? */
 				cline = cbuf;
 			} else {
