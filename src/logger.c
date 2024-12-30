@@ -193,32 +193,44 @@ static char *chomp(char *str)
         return str;
 }
 
-static int parse_prio(char *arg, int *f, int *l)
+static int parse_prio(const char *arg, int *f, int *l)
 {
-	char *ptr;
+	char buf[strlen(arg) + 1];
+	char *fac, *pri;
+	int found = 0;
 
-	ptr = strchr(arg, '.');
-	if (ptr) {
-		*ptr++ = 0;
+	strlcpy(buf, arg, sizeof(buf));
+	fac = buf;
 
-		for (int i = 0; facilitynames[i].c_name; i++) {
-			if (strcmp(facilitynames[i].c_name, arg))
+	pri = strchr(buf, '.');
+	if (pri) {
+		*pri++ = 0;
+
+		for (int i = 0; prioritynames[i].c_name; i++) {
+			if (strcmp(prioritynames[i].c_name, pri))
 				continue;
 
-			*f = facilitynames[i].c_val;
+			*l = prioritynames[i].c_val;
+			found = 1;
 			break;
 		}
 
-		arg = ptr;
+		if (!found)
+			return 1;
+		found = 0;
 	}
 
-	for (int i = 0; prioritynames[i].c_name; i++) {
-		if (strcmp(prioritynames[i].c_name, arg))
+	for (int i = 0; facilitynames[i].c_name; i++) {
+		if (strcmp(facilitynames[i].c_name, fac))
 			continue;
 
-		*l = prioritynames[i].c_val;
+		*f = facilitynames[i].c_val;
+		found = 1;
 		break;
 	}
+
+	if (!found)
+		return 1;
 
 	return 0;
 }
