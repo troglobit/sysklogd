@@ -289,6 +289,7 @@ struct filed {
 	short	 f_file;                       /* file descriptor */
 	time_t	 f_time;                       /* time this was last written */
 	char	*f_host;                       /* host from which to recd. */
+	char	*f_program;                    /* program(s) this applies to */
 	u_char	 f_pmask[LOG_NFACILITIES + 1]; /* priority mask */
 	union {
 		char f_uname[MAXUNAMES][UNAMESZ + 1];

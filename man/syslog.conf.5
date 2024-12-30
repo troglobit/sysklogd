@@ -40,10 +40,13 @@
 .Sh DESCRIPTION
 The
 .Nm
-file is the configuration file for the
-.Xr syslogd 8
-program.  It consists of lines of rules for logging, with each line
-containing at least two fields: the
+file is the configuration file for
+.Xr syslogd 8 ,
+it consists of rules for logging and controlling daemon behavior.
+Logging rules are blocks of lines separated by optional
+.Em program-based
+filter specifications.  Each rule in such a block contains at least two
+fields: the
 .Em selector
 field which specifies the types of messages and priorities to which the
 line applies, and an
@@ -59,6 +62,9 @@ rule may be divided into several lines if the leading line ends with a
 single backslash ('\\') character.
 .Pp
 .Bd -literal -offset indent
+PROGRAM  := !IDENT[,IDENT]
+         |= !+IDENT[,IDENT]
+	 |= !-IDENT[,IDENT]
 RULE     := SELECTOR  ACTION  [;OPTION]
 SELECTOR := [SELECTOR;]facility[,facility].[!=]severity
 ACTION   := /path/to/file
@@ -84,6 +90,44 @@ listen [address:port | :port | address]
 include /etc/syslog.d/*.conf
 notify  /path/to/script-on-rotate
 .Ed
+.Pp
+Each block of rules is separated from the previous block by a
+.Em program filter
+specification.  A block will only log messages corresponding to the most
+recent
+.Em program filter
+specification given.
+.Pp
+A
+.Em program
+specification is a line starting with
+.Ql #!prog
+or
+.Ql !prog
+(the former is for compatibility with other syslogd implementations) and
+the following rules are then associated with this specification only.  The
+.Ql #!+prog
+or
+.Ql !+prog
+specification works just like the previous one,
+and the
+.Ql #!-prog
+or
+.Ql !-prog
+specification will match any message
+.Em excluding
+prog.  Multiple programs may be listed, separated by commas:
+.Ql !prog1,prog2
+matches messages from either program, while
+.Ql !-prog1,prog2
+matches all messages except those from
+.Ql prog1
+or
+.Ql prog2 .
+You can reset the program specification at any time using the
+.Ql !*
+syntax.  The program specification is also reset for each included .conf
+file.
 .Pp
 The
 .Em selector
@@ -459,6 +503,18 @@ five files in total are kept, including the non-rotated file.
 # Match all log messages, store in RC5424 format and rotate every 10 MiB
 #
 *.*                          /var/log/critical    ;rotate=10M:5,RFC5424
+.Ed
+.Ss Program Based Filtering
+Ensure multicast programs from log only to their own log files.
+.Bd -literal -offset indent
+# Match all log messages, except from certain programs
+#
+!-pimd,mrouted
+*.*                          /var/log/syslog
+!+pimd
+*.*                          /var/log/pimd
+!+mrouted
+*.*                          /var/log/mrouted
 .Ed
 .Ss Critical
 This stores all messages of priority

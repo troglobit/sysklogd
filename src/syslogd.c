@@ -1696,6 +1696,51 @@ static void check_timestamp(struct buf_msg *buffer)
 }
 
 /*
+ * Match a program or host name against a specification.
+ * Return a non-0 value if the message must be ignored
+ * based on the specification.
+ */
+static int
+skip_message(const char *name, const char *spec, int checkcase)
+{
+	const char *s;
+	char prev, next;
+	int exclude = 0;
+	/* Behaviour on explicit match */
+
+	if (spec == NULL || *spec == '\0')
+		return 0;
+
+	switch (*spec) {
+	case '-':
+		exclude = 1;
+		/*FALLTHROUGH*/
+	case '+':
+		spec++;
+		break;
+	default:
+		break;
+	}
+
+	if (checkcase)
+		s = strstr(spec, name);
+	else
+		s = strcasestr(spec, name);
+
+	if (s != NULL) {
+		prev = (s == spec ? ',' : *(s - 1));
+		next = *(s + strlen(name));
+
+		/* Explicit match: skip iff the spec is exclusive. */
+		if (prev == ',' && (next == '\0' || next == ','))
+			return exclude;
+	}
+
+	/* No explicit match: skip message iff spec is inclusive. */
+	return !exclude;
+}
+
+/*
  * Logs a message to the appropriate log files, users, etc. based on the
  * priority. Log messages are always formatted according to RFC 3164,
  * even if they were in RFC 5424 format originally, The MSGID and
@@ -1772,6 +1817,9 @@ static void logmsg(struct buf_msg *buffer)
 		/* skip messages that are incorrect priority */
 		if ((f->f_pmask[fac] == INTERNAL_INVPRI) ||
 		    ((f->f_pmask[fac] & (1 << prilev)) == 0))
+			continue;
+
+		if (skip_message(buffer->app_name ?: "", f->f_program, 1))
 			continue;
 
 		/* skip message to console if it has already been printed */
@@ -2644,6 +2692,8 @@ static void close_open_log_files(void)
 			break;
 		}
 
+		if (f->f_program)
+			free(f->f_program);
 		free(f);
 	}
 }
@@ -3055,6 +3105,9 @@ static void init(void)
 				break;
 			}
 
+			if (f->f_program)
+				printf(" (%s)", f->f_program);
+
 			if (f->f_flags & RFC5424)
 				printf("\t;RFC5424");
 			else if (f->f_flags & RFC3164)
@@ -3169,7 +3222,7 @@ static void cfopts(char *ptr, struct filed *f)
 /*
  * Crack a configuration file line
  */
-static struct filed *cfline(char *line)
+static struct filed *cfline(char *line, const char *prog)
 {
 	char buf[LINE_MAX];
 	char *p, *q, *bp;
@@ -3417,6 +3470,9 @@ static struct filed *cfline(char *line)
 	else
 		logit("BSD format enabled\n");
 
+	if (prog && *prog != '*')
+		f->f_program = strdup(prog);
+
 	return f;
 }
 
@@ -3463,8 +3519,9 @@ const struct cfkey *cfkey_match(char *cline)
 static int cfparse(FILE *fp, struct files *newf)
 {
 	const struct cfkey *cfk;
-	struct filed *f;
+	char  prog[64] = "*";
 	char  cbuf[BUFSIZ];
+	struct filed *f;
 	char *cline;
 	char *p;
 
@@ -3478,12 +3535,37 @@ static int cfparse(FILE *fp, struct files *newf)
 	while (fgets(cline, sizeof(cbuf) - (cline - cbuf), fp) != NULL) {
 		/*
 		 * check for end-of-section, comments, strip off trailing
-		 * spaces and newline character.
+		 * spaces and newline character. #!prog is treated specially:
+		 * following lines apply only to that program.
 		 */
 		for (p = cline; isspace(*p); ++p)
 			;
-		if (*p == '\0' || *p == '#')
+		if (*p == '\0')
 			continue;
+		if (*p == '#') {
+			p++;
+			if (*p == '\0' || !strchr("!", *p))
+				continue;
+		}
+
+		if (*p == '!') {
+			size_t i;
+
+			p++;
+			while (isspace(*p))
+				p++;
+			if (*p == '\0' || *p == '*') {
+				(void)strlcpy(prog, "*", sizeof(prog));
+				continue;
+			}
+			for (i = 0; i < sizeof(prog) - 1; i++) {
+				if (!isprint(p[i]) || isspace(p[i]))
+					break;
+				prog[i] = p[i];
+			}
+			prog[i] = '\0';
+			continue;
+		}
 
 		memmove(cline, p, strlen(p) + 1);
 		for (p = strchr(cline, '\0'); isspace(*--p);)
@@ -3537,7 +3619,7 @@ static int cfparse(FILE *fp, struct files *newf)
 		if (cfk)
 			continue;
 
-		f = cfline(cline);
+		f = cfline(cline, prog);
 		if (!f)
 			continue;
 
