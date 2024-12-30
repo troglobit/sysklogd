@@ -310,7 +310,8 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'H':
-			strlcpy(log.log_hostname, optarg, sizeof(log.log_hostname));
+			if (strcmp(optarg, "@"))
+				strlcpy(log.log_hostname, optarg, sizeof(log.log_hostname));
 			break;
 
 		case 'i':
