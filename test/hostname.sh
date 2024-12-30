@@ -36,7 +36,7 @@ verify_hst()
 
     if [ "$hst" = "@" ]; then
 	pri=user.panic
-	usr="$LOGNAME"
+	usr="kilroy"
     else
 	pri=daemon.notice
 	usr="jean"
@@ -65,5 +65,4 @@ run_step "Verify basic tag based filtering (2)"    verify_hst "$HST2" "$HST2LG" 
 run_step "Verify not in syslog"                    verify_not         "$SYSLOG" "$MSG1"
 
 run_step "Verify unfiltered host logging"          verify_hst "@"     "$SYSLOG" "$TEXT"
-run_step "Verify unfiltered message in syslog"     verify_log         "$SYSLOG" "$TEXT"
 run_step "Verify unfiltered message not filtered"  verify_not         "$HST1LG" "$TEXT"
