@@ -30,7 +30,7 @@
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2021
+.Dd Dec 31, 2024
 .Dt SYSLOGD 8
 .Os sysklogd
 .Sh NAME
@@ -103,7 +103,8 @@ starts up it reads its main configuration file
 or an alternate file given with the
 .Fl f Ar file
 option.  For details on how to set up syslog message filtering, using
-priority (facility.severity) or other means, see
+priority (facility.severity) program or host name, or message property
+filtering, see
 .Xr syslog.conf 5 .
 .Sh OPTIONS
 By default,

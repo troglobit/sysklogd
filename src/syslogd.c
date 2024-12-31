@@ -1741,6 +1741,63 @@ skip_message(const char *name, const char *spec, int checkcase)
 }
 
 /*
+ * Match some property of the message against a filter.
+ * Return a non-0 value if the message must be ignored
+ * based on the filter.
+ */
+static int
+prop_filter_skip(const struct prop_filter *filter, const char *value)
+{
+	const int exclude = (filter->cmp_flags & PROP_FLAG_EXCLUDE) > 0;
+	const char *s = NULL;
+	size_t valuelen;
+
+	if (value == NULL)
+		return -1;
+
+	if (filter->cmp_type == PROP_CMP_REGEX) {
+		if (regexec(filter->pflt_re, value, 0, NULL, 0) == 0)
+			return exclude;
+		else
+			return !exclude;
+	}
+
+	/* a shortcut for equal with different length is always false */
+	valuelen = strlen(value);
+	if (filter->cmp_type == PROP_CMP_EQUAL && valuelen != filter->pflt_strlen)
+		return !exclude;
+
+	if (filter->cmp_flags & PROP_FLAG_ICASE)
+		s = strcasestr(value, filter->pflt_strval);
+	else
+		s = strstr(value, filter->pflt_strval);
+
+	/*
+	 * PROP_CMP_CONTAINS	if s
+	 * PROP_CMP_STARTS	if s && s == value
+	 * PROP_CMP_EQUAL	if s && s == value && valuelen == filter->pflt_strlen
+	 */
+	switch (filter->cmp_type) {
+	case PROP_CMP_STARTS:
+	case PROP_CMP_EQUAL:
+		if (s != value)
+			return !exclude;
+		/* FALLTHROUGH */
+	case PROP_CMP_CONTAINS:
+		if (s)
+			return exclude;
+		else
+			return !exclude;
+		break;
+	default:
+		/* unknown cmp_type */
+		break;
+	}
+
+	return -1;
+}
+
+/*
  * Logs a message to the appropriate log files, users, etc. based on the
  * priority. Log messages are always formatted according to RFC 3164,
  * even if they were in RFC 5424 format originally, The MSGID and
@@ -1826,6 +1883,30 @@ static void logmsg(struct buf_msg *buffer)
 		/* skip messages with the incorrect program name */
 		if (skip_message(buffer->app_name ?: "", f->f_program, 1))
 			continue;
+
+		/* skip messages if a property does not match filter */
+		if (f->f_prop_filter) {
+			switch (f->f_prop_filter->prop_type) {
+			case PROP_TYPE_NOOP:
+				/* :* */
+				break;
+			case PROP_TYPE_MSG:
+				if (prop_filter_skip(f->f_prop_filter, buffer->msg))
+					continue;
+				break;
+			case PROP_TYPE_HOSTNAME:
+				if (prop_filter_skip(f->f_prop_filter, buffer->hostname))
+					continue;
+				break;
+			case PROP_TYPE_PROGNAME:
+				if (prop_filter_skip(f->f_prop_filter, buffer->app_name))
+					continue;
+				break;
+			default:
+				/* Unknown type, skip! */
+				continue;
+			}
+		}
 
 		/* skip message to console if it has already been printed */
 		if (f->f_type == F_CONSOLE && (buffer->flags & IGN_CONS))
@@ -2701,6 +2782,22 @@ static void close_open_log_files(void)
 			free(f->f_program);
 		if (f->f_host)
 			free(f->f_host);
+		if (f->f_prop_filter) {
+			switch (f->f_prop_filter->cmp_type) {
+			case PROP_CMP_REGEX:
+				regfree(f->f_prop_filter->pflt_re);
+				free(f->f_prop_filter->pflt_re);
+				break;
+			case PROP_CMP_CONTAINS:
+			case PROP_CMP_EQUAL:
+			case PROP_CMP_STARTS:
+				free(f->f_prop_filter->pflt_strval);
+				break;
+			default:
+				break;
+			}
+			free(f->f_prop_filter);
+		}
 		free(f);
 	}
 }
@@ -3229,9 +3326,171 @@ static void cfopts(char *ptr, struct filed *f)
 }
 
 /*
+ * Compile property-based filter.
+ */
+static struct prop_filter *
+prop_filter_compile(char *filter)
+{
+	char **ap, *argv[2] = { NULL, NULL };
+	struct prop_filter *pfilter;
+	char *filter_endpos, *p;
+	int re_flags = REG_NOSUB;
+	int escaped;
+
+	/*
+	 * Here's some filter examples mentioned in syslog.conf(5)
+	 * 'msg, contains, ".*Deny.*"'
+	 * 'processname, regex, "^bird6?$"'
+	 * 'hostname, icase_ereregex, "^server-(dcA|podB)-rack1[0-9]{2}\\..*"'
+	 */
+	pfilter = calloc(1, sizeof(*pfilter));
+	if (pfilter == NULL) {
+		ERR("failed allocating property filter");
+		return NULL;
+	}
+
+	if (*filter == '*') {
+		pfilter->prop_type = PROP_TYPE_NOOP;
+		return pfilter;
+	}
+
+	/*
+	 * Split filter into 3 parts: property name (argv[0]),
+	 * cmp type (argv[1]) and lvalue for comparison (filter).
+	 */
+	for (ap = argv; (*ap = strsep(&filter, ", \t\n")) != NULL;) {
+		if (**ap != '\0')
+			if (++ap >= &argv[2])
+				break;
+	}
+
+	if (argv[0] == NULL || argv[1] == NULL) {
+		ERRX("failed parsing property filter '%s'", filter);
+		goto error;
+	}
+
+	/* fill in prop_type */
+	if (strcasecmp(argv[0], "msg") == 0)
+		pfilter->prop_type = PROP_TYPE_MSG;
+	else if(strcasecmp(argv[0], "hostname") == 0)
+		pfilter->prop_type = PROP_TYPE_HOSTNAME;
+	else if(strcasecmp(argv[0], "source") == 0)
+		pfilter->prop_type = PROP_TYPE_HOSTNAME;
+	else if(strcasecmp(argv[0], "programname") == 0)
+		pfilter->prop_type = PROP_TYPE_PROGNAME;
+	else {
+		ERRX("unknown filter property '%s'", argv[0]);
+		goto error;
+	}
+
+	/* full in cmp_flags (i.e. !contains, icase_regex, etc.) */
+	if (*argv[1] == '!') {
+		pfilter->cmp_flags |= PROP_FLAG_EXCLUDE;
+		argv[1]++;
+	}
+
+	if (strncasecmp(argv[1], "icase_", (sizeof("icase_") - 1)) == 0) {
+		pfilter->cmp_flags |= PROP_FLAG_ICASE;
+		argv[1] += sizeof("icase_") - 1;
+	}
+
+	/* fill in cmp_type */
+	if (strcasecmp(argv[1], "contains") == 0)
+		pfilter->cmp_type = PROP_CMP_CONTAINS;
+	else if (strcasecmp(argv[1], "isequal") == 0)
+		pfilter->cmp_type = PROP_CMP_EQUAL;
+	else if (strcasecmp(argv[1], "startswith") == 0)
+		pfilter->cmp_type = PROP_CMP_STARTS;
+	else if (strcasecmp(argv[1], "regex") == 0)
+		pfilter->cmp_type = PROP_CMP_REGEX;
+	else if (strcasecmp(argv[1], "ereregex") == 0) {
+		pfilter->cmp_type = PROP_CMP_REGEX;
+		re_flags |= REG_EXTENDED;
+	} else {
+		ERRX("unsupported property cmp function '%s'", argv[1]);
+		goto error;
+	}
+
+	/*
+	 * Handle filter value
+	 */
+
+	/* ' ".*Deny.*"' */
+	/* remove leading whitespace and check for '"' next character  */
+	filter += strspn(filter, ", \t\n");
+	if (*filter != '"' || strlen(filter) < 3) {
+		ERRX("property value parse error");
+		goto error;
+	}
+	filter++;
+
+	/* '.*Deny.*"' */
+	/* process possible backslash (\") escaping */
+	escaped = 0;
+	filter_endpos = filter;
+	for (p = filter; *p != '\0'; p++) {
+		if (*p == '\\' && !escaped) {
+			escaped = 1;
+			/* do not shift filter_endpos */
+			continue;
+		}
+		if (*p == '"' && !escaped) {
+			p++;
+			break;
+		}
+		/* we've seen some esc symbols, need to compress the line */
+		if (filter_endpos != p)
+			*filter_endpos = *p;
+		filter_endpos++;
+		escaped = 0;
+	}
+	*filter_endpos = '\0';
+
+	/* '.*Deny.*' */
+	/* We should not have anything but whitespace left after closing '"' */
+	if (*p != '\0' && strspn(p, " \t\n") != strlen(p)) {
+		ERRX("property value parse error");
+		goto error;
+	}
+
+	if (pfilter->cmp_type == PROP_CMP_REGEX) {
+		pfilter->pflt_re = calloc(1, sizeof(*pfilter->pflt_re));
+		if (pfilter->pflt_re == NULL) {
+			ERR("failed allocating property regex");
+			goto error;
+		}
+
+		if (pfilter->cmp_flags & PROP_FLAG_ICASE)
+			re_flags |= REG_ICASE;
+
+		if (regcomp(pfilter->pflt_re, filter, re_flags) != 0) {
+			ERRX("property regex compilation error");
+			free(pfilter->pflt_re);
+			goto error;
+		}
+	} else {
+		pfilter->pflt_strval = strdup(filter);
+		pfilter->pflt_strlen = strlen(filter);
+		if (pfilter->pflt_strval == NULL) {
+			ERR("failed allocating property filter string");
+			goto error;
+		}
+	}
+
+	return pfilter;
+error:
+	if (pfilter->pflt_re)
+		free(pfilter->pflt_re);
+	free(pfilter);
+
+	return NULL;
+}
+
+
+/*
  * Crack a configuration file line
  */
-static struct filed *cfline(char *line, const char *prog, const char *host)
+static struct filed *cfline(char *line, const char *prog, const char *host, char *pfilter)
 {
 	char buf[LINE_MAX];
 	char *p, *q, *bp;
@@ -3241,7 +3500,8 @@ static struct filed *cfline(char *line, const char *prog, const char *host)
 	struct filed *f;
 	int i, i2;
 
-	logit("cfline[%s]\n", line);
+	logit("cfline[%s], prog: %s, host: %s, pfilter: %s\n", line,
+	      prog ?: "NIL", host ?: "NIL", pfilter ?: "NIL");
 
 	f = calloc(1, sizeof(*f));
 	if (!f) {
@@ -3479,6 +3739,8 @@ static struct filed *cfline(char *line, const char *prog, const char *host)
 	else
 		logit("BSD format enabled\n");
 
+	if (pfilter)
+		f->f_prop_filter = prop_filter_compile(pfilter);
 	if (prog && *prog != '*')
 		f->f_program = strdup(prog);
 	if (host && *host != '*')
@@ -3529,7 +3791,8 @@ const struct cfkey *cfkey_match(char *cline)
  */
 static int cfparse(FILE *fp, struct files *newf)
 {
-	const struct cfkey *cfk;
+	const struct cfkey *cfk = NULL;
+	char pfilter[LINE_MAX] = "*";
 	char host[LINE_MAX] = "*";
 	char prog[LINE_MAX] = "*";
 	char cbuf[LINE_MAX];
@@ -3558,7 +3821,7 @@ static int cfparse(FILE *fp, struct files *newf)
 			continue;
 		if (*p == '#') {
 			p++;
-			if (*p == '\0' || !strchr("!+-", *p))
+			if (*p == '\0' || !strchr("!+-:", *p))
 				continue;
 		}
 
@@ -3605,6 +3868,18 @@ static int cfparse(FILE *fp, struct files *newf)
 				prog[i] = p[i];
 			}
 			prog[i] = '\0';
+			continue;
+		}
+
+		if (*p == ':') {
+			p++;
+			while (isblank(*p))
+				p++;
+			if (!*p || *p == '*') {
+				strlcpy(pfilter, "*", sizeof(pfilter));
+				continue;
+			}
+			strlcpy(pfilter, p, sizeof(pfilter));
 			continue;
 		}
 
@@ -3660,7 +3935,7 @@ static int cfparse(FILE *fp, struct files *newf)
 		if (cfk)
 			continue;
 
-		f = cfline(cline, prog, host);
+		f = cfline(cline, prog, host, pfilter);
 		if (!f)
 			continue;
 

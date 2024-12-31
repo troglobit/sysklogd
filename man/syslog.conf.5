@@ -30,7 +30,7 @@
 .\"     @(#)syslog.conf.5	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2021
+.Dd Dec 31, 2024
 .Dt SYSLOG.CONF 5
 .Os sysklogd
 .Sh NAME
@@ -44,7 +44,7 @@ file is the configuration file for
 .Xr syslogd 8 ,
 it consists of rules for logging and controlling daemon behavior.
 Logging rules are blocks of lines separated by optional
-.Em program or hostname-based
+.Em program, hostname, or property-based
 filter specifications.  Each rule in such a block contains at least two
 fields: the
 .Em selector
@@ -55,7 +55,7 @@ field which specifies the action to be taken if a message
 .Xr syslogd 8
 receives matches the selection criteria.  A rule may also have an
 .Em option
-field for a setting that applies only to that rule.
+field, e.g., to select log format.
 .Pp
 The fields are separated by one or more tab characters or spaces.  A
 rule may be divided into several lines if the leading line ends with a
@@ -67,6 +67,19 @@ PROGRAM  := !IDENT[,IDENT]
 	 |= !-IDENT[,IDENT]
 HOSTNAME := +IDENT[,IDENT]
 	 |= -IDENT[,IDENT]
+PROPERTY := :PROP, [PREFIX]OPERATOR, "VALUE"
+PROP     := msg
+         |= propertyname
+	 |= hostname
+	 |= source
+OPERATOR := contains
+         |= isequal
+         |= startswith
+         |= regex
+         |= eregex
+PREFIX   := [PREFIX]
+         |= !
+         |= icase_
 RULE     := SELECTOR  ACTION  [;OPTION]
 SELECTOR := [SELECTOR;]facility[,facility].[!=]severity
 ACTION   := /path/to/file
@@ -94,25 +107,27 @@ notify  /path/to/script-on-rotate
 .Ed
 .Pp
 Each block of rules is separated from the previous block by a
-.Em program
+.Em program , hostname ,
 or
-.Em hostname filter
-specification.  A block only logs messages corresponding to the most
-recent
-.Em program or hostname filter
-specification given.  Thus, a block with a
+.Em property-based
+filter specification.  A block only logs messages corresponding to the
+most recent
+.Em program , hostname
+and
+.Em property-based
+filter specification given.  Thus, a block with a
 .Ql ppp
-.Em program filter
-directly followed by another block
+.Em program
+filter directly followed by another block
 .Ql dialhost
-.Em hostname filter
-will only log
+.Em hostname
+filter will only log
 .Xr ppp 8
 messages from dialhost.  For an example, see
 .Sx Program and Hostname Filtering .
 .Pp
 A
-.Em program
+.Em program filter
 specification is a line starting with
 .Ql #!prog
 or
@@ -143,7 +158,7 @@ syntax.  The program specification is also reset for each included .conf
 file.
 .Pp
 A
-.Em hostname
+.Em hostname filter
 specification of the form
 .Ql #+hostname
 or
@@ -162,6 +177,19 @@ the one(s) specified.  If the hostname is given as
 the local hostname will be used.  Similar to program specifications,
 multiple comma-separated values may be specified for hostname
 specifications.
+.Pp
+A
+.Em property-based filter
+specification is a line beginning with
+.Ql #:
+or
+.Ql :
+and the following blocks will be applied only when filter value matches
+given filter properties value.  See
+.Sx PROPERTY-BASED FILTERS
+section for more details.  For examples, see
+.Sx EXAMPLES
+section, below.
 .Pp
 The
 .Em selector
@@ -504,6 +532,70 @@ Emergency messages often go to all users currently online to notify them
 that something strange is happening with the system.  To specify this
 .Xr wall 1
 feature use an asterisk ('*').
+.Sh PROPERTY-BASED FILTERS
+The
+.Em program
+and
+.Em hostname
+specifications perform exact match filtering against explicit fields
+only.  Property-based filters feature substring and regular expression
+matching, (see
+.Xr re_format 7 )
+on various message properties.  Property filter specifications starts
+with
+.Ql #:
+or
+.Ql :
+followed by three comma-separated fields
+.Em property , operator , \&"value\&" .
+The value field
+.Sy must
+be double-quoted.  A double quote and backslash must be escaped by a
+backslash.
+.Pp
+The following properties are supported as test value:
+.Pp
+.Bl -tag -compact -width "programname" -offset indent
+.It msg
+body  of the message received
+.It programname
+program namesent the message
+.It hostname
+hostname of message's originator
+.It source
+an alias for hostname
+.El
+.Pp
+The operator field specifies a comparison function between a message
+property value against the filter's value.  Possible operators are:
+.Pp
+.Bl -tag -compact -width "startswith" -offset indent
+.It contains
+true if the filter value is found as a substring of property
+.It isequal
+true if the filter value is equal to property
+.It startswith
+true if a message property starts with the filter value
+.It regex
+true if a message property matches basic regular expression defined in
+the filter value
+.It ereregex
+true if a message property matches the extended regular expression
+defined in the filter value
+.El
+.Pp
+An operator may be prefixed by
+.Pp
+.Bl -tag -compact -width "icase_" -offset indent
+.It !
+to invert compare logic
+.It icase_
+to make comparison function case insensitive
+.El
+.Pp
+For examples, please see the
+.Sx EXAMPLES
+section, below.
 .Sh IMPLEMENTATION NOTES
 The
 .Dq kern
@@ -575,17 +667,35 @@ This example shows one combination of program and hostname filters.
 -finlandia,sibelius
 !-ppp
 *.*                          /var/log/syslog
+
 # Local pppd messages of severity info, or higer, go to its own log file
 !+ppp
 *.info                       /var/log/ppp.log
+
 # All pppd messages from host finlandia
 +finlandia
 *.*                          /var/log/finlandia.ppp.log
+
 # All mrouted messages from host sibelius
 # Note, any pppd messages from siblius are dropped
 +sibelius
 !+mrouted
 *.*                          /var/log/sibelius.mrouted.log
+.Ed
+.Ss Property Based Filtering
+These examples show off the substring and regexp matching capabilities.
+.Bd -literal -offset indent
+# Catch any message that has the substring 'error'
+:msg, icase_contains, "ERROR"
+*.*			     /var/log/error.log
+
+# Log messages from bird or bird6 into one file
+:programname, regex, "^bird6?$"
+*.*			     /var/log/bird-all.log
+
+# Log messages from servers in racks 10-19 in multiple locations, case insensitive
+:hostname, icase_ereregex, "^server-(dcA|podB|cdn)-rack1[0-9]{2}\..*"
+*.*			     /var/log/racks10-19.log
 .Ed
 .Ss Critical
 This stores all messages of priority

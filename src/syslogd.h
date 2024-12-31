@@ -37,6 +37,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>		/* struct addrinfo */
+#include <regex.h>
 #include <string.h>
 #ifdef __linux__
 #include <sys/klog.h>
@@ -46,6 +47,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/un.h>		/* struct sockaddr_un */
+
 #include "queue.h"
 #include "syslog.h"
 
@@ -222,6 +224,32 @@
 #define F_PIPE            9   /* named pipe */
 
 /*
+ * Stuct to hold property-based filters
+ */
+struct prop_filter {
+	uint8_t	prop_type;
+#define	PROP_TYPE_NOOP		0
+#define	PROP_TYPE_MSG		1
+#define	PROP_TYPE_HOSTNAME	2
+#define	PROP_TYPE_PROGNAME	3
+	uint8_t	cmp_type;
+#define	PROP_CMP_CONTAINS	1
+#define	PROP_CMP_EQUAL		2
+#define	PROP_CMP_STARTS		3
+#define	PROP_CMP_REGEX		4
+	uint16_t cmp_flags;
+#define	PROP_FLAG_EXCLUDE	(1 << 0)
+#define	PROP_FLAG_ICASE		(1 << 1)
+	union {
+		char *p_strval;
+		regex_t *p_re;
+	} pflt_uniptr;
+#define	pflt_strval	pflt_uniptr.p_strval
+#define	pflt_re		pflt_uniptr.p_re
+	size_t	pflt_strlen;
+};
+
+/*
  * Struct to hold records of peers and sockets
  */
 struct peer {
@@ -290,6 +318,7 @@ struct filed {
 	time_t	 f_time;                       /* time this was last written */
 	char	*f_host;                       /* host from which to recd. */
 	char	*f_program;                    /* program(s) this applies to */
+	struct prop_filter *f_prop_filter;     /* property-based filter */
 	u_char	 f_pmask[LOG_NFACILITIES + 1]; /* priority mask */
 	union {
 		char f_uname[MAXUNAMES][UNAMESZ + 1];
