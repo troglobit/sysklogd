@@ -68,9 +68,12 @@ PROGRAM  := !IDENT[,IDENT]
 HOSTNAME := +IDENT[,IDENT]
 	 |= -IDENT[,IDENT]
 PROPERTY := :PROP, [PREFIX]OPERATOR, "VALUE"
-PROP     := msg
+PROP     := hostname
+	 |= msg
+         |= msgid
          |= propertyname
-	 |= hostname
+         |= sd
+         |= data
 	 |= source
 OPERATOR := contains
          |= isequal
@@ -557,13 +560,21 @@ The following properties are supported as test value:
 .Pp
 .Bl -tag -compact -width "programname" -offset indent
 .It msg
-body  of the message received
+Body  of the message received
+.It msgid
+Message ID.  Only available for messages received in RFC5424 format
+.It sd
+Structured data.  Only available for messages received in RFC5424 format
+.It data
+Alias for
+.Ql sd
 .It programname
-program namesent the message
+Program name sent the message
 .It hostname
-hostname of message's originator
+Hostname of message's originator
 .It source
-an alias for hostname
+Alias for
+.Ql hostname
 .El
 .Pp
 The operator field specifies a comparison function between a message

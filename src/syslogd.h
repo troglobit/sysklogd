@@ -232,6 +232,8 @@ struct prop_filter {
 #define	PROP_TYPE_MSG		1
 #define	PROP_TYPE_HOSTNAME	2
 #define	PROP_TYPE_PROGNAME	3
+#define	PROP_TYPE_MSGID		4
+#define	PROP_TYPE_DATA		5
 	uint8_t	cmp_type;
 #define	PROP_CMP_CONTAINS	1
 #define	PROP_CMP_EQUAL		2

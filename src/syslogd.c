@@ -1894,6 +1894,14 @@ static void logmsg(struct buf_msg *buffer)
 				if (prop_filter_skip(f->f_prop_filter, buffer->msg))
 					continue;
 				break;
+			case PROP_TYPE_MSGID: /* RFC5424 msgid field */
+				if (prop_filter_skip(f->f_prop_filter, buffer->msgid))
+					continue;
+				break;
+			case PROP_TYPE_DATA: /* RFC5424 structured data field */
+				if (prop_filter_skip(f->f_prop_filter, buffer->sd))
+					continue;
+				break;
 			case PROP_TYPE_HOSTNAME:
 				if (prop_filter_skip(f->f_prop_filter, buffer->hostname))
 					continue;
@@ -3372,6 +3380,12 @@ prop_filter_compile(char *filter)
 	/* fill in prop_type */
 	if (strcasecmp(argv[0], "msg") == 0)
 		pfilter->prop_type = PROP_TYPE_MSG;
+	if (strcasecmp(argv[0], "msgid") == 0)
+		pfilter->prop_type = PROP_TYPE_MSGID;
+	if (strcasecmp(argv[0], "sd") == 0)
+		pfilter->prop_type = PROP_TYPE_DATA;
+	if (strcasecmp(argv[0], "data") == 0)
+		pfilter->prop_type = PROP_TYPE_DATA;
 	else if(strcasecmp(argv[0], "hostname") == 0)
 		pfilter->prop_type = PROP_TYPE_HOSTNAME;
 	else if(strcasecmp(argv[0], "source") == 0)
