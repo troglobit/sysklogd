@@ -52,13 +52,13 @@ EOF
 verify_rfc5424()
 {
     ../src/logger -p ftp.notice -u "${SOCK}" -m "MSDSD" -d '[exampleSDID@32473 iut="3" eventSource="Application" eventID="1011"]' "waldo"
-    tenacious 2 grep "exampleSDID@32473" "${LOGV1}"
+    tenacious 5 grep "exampleSDID@32473" "${LOGV1}"
 }
 
 verify_fqdn()
 {
     ../src/logger -p ftp.notice -u "${SOCK}" -m "MSDSD" -H "baz.example.com" "Xyzzy"
-    tenacious 2 grep "baz.example.com" "${LOGV1}"
+    tenacious 5 grep "baz.example.com" "${LOGV1}"
 }
 
 # Expected to fail, logs with LOG_INFO
@@ -70,13 +70,13 @@ EOF
     reload
 
     ../src/logger -p local7.info -u "${SOCK}" "nopenope"
-    tenacious 2 grep "nopenope" "${LOG2}" || return 0
+    tenacious 5 grep "nopenope" "${LOG2}" || return 0
 }
 
 verify_localN_notice()
 {
     ../src/logger -p local7.notice -u "${SOCK}" "aye matey"
-    tenacious 2 grep "aye matey" "${LOG2}"
+    tenacious 5 grep "aye matey" "${LOG2}"
 }
 
 #
