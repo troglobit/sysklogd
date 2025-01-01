@@ -924,7 +924,7 @@ static int nslookup(const char *host, const char *service, struct addrinfo **ai)
 	_res.retrans = 1;
 	_res.retry = 1;
 
-	logit("nslookup '%s:%s'\n", node ?: "*", service);
+	logit("nslookup '%s:%s'\n", node ?: "*", service ?: "514");
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_flags    = !node ? AI_PASSIVE : 0;
 	hints.ai_family   = family;
@@ -943,7 +943,8 @@ static int create_inet_socket(struct peer *pe)
 
 	err = nslookup(pe->pe_name, pe->pe_serv, &res);
 	if (err) {
-		ERRX("%s:%s/udp service unknown: %s", pe->pe_name ?: "*", pe->pe_serv, gai_strerror(err));
+		ERRX("%s:%s/udp service unknown: %s", pe->pe_name ?: "*",
+		     pe->pe_serv ?: "514", gai_strerror(err));
 		return 1;
 	}
 
@@ -963,14 +964,14 @@ static int create_inet_socket(struct peer *pe)
 		sd = socket_create(ai, inet_cb, NULL);
 		if (sd < 0) {
 			WARN("Failed creating socket for %s:%s: %s", pe->pe_name ?: "*",
-			      pe->pe_serv, strerror(errno));
+			      pe->pe_serv ?: "514", strerror(errno));
 			rc = 1;
 			continue;
 		}
 
 		if (!SecureMode) {
 			pe->pe_mode |= 01000;
-			NOTE("Opened inet socket %s:%s", pe->pe_name ?: "*", pe->pe_serv);
+			NOTE("Opened inet socket %s:%s", pe->pe_name ?: "*", pe->pe_serv ?: "514");
 		}
 		pe->pe_sock[pe->pe_socknum++] = sd;
 	}
@@ -3259,6 +3260,8 @@ static void cflisten(char *ptr, void *arg)
 	ptr = strchr(p, ':');
 	if (ptr)
 		*ptr++ = 0;
+	else
+		ptr = "514";
 	addpeer(&(struct peer) {
 			.pe_name = peer,
 			.pe_serv = ptr,
