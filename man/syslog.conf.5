@@ -548,7 +548,7 @@ on various message properties.  Property filter specifications starts
 with
 .Ql #:
 or
-.Ql :
+.Ql \&:
 followed by three comma-separated fields
 .Em property , operator , \&"value\&" .
 The value field
@@ -560,7 +560,7 @@ The following properties are supported as test value:
 .Pp
 .Bl -tag -compact -width "programname" -offset indent
 .It msg
-Body  of the message received
+Body of the message received
 .It msgid
 Message ID.  Only available for messages received in RFC5424 format
 .It sd
@@ -569,7 +569,7 @@ Structured data.  Only available for messages received in RFC5424 format
 Alias for
 .Ql sd
 .It programname
-Program name sent the message
+Name of program that sent the message
 .It hostname
 Hostname of message's originator
 .It source
@@ -586,13 +586,16 @@ true if the filter value is found as a substring of property
 .It isequal
 true if the filter value is equal to property
 .It startswith
-true if a message property starts with the filter value
+true if the message property start with the filter value
 .It regex
-true if a message property matches basic regular expression defined in
+true if the message property matches basic regular expression defined in
 the filter value
 .It ereregex
-true if a message property matches the extended regular expression
+true if the message property matches the extended regular expression
 defined in the filter value
+.It eregex
+alias for
+.Ql ereregex
 .El
 .Pp
 An operator may be prefixed by
@@ -601,7 +604,7 @@ An operator may be prefixed by
 .It !
 to invert compare logic
 .It icase_
-to make comparison function case insensitive
+to make comparison function case-insensitive
 .El
 .Pp
 For examples, please see the
