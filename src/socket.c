@@ -39,6 +39,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <netinet/in.h>     /* IN_MULTICAST, IN6_IS_ADDR_MULTICAST */
 #include <sys/stat.h>
 
 #include "queue.h"
@@ -142,6 +143,39 @@ skip:	switch (family) {
 }
 
 /*
+ * Check if IP address actually is a multiast group, then join it so
+ * the kernel stops blocking the traffic.
+ */
+static int join_group(int sd, struct addrinfo *ai)
+{
+    if (ai->ai_family == AF_INET) {
+        struct sockaddr_in *sin = (struct sockaddr_in *)ai->ai_addr;
+
+        if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
+            struct ip_mreq mreq;
+
+            mreq.imr_multiaddr = sin->sin_addr;
+            mreq.imr_interface.s_addr = INADDR_ANY;
+
+            return setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
+        }
+    } else if (ai->ai_family == AF_INET6) {
+        struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)ai->ai_addr;
+
+        if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
+            struct ipv6_mreq mreq6;
+
+            mreq6.ipv6mr_multiaddr = sin6->sin6_addr;
+            mreq6.ipv6mr_interface = 0;
+
+            return setsockopt(sd, IPPROTO_IPV6, IPV6_JOIN_GROUP, &mreq6, sizeof(mreq6));
+        }
+    }
+
+    return 0;
+}
+
+/*
  * create socket, with optional callback for reading inbound data
  */
 int socket_create(struct addrinfo *ai, void (*cb)(int, void *), void *arg)
@@ -166,6 +200,9 @@ int socket_create(struct addrinfo *ai, void (*cb)(int, void *), void *arg)
 
 	if (secure)
 		goto skip;
+
+	if (join_group(sd, ai) < 0)
+		goto err;
 
 	if (bind(sd, ai->ai_addr, ai->ai_addrlen) < 0)
 		goto err;
