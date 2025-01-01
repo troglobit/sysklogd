@@ -106,44 +106,51 @@ tenacious()
 # Start collector in background, note: might need sudo!
 cap_start()
 {
-	tshark -Qni lo -w "${CAP}" port 514 2>/dev/null &
-	TPID="$!"
-	echo "$TPID" >> "$DIR/PIDs"
-	sleep 1
+    if [ $# -gt 1 ]; then
+	iface=$1
+	shift
+    else
+	iface=lo
+    fi
+    port=${1:-514}
+    tshark -Qni "$iface" -w "${CAP}" port "$port" 2>/dev/null &
+    TPID="$!"
+    echo "$TPID" >> "$DIR/PIDs"
+    sleep 1
 }
 
 cap_stop()
 {
-	sleep 1
-	kill -TERM "${TPID}"
-	wait "${TPID}"
+    sleep 1
+    kill -TERM "${TPID}"
+    wait "${TPID}"
 }
 
 cap_dump()
 {
-	tshark -r "${CAP}" 2>/dev/null
+    tcpdump -Z root -nr "${CAP}" -vvv 2>/dev/null
 }
 
 cap_find()
 {
-	cap_dump | grep "$@"
+    cap_dump | grep "$@"
 }
 
 logger()
 {
-	[ -x ../src/logger ] || SKIP 'logger missing'
+    [ -x ../src/logger ] || SKIP 'logger missing'
 
-	sock="${SOCK}"
-	if [ $# -gt 1 ] && [ -f "$1" ]; then
-		sock="$1"
-		shift
-	fi
+    sock="${SOCK}"
+    if [ $# -gt 1 ] && [ -f "$1" ]; then
+	sock="$1"
+	shift
+    fi
 
-	if [ -f "$sock" ]; then
-		../src/logger -u "$sock" "$@"
-	else
-		../src/logger "$@"
-	fi
+    if [ -f "$sock" ]; then
+	../src/logger -u "$sock" "$@"
+    else
+	../src/logger "$@"
+    fi
 }
 
 log_and_find()
