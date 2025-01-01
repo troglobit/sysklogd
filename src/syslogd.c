@@ -3382,11 +3382,11 @@ prop_filter_compile(char *filter)
 	/* fill in prop_type */
 	if (strcasecmp(argv[0], "msg") == 0)
 		pfilter->prop_type = PROP_TYPE_MSG;
-	if (strcasecmp(argv[0], "msgid") == 0)
+	else if (strcasecmp(argv[0], "msgid") == 0)
 		pfilter->prop_type = PROP_TYPE_MSGID;
-	if (strcasecmp(argv[0], "sd") == 0)
+	else if (strcasecmp(argv[0], "sd") == 0)
 		pfilter->prop_type = PROP_TYPE_DATA;
-	if (strcasecmp(argv[0], "data") == 0)
+	else if (strcasecmp(argv[0], "data") == 0)
 		pfilter->prop_type = PROP_TYPE_DATA;
 	else if(strcasecmp(argv[0], "hostname") == 0)
 		pfilter->prop_type = PROP_TYPE_HOSTNAME;
@@ -3419,7 +3419,7 @@ prop_filter_compile(char *filter)
 		pfilter->cmp_type = PROP_CMP_STARTS;
 	else if (strcasecmp(argv[1], "regex") == 0)
 		pfilter->cmp_type = PROP_CMP_REGEX;
-	else if (strcasecmp(argv[1], "ereregex") == 0) {
+	else if (strcasecmp(argv[1], "ereregex") == 0 || strcasecmp(argv[1], "eregex") == 0) {
 		pfilter->cmp_type = PROP_CMP_REGEX;
 		re_flags |= REG_EXTENDED;
 	} else {
