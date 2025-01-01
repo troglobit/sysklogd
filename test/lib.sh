@@ -106,6 +106,7 @@ tenacious()
 # Start collector in background, note: might need sudo!
 cap_start()
 {
+    command -v tshark >/dev/null 2>&1 || SKIP 'tshark missing'
     if [ $# -gt 1 ]; then
 	iface=$1
 	shift
@@ -128,6 +129,7 @@ cap_stop()
 
 cap_dump()
 {
+    command -v tcpdump >/dev/null 2>&1 || SKIP 'tcpdump missing'
     tcpdump -Z root -nr "${CAP}" -vvv 2>/dev/null
 }
 
