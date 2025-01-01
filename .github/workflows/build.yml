@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install tree tshark valgrind
+          sudo apt-get -y install tree tcpdump tshark valgrind
       - uses: actions/checkout@v4
       - name: Configure
         run: |

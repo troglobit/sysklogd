@@ -15,7 +15,7 @@ jobs:
       - name: Installing dependencies ...
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install tree tshark valgrind
+          sudo apt-get -y install tree tcpdump tshark valgrind
       - name: Creating Makefiles ...
         run: |
           ./autogen.sh
