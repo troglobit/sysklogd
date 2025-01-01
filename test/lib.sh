@@ -114,6 +114,7 @@ cap_start()
 	iface=lo
     fi
     port=${1:-514}
+    # dprint "tshark -Qni $iface -w ${CAP} port $port"
     tshark -Qni "$iface" -w "${CAP}" port "$port" 2>/dev/null &
     TPID="$!"
     echo "$TPID" >> "$DIR/PIDs"
@@ -129,8 +130,9 @@ cap_stop()
 
 cap_dump()
 {
-    command -v tcpdump >/dev/null 2>&1 || SKIP 'tcpdump missing'
-    tcpdump -Z root -nr "${CAP}" -vvv 2>/dev/null
+    # command -v tcpdump >/dev/null 2>&1 || SKIP 'tcpdump missing'
+    # tcpdump -Z root -nr "${CAP}" -vvv 2>/dev/null
+    tshark -r "${CAP}" 2>/dev/null
 }
 
 cap_find()
