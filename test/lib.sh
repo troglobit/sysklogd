@@ -100,7 +100,7 @@ tenacious()
 	sleep 1
     done
 
-    FAIL "Timeed out $*"
+    FAIL "Timed out $*"
 }
 
 # Start collector in background, note: might need sudo!
