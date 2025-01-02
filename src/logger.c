@@ -235,6 +235,42 @@ static int parse_prio(const char *arg, int *f, int *l)
 	return 0;
 }
 
+static int parse_opts(char *arg, char **iface, int *ttl)
+{
+	char *subopts = arg;
+	char *value;
+	enum {
+		IFACE_OPT = 0,
+		TTL_OPT,
+	};
+	char *const token[] = {
+		[IFACE_OPT] = "iface",
+		[TTL_OPT]   = "ttl",
+		NULL
+	};
+
+	while (*subopts != '\0') {
+		switch (getsubopt(&subopts, token, &value)) {
+		case IFACE_OPT:
+			if (!value)
+				return 1;
+			*iface = value;
+			break;
+		case TTL_OPT:
+			if (!value)
+				return 1;
+			*ttl = atoi(value);
+			if (*ttl < 1 || *ttl > 255)
+				return 1;
+			break;
+		default:
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 static int usage(int code)
 {
 	printf("Usage: logger [OPTIONS] [MESSAGE]\n"
@@ -256,6 +292,9 @@ static int usage(int code)
 #endif
 	       "  -m MSGID  Log message using this RFC5424 style MSGID\n"
 	       "  -n        Open log file immediately (LOG_NDELAY)\n"
+	       "  -o OPT    Set outbound multicast options:\n"
+	       "                iface=IFNAME\n"
+	       "                ttl=1-255\n"
 	       "  -p PRIO   Log message priority (numeric or facility.severity pair)\n"
 	       "  -P PORT   Use PORT (or named UDP service) for remote server, default: syslog\n"
 	       "  -r S[:R]  Enable log file rotation, default: 200 kB \e[4ms\e[0mize, 5 \e[4mr\e[0motations\n"
@@ -286,12 +325,14 @@ int main(int argc, char *argv[])
 	struct sockaddr sa;
 	int allow_kmsg = 0;
 	char buf[512] = "";
+	char *iface = NULL;
 	int log_opts = 0;
 	FILE *fp = NULL;
 	int c, num = 5;
 	int rotate = 0;
+	int ttl = 1;
 
-	while ((c = getopt(argc, argv, "46?bcd:f:h:H:iI:km:np:P:r:st:u:v")) != EOF) {
+	while ((c = getopt(argc, argv, "46?bcd:f:h:H:iI:km:no:p:P:r:st:u:v")) != EOF) {
 		switch (c) {
 		case '4':
 			family = AF_INET;
@@ -349,6 +390,11 @@ int main(int argc, char *argv[])
 
 		case 'n':
 			log_opts |= LOG_NDELAY;
+			break;
+
+		case 'o':
+			if (parse_opts(optarg, &iface, &ttl))
+				return usage(1);
 			break;
 
 		case 'p':
@@ -440,7 +486,9 @@ int main(int argc, char *argv[])
 			return fclose(fp);
 		}
 	} else if (host) {
-		log.log_host = &sa;
+		log.log_host  = &sa;
+		log.log_iface = iface;
+		log.log_ttl   = ttl;
 		if (nslookup(host, svcname, family, &sa))
 			return 1;
 		log_opts |= LOG_NDELAY;

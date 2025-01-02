@@ -40,6 +40,7 @@
 .Op Fl H Ar HOSTNAME
 .Op Fl I Ar PID
 .Op Fl m Ar MSGID
+.Op Fl o Ar OPTS
 .Op Fl p Ar PRIO
 .Op Fl P Ar PORT
 .Op Fl r Ar SIZE:NUM
@@ -150,6 +151,17 @@ or sending remote in correctly formatted RFC5424 style.
 .It Fl n
 Open log file immediately
 .Ql ( LOG_NDELAY ) .
+.It Fl o Ar OPTS
+Set multicast options, separate multiple options with comma:
+.Bl -tag
+.It Ar iface=IFNAME
+Outbound interface when sending to a multicast group address.  By
+default the kernel relies on the routing table, falling back to the
+default route if nothing more specific exists.
+.It Ar ttl=<1..255>
+IP TTL of outbound syslog messages when sending to a multicast group.
+The default TTL for multicast is 1, meaning it is confined to the LAN.
+.El
 .It Fl P Ar port
 Send the message to the specified
 .Ar port
