@@ -292,6 +292,10 @@ static int addpeer(struct peer *pe0)
 		     (pe->pe_name != NULL && pe0->pe_name != NULL && strcmp(pe->pe_name, pe0->pe_name) == 0)) &&
 		    ((pe->pe_serv == NULL && pe0->pe_serv == NULL) ||
 		     (pe->pe_serv != NULL && pe0->pe_serv != NULL && strcmp(pe->pe_serv, pe0->pe_serv) == 0))) {
+			/* do not overwrite command line options */
+			if (pe->pe_mark == -1)
+				return -1;
+
 			/* update flags */
 			pe->pe_mark = pe0->pe_mark;
 			pe->pe_mode = pe0->pe_mode;
