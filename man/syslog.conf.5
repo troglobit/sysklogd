@@ -103,7 +103,7 @@ secure_mode [0,1,2]
 rotate_size  SIZE
 rotate_count NUMBER
 
-listen [address:port | :port | address]
+listen [address:port[%iface] | :port | address[%iface]]
 
 include /etc/syslog.d/*.conf
 notify  /path/to/script-on-rotate
@@ -288,9 +288,9 @@ secure_mode 1
 .Ed
 .Pp
 The
-.Ql listen Op Ar address:port | address | :port
+.Ql listen Op Ar address:port[%iface] | address[%iface] | :port
 option is the same as the
-.Nm syslogd Fl b Ar addr[:port]
+.Nm syslogd Fl b Ar addr[:port][%iface]
 command line option.  Like its counterpart it has no effect unless the
 .Ql secure_mode
 option is disabled.  Multiple listen statements are allowed and any
@@ -300,7 +300,11 @@ group addresses are supported, enclose IPv6 addresses in brackets.
 Multicast groups are "joined" using an OS-level
 .Fn setsockopt
 call, most operating systems translate this to IGMP/MLD membership
-reports on the network.
+reports on the network.  The optional
+.Ql %iface
+syntax is for multicast groups, it allows joining a group on a given
+interface (by name).  If the interface is omitted the routing table is
+used, which often is not desirable for multicast.
 .Pp
 The
 .Ql notify <PATH>

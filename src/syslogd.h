@@ -258,6 +258,7 @@ struct peer {
 	TAILQ_ENTRY(peer)	pe_link;
 	char		*pe_name;
 	char		*pe_serv;
+	char		*pe_iface;
 	int		 pe_mark;
 	mode_t		 pe_mode;
 	int		 pe_sock[16];

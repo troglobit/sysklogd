@@ -39,6 +39,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <net/if.h>	    /* if_nametoindex() */
 #include <netinet/in.h>     /* IN_MULTICAST, IN6_IS_ADDR_MULTICAST */
 #include <sys/stat.h>
 
@@ -146,39 +147,43 @@ skip:	switch (family) {
  * Check if IP address actually is a multiast group, then join it so
  * the kernel stops blocking the traffic.
  */
-static int join_group(int sd, struct addrinfo *ai)
+static int join_group(int sd, struct addrinfo *ai, char *iface)
 {
-    if (ai->ai_family == AF_INET) {
-        struct sockaddr_in *sin = (struct sockaddr_in *)ai->ai_addr;
+	struct group_req gr = { 0 };
+	unsigned int ifindex = 0;
+	int proto = -1;
 
-        if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
-            struct ip_mreq mreq;
+	if (iface && (ifindex = if_nametoindex(iface)) == 0)
+		return -1;
 
-            mreq.imr_multiaddr = sin->sin_addr;
-            mreq.imr_interface.s_addr = INADDR_ANY;
+	gr.gr_interface = ifindex;
+	if (ai->ai_family == AF_INET) {
+		struct sockaddr_in *sin = (struct sockaddr_in *)ai->ai_addr;
 
-            return setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
-        }
-    } else if (ai->ai_family == AF_INET6) {
-        struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)ai->ai_addr;
+		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
+			proto = IPPROTO_IP;
+			memcpy(&gr.gr_group, sin, sizeof(*sin));
+		}
+	} else if (ai->ai_family == AF_INET6) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)ai->ai_addr;
 
-        if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
-            struct ipv6_mreq mreq6;
+		if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
+			proto = IPPROTO_IPV6;
+			memcpy(&gr.gr_group, sin6, sizeof(*sin6));
+		}
+	}
 
-            mreq6.ipv6mr_multiaddr = sin6->sin6_addr;
-            mreq6.ipv6mr_interface = 0;
+	/* Likely AF_UNIX, or a unicast address, skip join */
+	if (proto == -1)
+		return 0;
 
-            return setsockopt(sd, IPPROTO_IPV6, IPV6_JOIN_GROUP, &mreq6, sizeof(mreq6));
-        }
-    }
-
-    return 0;
+	return setsockopt(sd, proto, MCAST_JOIN_GROUP, &gr, sizeof(gr));
 }
 
 /*
  * create socket, with optional callback for reading inbound data
  */
-int socket_create(struct addrinfo *ai, void (*cb)(int, void *), void *arg)
+int socket_create(struct addrinfo *ai, char *iface, void (*cb)(int, void *), void *arg)
 {
 	struct sockaddr_un *sun = (struct sockaddr_un *)ai->ai_addr;
 	mode_t mode = ai->ai_protocol;
@@ -201,7 +206,7 @@ int socket_create(struct addrinfo *ai, void (*cb)(int, void *), void *arg)
 	if (secure)
 		goto skip;
 
-	if (join_group(sd, ai) < 0)
+	if (join_group(sd, ai, iface) < 0)
 		goto err;
 
 	if (bind(sd, ai->ai_addr, ai->ai_addrlen) < 0)

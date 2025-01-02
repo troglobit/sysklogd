@@ -41,7 +41,7 @@
 .Op Fl ?468AcdFHKklnsTtv
 .Op Fl a Ar addr[/len][:port]
 .Op Fl a Ar name[:port]
-.Op Fl b Ar addr[:port]
+.Op Fl b Ar addr[:port][%iface]
 .Op Fl b Ar :port
 .Op Fl C Ar file
 .Op Fl f Ar file
@@ -205,7 +205,7 @@ is as explained above.
 can contain special characters of a shell-style pattern such as
 .Ql * .
 .El
-.It Fl b Ar name
+.It Fl b Ar addr[:port][%iface]
 Bind to a specific address and/or port.  By default,
 .Nm
 listens on all interfaces on UDP port 514, unless started with the
@@ -218,13 +218,16 @@ The
 .Ar name
 argument may be any of the following:
 .Bl -tag -width 'address[:port]' -offset indent
-.It address[:port]
+.It address[:port][%iface]
 Hostname or an IP address, with the port as a service name, see
 .Xr services 5 ,
-or port number.  An IPv6 address should be enclosed with
+or port number.  IPv6 addresses should be enclosed with
 .Ql \&[
 and
-.Ql \&]
+.Ql \&] .
+The
+.Op %iface
+is for multicast and joins the group on the given interface.
 .It :port
 Service name or UDP port number.  The default service is
 .Ql syslog
@@ -235,7 +238,10 @@ Both unicast IP and multicast group addresses are supported.  Multicast
 groups are "joined" using an OS-level
 .Fn setsockopt
 call, most operating systems translate this to IGMP/MLD membership
-reports on the network.
+reports on the network.  If
+.Op %iface
+is omitted, the routing table is used, which is usually not what you
+want in a multihoming setup.
 .It Fl C Ar file
 File to use for caching last read kernel sequence number from
 .Pa /dev/kmsg ,

@@ -291,7 +291,9 @@ static int addpeer(struct peer *pe0)
 		if (((pe->pe_name == NULL && pe0->pe_name == NULL) ||
 		     (pe->pe_name != NULL && pe0->pe_name != NULL && strcmp(pe->pe_name, pe0->pe_name) == 0)) &&
 		    ((pe->pe_serv == NULL && pe0->pe_serv == NULL) ||
-		     (pe->pe_serv != NULL && pe0->pe_serv != NULL && strcmp(pe->pe_serv, pe0->pe_serv) == 0))) {
+		     (pe->pe_serv != NULL && pe0->pe_serv != NULL && strcmp(pe->pe_serv, pe0->pe_serv) == 0)) &&
+		    ((pe->pe_iface == NULL && pe0->pe_iface == NULL) ||
+		     (pe->pe_iface != NULL && pe0->pe_iface != NULL && strcmp(pe->pe_iface, pe0->pe_iface) == 0))) {
 			/* do not overwrite command line options */
 			if (pe->pe_mark == -1)
 				return -1;
@@ -313,6 +315,8 @@ static int addpeer(struct peer *pe0)
 		pe->pe_name = strdup(pe0->pe_name);
 	if (pe0->pe_serv)
 		pe->pe_serv = strdup(pe0->pe_serv);
+	if (pe0->pe_iface)
+		pe->pe_iface = strdup(pe0->pe_iface);
 
 	TAILQ_INSERT_TAIL(&pqueue, pe, pe_link);
 
@@ -340,6 +344,8 @@ static void delpeer(struct peer *pe)
 		free(pe->pe_name);
 	if (pe->pe_serv)
 		free(pe->pe_serv);
+	if (pe->pe_iface)
+		free(pe->pe_iface);
 
 	free(pe);
 }
@@ -833,7 +839,7 @@ static int create_unix_socket(struct peer *pe)
 	ai.ai_protocol = pe->pe_mode;
 	strlcpy(sun.sun_path, pe->pe_name, sizeof(sun.sun_path));
 
-	sd = socket_create(&ai, unix_cb, NULL);
+	sd = socket_create(&ai, NULL, unix_cb, NULL);
 	if (sd < 0)
 		goto err;
 
@@ -957,7 +963,7 @@ static int create_inet_socket(struct peer *pe)
 		else
 			ai->ai_flags &= ~AI_SECURE;
 
-		sd = socket_create(ai, inet_cb, NULL);
+		sd = socket_create(ai, pe->pe_iface, inet_cb, NULL);
 		if (sd < 0) {
 			WARN("Failed creating socket for %s:%s: %s", pe->pe_name ?: "*",
 			      pe->pe_serv ?: "514", strerror(errno));
@@ -3235,7 +3241,7 @@ static void cflisten(char *ptr, void *arg)
 {
 	int   mark = arg ? -1 : 0;	/* command line option */
 	char *peer = ptr;
-	char *p;
+	char *p, *port;
 
 	while (*peer && isspace(*peer))
 		++peer;
@@ -3256,14 +3262,21 @@ static void cflisten(char *ptr, void *arg)
 		*p++ = 0;
 	}
 
-	ptr = strchr(p, ':');
+	port = strchr(p, ':');
+	if (port) {
+		*port++ = 0;
+		p = port;
+	} else
+		port = "514";
+
+	ptr = strchr(p, '%');	/* only relevant for multicast */
 	if (ptr)
 		*ptr++ = 0;
-	else
-		ptr = "514";
+
 	addpeer(&(struct peer) {
 			.pe_name = peer,
-			.pe_serv = ptr,
+			.pe_serv = port,
+			.pe_iface = ptr,
 			.pe_mark = mark,
 		});
 }
