@@ -143,6 +143,23 @@ skip:	switch (family) {
 	return 0;
 }
 
+static int is_multicast(struct addrinfo *ai)
+{
+	if (ai->ai_family == AF_INET) {
+		struct sockaddr_in *sin = (struct sockaddr_in *)ai->ai_addr;
+
+		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
+			return 1;
+	} else if (ai->ai_family == AF_INET6) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)ai->ai_addr;
+
+		if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
+			return 1;
+	}
+
+	return 0;
+}
+
 /*
  * Check if IP address actually is a multiast group, then join it so
  * the kernel stops blocking the traffic.
@@ -153,6 +170,9 @@ static int join_group(int sd, struct addrinfo *ai, char *iface)
 	unsigned int ifindex = 0;
 	int proto = -1;
 
+	if (!is_multicast(ai))
+		return 0;
+
 	if (iface && (ifindex = if_nametoindex(iface)) == 0)
 		return -1;
 
@@ -160,17 +180,13 @@ static int join_group(int sd, struct addrinfo *ai, char *iface)
 	if (ai->ai_family == AF_INET) {
 		struct sockaddr_in *sin = (struct sockaddr_in *)ai->ai_addr;
 
-		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
-			proto = IPPROTO_IP;
-			memcpy(&gr.gr_group, sin, sizeof(*sin));
-		}
+		proto = IPPROTO_IP;
+		memcpy(&gr.gr_group, sin, sizeof(*sin));
 	} else if (ai->ai_family == AF_INET6) {
 		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)ai->ai_addr;
 
-		if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
-			proto = IPPROTO_IPV6;
-			memcpy(&gr.gr_group, sin6, sizeof(*sin6));
-		}
+		proto = IPPROTO_IPV6;
+		memcpy(&gr.gr_group, sin6, sizeof(*sin6));
 	}
 
 	/* Likely AF_UNIX, or a unicast address, skip join */
@@ -248,6 +264,29 @@ int socket_close(int sd)
 
 	errno = ENOENT;
 	return -1;
+}
+
+void socket_ttl(int sd, struct addrinfo *ai, int ttl)
+{
+	int olderr = errno;
+	int rc = 0;
+
+	if (!is_multicast(ai))
+		return;
+
+	switch (ai->ai_family) {
+	case AF_INET:
+		rc = setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
+		break;
+	case AF_INET6:
+		rc = setsockopt(sd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &ttl, sizeof(ttl));
+		break;
+	}
+
+	if (rc)
+		ERR("failed setting multicast TTL/HOPS to %d on outbound socket", ttl);
+
+	errno = olderr;
 }
 
 int socket_ffs(int family)

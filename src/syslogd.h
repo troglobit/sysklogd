@@ -342,6 +342,7 @@ struct filed {
 	int	 f_flags;                      /* store some additional flags */
 	int	 f_rotatecount;
 	int	 f_rotatesz;
+	int      f_ttl;                        /* only for multicast fwd */
 };
 
 /*

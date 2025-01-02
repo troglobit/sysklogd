@@ -92,6 +92,7 @@ OPTION   := [OPTION,]
 	 |= RFC3164
 	 |= RFC5424
          |= rotate=ROT
+	 |= ttl=1..255
 ROT      := SIZE:COUNT
          |= SIZE
 	 |= :COUNT
@@ -202,8 +203,9 @@ specified action.  The
 details where or what to do with the selected input.  The
 .Em option
 field, which must start with the semi-colon option delimiter (';'),
-currently supports log formatting and log rotation.  The default log
-format is the traditional RFC3164 (included here for completeness),
+currently supports log formatting, log rotation, and TTL when forwarding
+to a multicast group (default: 1).  The default log format is the
+traditional RFC3164 (included here for completeness),
 .Sy except
 for remote syslog targets where the BSD format (without both timestamp
 and hostname) is the default.  The user must explicitly set RFC3164 on
@@ -891,13 +893,16 @@ command line option,
 .Ss Logging to Remote Syslog Server
 This rule redirects all messages to one remote host called
 .Ql finlandia ,
-with RFC5424 style formatting, and another remote host called
+with RFC5424 style formatting, another remote host called
 .Ql sibelius ,
-but on a non-standard port and with RFC3164 formatting (i.e.,
-including timestamp and hostname).
+on a non-standard port and with RFC3164 formatting (i.e., including
+timestamp and hostname), and finally a multicast group
+.Ql 225.1.2.3
+with a TTL set to 10, to allow the messages to be routed.
 .Bd -literal -offset indent
-*.*                          @finlandia           ;RFC5424
-*.*                          @sibelius:5514       ;RFC3164
+*.*                          @finlandia      ;RFC5424
+*.*                          @sibelius:5514  ;RFC3164
+*.*                          @225.1.2.3      ;RFC3164,ttl=10
 .Ed
 .Sh SEE ALSO
 .Xr syslog 3 ,

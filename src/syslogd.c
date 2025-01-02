@@ -2168,6 +2168,8 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 			if (sd != -1) {
 				char buf[64] = { 0 };
 
+				socket_ttl(sd, ai, f->f_ttl);
+
 				msg.msg_name = ai->ai_addr;
 				msg.msg_namelen = ai->ai_addrlen;
 				lsent = sendmsg(sd, &msg, 0);
@@ -2183,6 +2185,8 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 					sin6 = (struct sockaddr_in6 *)ai->ai_addr;
 					inet_ntop(AF_INET6, &sin6->sin6_addr, buf, sizeof(buf));
 				}
+
+				socket_ttl(sd, ai, 1);
 
 				logit("Sent %zd bytes to %s on socket %d ...\n", lsent, buf, sd);
 				if (lsent == len)
@@ -3211,6 +3215,8 @@ static void init(void)
 			case F_FORW_SUSP:
 			case F_FORW_UNKN:
 				printf("%s:%s", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+				if (f->f_ttl > 0)
+					printf(" ttl=%d", f->f_ttl);
 				break;
 
 			case F_USERS:
@@ -3328,7 +3334,7 @@ static void cfopts(char *ptr, struct filed *f)
 	if (*ptr != ';')
 		*ptr++ = 0;
 
-	opt = strtok(ptr, ";");
+	opt = strtok(ptr, ";,");
 	if (!opt)
 		return;
 
@@ -3339,12 +3345,18 @@ static void cfopts(char *ptr, struct filed *f)
 		} else if (cfopt(&opt, "RFC3164")) {
 			f->f_flags &= ~RFC5424;
 			f->f_flags |=  RFC3164;
+		} else if (cfopt(&opt, "ttl=")) {
+			int ttl = atoi(opt);
+
+			if (ttl <= 0 || ttl > 255)
+				ttl = 0;
+			f->f_ttl = ttl;
 		} else if (cfopt(&opt, "rotate="))
 			cfrot(opt, f);
 		else
 			cfrot(ptr, f); /* Compat v1.6 syntax */
 
-		opt = strtok(NULL, ",");
+		opt = strtok(NULL, ";,");
 	}
 }
 

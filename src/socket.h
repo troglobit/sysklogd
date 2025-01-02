@@ -38,10 +38,11 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-int socket_register(int sd, struct addrinfo *ai, void (*cb)(int, void *), void *arg);
-int socket_create  (struct addrinfo *ai, char *iface, void (*cb)(int, void *), void *arg);
-int socket_close   (int sd);
-int socket_ffs     (int family);
-int socket_poll    (struct timeval *timeout);
+int  socket_register(int sd, struct addrinfo *ai, void (*cb)(int, void *), void *arg);
+int  socket_create  (struct addrinfo *ai, char *iface, void (*cb)(int, void *), void *arg);
+int  socket_close   (int sd);
+void socket_ttl     (int sd, struct addrinfo *ai, int ttl);
+int  socket_ffs     (int family);
+int  socket_poll    (struct timeval *timeout);
 
 #endif /* SYSKLOGD_SOCKET_H_ */
