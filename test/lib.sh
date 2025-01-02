@@ -113,7 +113,7 @@ cap_start()
 	iface=lo
     fi
     port=${1:-514}
-    # dprint "tshark -Qni $iface -w ${CAP} port $port"
+
     tshark -Qni "$iface" -w "${CAP}" port "$port" 2>/dev/null &
     TPID="$!"
     echo "$TPID" >> "$DIR/PIDs"
@@ -127,16 +127,27 @@ cap_stop()
     wait "${TPID}"
 }
 
+# Optional port argument to remap for syslog dissector
 cap_dump()
 {
-    # command -v tcpdump >/dev/null 2>&1 || SKIP 'tcpdump missing'
-    # tcpdump -Z root -nr "${CAP}" -vvv 2>/dev/null
-    tshark -r "${CAP}" 2>/dev/null
+    if [ $# -gt 0 ]; then
+	data="-d udp.port==$1,syslog"
+    fi
+
+    # shellcheck disable=SC2086
+    tshark -r "${CAP}" $data -o 'gui.column.format:"N:o","%m","TTL","%Cus:ip.ttl","Source","%us","Destination","%ud","src port","%S","dst port","%D","Info","%i"' 2>/dev/null
 }
 
 cap_find()
 {
     cap_dump | grep "$@"
+}
+
+# Remap traffic on port to syslog
+cap_find_port()
+{
+    port=$1; shift
+    cap_dump "$port" | grep "$@"
 }
 
 logger()
