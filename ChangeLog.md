@@ -8,11 +8,18 @@ All relevant changes to the project are documented in this file.
 -----------------------
 
 ### Changes
-- `syslogd` now caps forwarded messages to 1024 bytes.  This can be
-  adjusted using `-M size` or the config file setting `udp_size`.  See
-  the documentation for more information and reasoning behind this
+- `syslogd` by default now cap forwarded messages to 1024 bytes.  This
+  can be adjusted using `-M size` or the config file setting `udp_size`.
+  See the documentation for more information and reasoning behind this
 - `syslogd` socket buffering has been reduced from 160 kiB to 80 kiB
 - Allow slashes in process names to support, e.g., `postfix/qmgr`
+- Support for extended message filtering based on tag/ident, hostname,
+  or message property.  This allows sorting of messages based on their
+  origin (program/remote) or content in any of the available message
+  fields: exact match, case-insensitive substring matching or extended
+  regular expression
+- Support for remote logging to a multicast group, as well as acting as
+  a multicast group receiver of syslog messages, both IPv4 and IPv6
 
 ### Fixes
 - `syslogd` now logs the hostname as the FQDN in RFC5424 output format
