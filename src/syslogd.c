@@ -466,7 +466,6 @@ int main(int argc, char *argv[])
 	pid_t ppid = 1;
 	int no_sys = 0;
 	int pflag = 0;
-	char *ptr;
 	int ch;
 
 	while ((ch = getopt(argc, argv, "468Aa:b:C:cdHFf:Kklm:M:nP:p:r:sTtv?")) != EOF) {
@@ -493,14 +492,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'b':
-			ptr = strchr(optarg, ':');
-			if (ptr)
-				*ptr++ = 0;
-			addpeer(&(struct peer) {
-				.pe_name = optarg,
-				.pe_serv = ptr,
-				.pe_mark = -1,
-			});
+			cflisten(optarg, &optarg);
 			break;
 
 		case 'C': /* kernel seqno cache file */
@@ -3241,6 +3233,7 @@ static void init(void)
 
 static void cflisten(char *ptr, void *arg)
 {
+	int   mark = arg ? -1 : 0;	/* command line option */
 	char *peer = ptr;
 	char *p;
 
@@ -3256,7 +3249,8 @@ static void cflisten(char *ptr, void *arg)
 
 		p = strchr(p, ']');
 		if (!p) {
-			ERR("Invalid IPv6 address in listen '%s', missing ']'", peer);
+			ERRX("Invalid IPv6 address format in %s '%s', missing ']'",
+			     arg ? "'-b'" : "listen", peer);
 			return;
 		}
 		*p++ = 0;
@@ -3270,6 +3264,7 @@ static void cflisten(char *ptr, void *arg)
 	addpeer(&(struct peer) {
 			.pe_name = peer,
 			.pe_serv = ptr,
+			.pe_mark = mark,
 		});
 }
 

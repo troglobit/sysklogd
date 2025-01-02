@@ -23,6 +23,9 @@ All relevant changes to the project are documented in this file.
 
 ### Fixes
 - `syslogd` now logs the hostname as the FQDN in RFC5424 output format
+- Fix #90 (reopened): parsing of IPv6 addresses in `listen` .conf file
+  directive, as well as the command line option `-b`, is broken.  The
+  format `-b [A:B:C:D]:PORT` is now correctly parsed
 
 
 [v2.6.2][] - 2024-09-08
