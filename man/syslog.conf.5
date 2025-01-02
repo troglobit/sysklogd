@@ -91,6 +91,7 @@ ACTION   := /path/to/file
 OPTION   := [OPTION,]
 	 |= RFC3164
 	 |= RFC5424
+	 |= iface=IFNAME
          |= rotate=ROT
 	 |= ttl=1..255
 ROT      := SIZE:COUNT
@@ -203,9 +204,11 @@ specified action.  The
 details where or what to do with the selected input.  The
 .Em option
 field, which must start with the semi-colon option delimiter (';'),
-currently supports log formatting, log rotation, and TTL when forwarding
-to a multicast group (default: 1).  The default log format is the
-traditional RFC3164 (included here for completeness),
+currently supports log formatting, log rotation, outbound interface and
+TTL when forwarding to a multicast group.
+.Pp
+The default log format is the traditional RFC3164 (included here for
+completeness),
 .Sy except
 for remote syslog targets where the BSD format (without both timestamp
 and hostname) is the default.  The user must explicitly set RFC3164 on
@@ -249,6 +252,14 @@ the log files do not exist,
 .Nm
 will create them with the user and group it runs as and 0644
 permissions.
+.Pp
+Forwarding of messages to another syslog server is accomplished with the
+.Ql @
+prefix to a hostname, an IP address, or a multicast group.  All IPv6
+addresses must be enclosed in brackets.  For multicast groups both an
+outbound interface and TTL can be se, per log target.  By default the
+routing table is used (by the kernel) and the TTL defaults to 1, unlike
+unicast which defaults to 64.
 .Pp
 Comments, lines starting with a hash mark ('#'), and empty lines are
 ignored.  If an error occurs during parsing the whole line is ignored.
@@ -891,19 +902,34 @@ command line option,
 *.*;kern.none               -/var/log/messages    ;rotate=100k:10
 .Ed
 .Ss Logging to Remote Syslog Server
-This rule redirects all messages to one remote host called
+These rules redirect all messages to remote hosts.  The first is to
 .Ql finlandia ,
-with RFC5424 style formatting, another remote host called
+with RFC5424 style formatting, the second to
 .Ql sibelius ,
 on a non-standard port and with RFC3164 formatting (i.e., including
-timestamp and hostname), and finally a multicast group
+timestamp and hostname).
+.Pp
+Two multicast groups are used
 .Ql 225.1.2.3
-with a TTL set to 10, to allow the messages to be routed.
+and
+.Ql 225.1.2.4
+with a TTL set to 10 and 3, respectively, to allow the messages to be
+routed beyond the LAN.  Messages to the first group will egress the
+interface connected to the default route, and the second group's
+messages will egress
+.Ql eth2 .
 .Bd -literal -offset indent
-*.*                          @finlandia      ;RFC5424
-*.*                          @sibelius:5514  ;RFC3164
-*.*                          @225.1.2.3      ;RFC3164,ttl=10
+*.*                @finlandia      ;RFC5424
+*.*                @sibelius:5514  ;RFC3164
+*.*                @225.1.2.3      ;RFC3164,ttl=10
+*.*                @225.1.2.4      ;RFC5424,iface=eth2,ttl=3
 .Ed
+.Pp
+.Sy Note:
+some may prefer a 224.0.0.0/4 interface route to direct outbound
+multicast, but
+.Nm sysklogd
+support this, less intrusive, option.
 .Sh SEE ALSO
 .Xr syslog 3 ,
 .Xr syslogd 8

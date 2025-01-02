@@ -2168,7 +2168,11 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 			if (sd != -1) {
 				char buf[64] = { 0 };
 
-				socket_ttl(sd, ai, f->f_ttl);
+				if (socket_mcast(sd, ai, f->f_iface, f->f_ttl)) {
+					ERR("failed setting fwd mcast iface %s, or TTL/HOPS %d",
+					    f->f_iface ?: "any", f->f_ttl);
+					continue;
+				}
 
 				msg.msg_name = ai->ai_addr;
 				msg.msg_namelen = ai->ai_addrlen;
@@ -2185,8 +2189,6 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 					sin6 = (struct sockaddr_in6 *)ai->ai_addr;
 					inet_ntop(AF_INET6, &sin6->sin6_addr, buf, sizeof(buf));
 				}
-
-				socket_ttl(sd, ai, 1);
 
 				logit("Sent %zd bytes to %s on socket %d ...\n", lsent, buf, sd);
 				if (lsent == len)
@@ -2792,6 +2794,8 @@ static void close_open_log_files(void)
 			break;
 		}
 
+		if (f->f_iface)
+			free(f->f_iface);
 		if (f->f_program)
 			free(f->f_program);
 		if (f->f_host)
@@ -3215,6 +3219,8 @@ static void init(void)
 			case F_FORW_SUSP:
 			case F_FORW_UNKN:
 				printf("%s:%s", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+				if (f->f_iface)
+					printf(" iface=%s", f->f_iface);
 				if (f->f_ttl > 0)
 					printf(" ttl=%d", f->f_ttl);
 				break;
@@ -3345,6 +3351,10 @@ static void cfopts(char *ptr, struct filed *f)
 		} else if (cfopt(&opt, "RFC3164")) {
 			f->f_flags &= ~RFC5424;
 			f->f_flags |=  RFC3164;
+		} else if (cfopt(&opt, "iface=")) {
+			if (f->f_iface)
+				free(f->f_iface);
+			f->f_iface = strdup(opt);
 		} else if (cfopt(&opt, "ttl=")) {
 			int ttl = atoi(opt);
 

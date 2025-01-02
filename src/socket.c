@@ -266,27 +266,39 @@ int socket_close(int sd)
 	return -1;
 }
 
-void socket_ttl(int sd, struct addrinfo *ai, int ttl)
+/* Set multicast forwarding parameters if fwd address is multicast */
+int socket_mcast(int sd, struct addrinfo *ai, char *iface, int ttl)
 {
-	int olderr = errno;
+	struct ip_mreqn imr = { 0 };
+	int idx = 0;
 	int rc = 0;
 
 	if (!is_multicast(ai))
-		return;
+		return 0;
+
+	if (iface) {
+		idx = if_nametoindex(iface);
+		if (idx == 0)
+			return -1;
+	}
+
+	/* Sanity check, also ensures we set a TTL */
+	if (ttl <= 0 || ttl > 255)
+		ttl = 1;
 
 	switch (ai->ai_family) {
 	case AF_INET:
-		rc = setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
+		imr.imr_ifindex = idx;
+		rc += setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &imr, sizeof(imr));
+		rc += setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
 		break;
 	case AF_INET6:
-		rc = setsockopt(sd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &ttl, sizeof(ttl));
+		rc += setsockopt(sd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &idx, sizeof(idx));
+		rc += setsockopt(sd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &ttl, sizeof(ttl));
 		break;
 	}
 
-	if (rc)
-		ERR("failed setting multicast TTL/HOPS to %d on outbound socket", ttl);
-
-	errno = olderr;
+	return rc;
 }
 
 int socket_ffs(int family)

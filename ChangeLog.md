@@ -19,7 +19,10 @@ All relevant changes to the project are documented in this file.
   fields: exact match, case-insensitive substring matching or extended
   regular expression
 - Support for remote logging to a multicast group, as well as acting as
-  a multicast group receiver of syslog messages, both IPv4 and IPv6
+  a multicast group receiver of syslog messages, both IPv4 and IPv6.
+  Forwarding to multicast groups support two new, per action, options:
+  - `iface=IFNAME` to set a different outbound interface
+  - `ttl=1.255` to adjust the TTL of outbound multicast (default: 1)
 
 ### Fixes
 - `syslogd` now logs the hostname as the FQDN in RFC5424 output format
