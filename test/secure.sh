@@ -14,7 +14,7 @@ set_secure_mode()
 {
     cat <<-EOF > "${CONF}"
 	*.* @127.0.0.2
-	secure_mode=$1
+	secure_mode $1
 	EOF
 
     if is_running; then
@@ -29,7 +29,7 @@ set_secure_mode()
 do_port_check()
 {
     dprint "Checking for port $PORT|$PORT2 ..."
-    netstat -atnup | grep "$PORT\|$PORT2"
+    netstat -atnup 2>/dev/null | grep "$PORT\|$PORT2"
 }
 
 check_no_port_open()
@@ -44,6 +44,7 @@ check_port_open()
 
 check_remote_logging()
 {
+    # shellcheck disable=SC2119
     cap_start
     logger   "$MSG"
     cap_stop
@@ -80,10 +81,10 @@ verify_default_daemon()
 run_step "Verify secure mode 2 - no remote no ports" verify_secure_daemon
 
 run_step "Verify secure mode 1 - remote, no ports"   verify_safe_daemon
-run_step "Verify                 remote logging"     check_remote_logging
+run_step "Verify secure mode 1   remote logging"     check_remote_logging
 
 run_step "Verify secure mode 0 - remote, open ports" verify_default_daemon
-run_step "Verify                 remote logging"     check_remote_logging
+run_step "Verify secure mode 0   remote logging"     check_remote_logging
 
 run_step "Verify secure mode 1 - remote, no ports"   verify_safe_daemon
-run_step "Verify                 remote logging"     check_remote_logging
+run_step "Verify secure mode 1   remote logging"     check_remote_logging
