@@ -213,6 +213,8 @@ struct syslog_data {
 	int	log_mask;
 	void	*log_host;		/* struct sockaddr* */
 	int     log_pid;
+	char	*log_iface;		/* Multicast interface */
+	int	log_ttl;		/* Multicast TTL */
 };
 
 #define SYSLOG_DATA_INIT { \
@@ -228,6 +230,8 @@ struct syslog_data {
     .log_mask = 0xff, \
     .log_host = NULL, \
     .log_pid = -1, \
+    .log_iface = NULL, \
+    .log_ttl = 1, \
 }
 
 #ifdef __cplusplus

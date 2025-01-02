@@ -54,7 +54,7 @@ pkgconfig_DATA        = libsyslog.pc
 pkginclude_HEADERS    = syslog.h
 libsyslog_la_SOURCES  = syslog.c syslog.h compat.h
 libsyslog_la_CPPFLAGS = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
-libsyslog_la_LDFLAGS  = $(AM_LDFLAGS) -version-info 1:0:1
+libsyslog_la_LDFLAGS  = $(AM_LDFLAGS) -version-info 2:0:2
 libsyslog_la_LIBADD   = $(LTLIBOBJS)
 
 # Both libsyslog and syslogd/logger require objects like lib/pidfile.o.

@@ -45,6 +45,8 @@ __RCSID("$NetBSD: syslog.c,v 1.55 2015/10/26 11:44:30 roy Exp $");
 #include <sys/uio.h>
 #include <sys/un.h>
 #include <netdb.h>
+#include <net/if.h>	    /* if_nametoindex() */
+#include <netinet/in.h>     /* IN_MULTICAST, IN6_IS_ADDR_MULTICAST */
 
 #include <errno.h>
 #include <fcntl.h>
@@ -109,6 +111,42 @@ static socklen_t sa_len(struct sockaddr *sa)
 	return 0;
 }
 #endif
+
+/*
+ * Used to set outbound multicast interface and IP TTL
+ */
+static int set_mcopts(int sd, struct sockaddr *sa, char *iface, int ttl)
+{
+	int idx = 0;
+	int rc = 0;
+
+	if (iface) {
+		idx = if_nametoindex(iface);
+		if (idx == 0)
+			return -1;
+	}
+
+	if (sa->sa_family == AF_INET) {
+		struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+		struct ip_mreqn imr = { .imr_ifindex = idx };
+
+		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
+			return 0;
+
+		rc += setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &imr, sizeof(imr));
+		rc += setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
+	} else if (sa->sa_family == AF_INET6) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
+
+		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
+			return 0;
+
+		rc += setsockopt(sd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &idx, sizeof(idx));
+		rc += setsockopt(sd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &ttl, sizeof(ttl));
+	}
+
+	return rc;
+}
 
 /*
  * syslog, vsyslog --
@@ -534,6 +572,7 @@ output:
 	for (tries = 0; tries < MAXTRIES; tries++) {
 		if (sendto(data->log_file, tbuf, cnt, 0, sa, len) != -1)
 			break;
+
 		if (errno != ENOBUFS) {
 			disconnectlog_r(data);
 			connectlog_r(data);
@@ -633,6 +672,9 @@ connectlog_r(struct syslog_data *data)
 			data->log_connected = 1;
 			return;
 		}
+
+		/* attempt to set outbound interface for multicast & ttl */
+		set_mcopts(data->log_file, sa, data->log_iface, data->log_ttl);
 
 		if (connect(data->log_file, sa, len) == -1) {
 			(void)close(data->log_file);
