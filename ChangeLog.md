@@ -23,6 +23,12 @@ All relevant changes to the project are documented in this file.
   Forwarding to multicast groups support two new, per action, options:
   - `iface=IFNAME` to set a different outbound interface
   - `ttl=1.255` to adjust the TTL of outbound multicast (default: 1)
+- Client support for controlling egressing multicast, two new members
+  in `struct syslog_data`: `.log_iface` and `.log_ttl` in libsyslog.a,
+  for details, see above
+- Bump libsyslog.a ABI version: 0.1.0 -> 0.2.0
+- `logger` support for controlling egressing multicast using a new
+  command line option, `-o iface=IFNAME,ttl=<1..255>`
 
 ### Fixes
 - `syslogd` now logs the hostname as the FQDN in RFC5424 output format
