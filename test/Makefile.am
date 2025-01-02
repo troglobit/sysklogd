@@ -2,7 +2,7 @@ EXTRA_DIST       = lib.sh opts.sh
 EXTRA_DIST      += api.sh local.sh unicode.sh remote.sh fwd.sh mark.sh      \
 		   memleak.sh facility.sh notify.sh rotate_all.sh secure.sh \
 		   logger.sh listen.sh sighup.sh tag.sh hostname.sh 	    \
-                   property.sh raw.sh regression.sh multicast.sh
+                   property.sh raw.sh regression.sh multicast.sh mcast-fwd.sh
 CLEANFILES       = *~ *.trs *.log
 TEST_EXTENSIONS  = .sh
 TESTS_ENVIRONMENT= unshare -mrun
@@ -34,5 +34,6 @@ TESTS           += property.sh
 TESTS           += raw.sh
 TESTS           += regression.sh
 TESTS           += multicast.sh
+TESTS           += mcast-fwd.sh
 
 programs: $(check_PROGRAMS)
