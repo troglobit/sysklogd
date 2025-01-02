@@ -250,9 +250,11 @@ setup()
 # set up and start second syslogd, e.g., for remote.sh
 setup2()
 {
-    cat <<-EOF > "${CONF2}"
-	include ${CONFD2}/*.conf
-	EOF
+    if [ ! -f "${CONF2}" ]; then
+	cat <<-EOF > "${CONF2}"
+		include ${CONFD2}/*.conf
+		EOF
+    fi
 
     do_setup "secondary" "${PID2}" "$*" -f "${CONF2}" -p "${SOCK2}" \
 	     -C "${CACHE2}" -P "${PID2}"
