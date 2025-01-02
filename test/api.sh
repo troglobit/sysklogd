@@ -40,9 +40,9 @@ verify_setlogmask_notice()
 
 verify_syslogp()
 {
-    cat <<EOF >"${CONFD}/v1.conf"
-ftp.*		-${LOGV1}	;RFC5424
-EOF
+    cat <<-EOF >"${CONFD}/v1.conf"
+	ftp.*		-${LOGV1}	;RFC5424
+	EOF
     reload
 
     ./api -i troglobit -p
@@ -52,31 +52,32 @@ EOF
 verify_rfc5424()
 {
     ../src/logger -p ftp.notice -u "${SOCK}" -m "MSDSD" -d '[exampleSDID@32473 iut="3" eventSource="Application" eventID="1011"]' "waldo"
-    tenacious 5 grep "exampleSDID@32473" "${LOGV1}"
+    tenacious 2 grep "exampleSDID@32473" "${LOGV1}"
 }
 
 verify_fqdn()
 {
     ../src/logger -p ftp.notice -u "${SOCK}" -m "MSDSD" -H "baz.example.com" "Xyzzy"
-    tenacious 5 grep "baz.example.com" "${LOGV1}"
-}
-
-# Expected to fail, logs with LOG_INFO
-verify_localN_info()
-{
-    cat <<EOF >"${CONFD}/notice.conf"
-*.notice	-${LOG2}
-EOF
-    reload
-
-    ../src/logger -p local7.info -u "${SOCK}" "nopenope"
-    tenacious 5 grep "nopenope" "${LOG2}" || return 0
+    tenacious 2 grep "baz.example.com" "${LOGV1}"
 }
 
 verify_localN_notice()
 {
+    cat <<-EOF >"${CONFD}/notice.conf"
+	*.notice	-${LOG2}
+	EOF
+    reload
+
     ../src/logger -p local7.notice -u "${SOCK}" "aye matey"
-    tenacious 5 grep "aye matey" "${LOG2}"
+    grep "aye matey" "${LOG2}"
+}
+
+# Expected to fail
+verify_localN_info()
+{
+    ../src/logger -p local7.info -u "${SOCK}" "nopenope"
+    sleep 1			# Account for any possible delays
+    grep "nopenope" "${LOG2}" 2>/dev/null || return 0
 }
 
 #
@@ -91,5 +92,5 @@ run_step "Verify setlogmask() LOG_NOTICE"         verify_setlogmask_notice
 run_step "Verify RFC5424 API with syslogp()"      verify_syslogp
 run_step "Verify RFC5424 API with logger(1)"      verify_rfc5424
 run_step "Verify RFC5424 FQDN with logger(1)"     verify_fqdn
-run_step "Verify localN info leak with logger(1)" verify_localN_info
 run_step "Verify localN notice with logger(1)"    verify_localN_notice
+run_step "Verify localN info leak with logger(1)" verify_localN_info
