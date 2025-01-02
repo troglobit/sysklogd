@@ -3251,6 +3251,7 @@ static void cflisten(char *ptr, void *arg)
 
 	p = peer;
 	if (*p == '[') {
+		peer++;
 		p++;
 
 		p = strchr(p, ']');
