@@ -217,19 +217,25 @@ options may be specified to bind to several addresses and/or ports.
 The
 .Ar name
 argument may be any of the following:
-.Bl -tag -width 'address[/len][:service]'
+.Bl -tag -width 'address[:port]' -offset indent
 .It address[:port]
-The address can be specified as a hostname or an IP address, and the
-port as a service name or port number.  If an IPv6 address is specified,
-it should be enclosed with
+Hostname or an IP address, with the port as a service name, see
+.Xr services 5 ,
+or port number.  An IPv6 address should be enclosed with
 .Ql \&[
 and
-.Ql \&] .
+.Ql \&]
 .It :port
 Service name or UDP port number.  The default service is
 .Ql syslog
-(UDP), port 512.
+(UDP), port 512
 .El
+.Pp
+Both unicast IP and multicast group addresses are supported.  Multicast
+groups are "joined" using an OS-level
+.Fn setsockopt
+call, most operating systems translate this to IGMP/MLD membership
+reports on the network.
 .It Fl C Ar file
 File to use for caching last read kernel sequence number from
 .Pa /dev/kmsg ,

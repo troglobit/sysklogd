@@ -294,8 +294,13 @@ option is the same as the
 command line option.  Like its counterpart it has no effect unless the
 .Ql secure_mode
 option is disabled.  Multiple listen statements are allowed and any
-command line directives are treated as "static" and cannot be removed
-or modified using the configuration file.
+command line directives are treated as "static" and cannot be removed or
+modified using the configuration file.  Both unicast IP and multicast
+group addresses are supported, enclose IPv6 addresses in brackets.
+Multicast groups are "joined" using an OS-level
+.Fn setsockopt
+call, most operating systems translate this to IGMP/MLD membership
+reports on the network.
 .Pp
 The
 .Ql notify <PATH>
