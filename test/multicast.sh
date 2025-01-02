@@ -23,5 +23,5 @@ verify_listen()
     grep -H "${MSG}" "$LOG"
 }
 
-run_step "Setup daemon that listen to $GROUP"  setup_listen  "$GROUP"
-run_step "Verify sending to group $GROUP"      verify_listen "$GROUP"
+run_step "Set up syslogd that listen to $GROUP"  setup_listen  "$GROUP"
+run_step "Verify sending to group $GROUP"        verify_listen "$GROUP"
