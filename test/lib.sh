@@ -88,14 +88,13 @@ run_step()
     fi
 }
 
-# shellcheck disable=SC2068,SC2086
 tenacious()
 {
     timeout=$1
     shift
 
-    while [ $timeout -gt 0 ]; do
-	$@ && return
+    while [ "$timeout" -gt 0 ]; do
+	"$@" && return
 	timeout=$((timeout - 1))
 	sleep 1
     done
