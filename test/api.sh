@@ -16,25 +16,26 @@ verify_basic_syslog()
 
 verify_basic_openlog()
 {
-    cat <<EOF >"${CONFD}/console.conf"
-console.*	-${LOGCONS}
-EOF
+    cat <<-EOF >"${CONFD}/console.conf"
+	console.*	-${LOGCONS}
+	EOF
     reload
 
     ./api -i foo
-    grep "foo: ${MSG}" "${LOGCONS}"
+    tenacious 2 grep "foo: ${MSG}" "${LOGCONS}"
 }
 
 verify_setlogmask_all()
 {
     ./api -i xyzzy
-    grep "xyzzy: ${MSG}" "${LOGCONS}"
+    tenacious 2 grep "xyzzy: ${MSG}" "${LOGCONS}"
 }
 
 # Expected to fail, logs with LOG_INFO
 verify_setlogmask_notice()
 {
     ./api -i bar -l
+    sleep 1			# Account for any possible delays
     grep "bar: ${MSG}" "${LOGCONS}" || return 0
 }
 
@@ -46,7 +47,7 @@ verify_syslogp()
     reload
 
     ./api -i troglobit -p
-    grep "troglobit - MSGID - ${MSG}" "${LOGV1}"
+    tenacious 2 grep "troglobit - MSGID - ${MSG}" "${LOGV1}"
 }
 
 verify_rfc5424()
