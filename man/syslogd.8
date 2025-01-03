@@ -206,42 +206,39 @@ can contain special characters of a shell-style pattern such as
 .Ql * .
 .El
 .It Fl b Ar addr[:port][%iface]
-Bind to a specific address and/or port.  By default,
+Bind to, or listen to, a specific address and/or port.  By default,
 .Nm
-listens on all interfaces on UDP port 514, unless started with the
-.Fl s
-option.  Multiple
+listens to UDP port 514 on all interfaces, unless started in secure
+.Fl ( s )
+mode.  Multiple
 .Fl b
 options may be specified to bind to several addresses and/or ports.
 .Pp
-The
-.Ar name
-argument may be any of the following:
-.Bl -tag -width 'address[:port]' -offset indent
-.It address[:port][%iface]
-Hostname or an IP address, with the port as a service name, see
-.Xr services 5 ,
-or port number.  IPv6 addresses should be enclosed with
+.Bl -tag -width 'group[:port][%iface]' -offset indent
+.It address[:port]
+Hostname or IP address, IPv6 addresses should be enclosed in
 .Ql \&[
 and
-.Ql \&] .
-The
-.Op %iface
-is for multicast and joins the group on the given interface.
+.Ql \&]
+.It group[:port][%iface]
+Join the given multicast group on the optional inbound interface.
+If
+.Ql %iface
+is omitted, the kernel will rely on the routing table to determine which
+interface to listen to, which is usually not what you want
 .It :port
-Service name or UDP port number.  The default service is
+Service name or UDP port number, see
+.Xr services 5 .
+The default service is
 .Ql syslog
-(UDP), port 512
+(UDP/514)
 .El
 .Pp
 Both unicast IP and multicast group addresses are supported.  Multicast
 groups are "joined" using an OS-level
 .Fn setsockopt
 call, most operating systems translate this to IGMP/MLD membership
-reports on the network.  If
-.Op %iface
-is omitted, the routing table is used, which is usually not what you
-want in a multihoming setup.
+reports on the network.
 .It Fl C Ar file
 File to use for caching last read kernel sequence number from
 .Pa /dev/kmsg ,
