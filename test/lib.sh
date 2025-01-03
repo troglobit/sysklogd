@@ -154,13 +154,14 @@ logger()
 {
     [ -x ../src/logger ] || SKIP 'logger missing'
 
-    sock="${SOCK}"
-    if [ $# -gt 1 ] && [ -f "$1" ]; then
+    if [ $# -gt 1 ] && [ -S "$1" ]; then
 	sock="$1"
 	shift
+    elif [ $# -eq 1 ]; then
+	sock="${SOCK}"
     fi
 
-    if [ -f "$sock" ]; then
+    if [ -S "$sock" ]; then
 	../src/logger -u "$sock" "$@"
     else
 	../src/logger "$@"
