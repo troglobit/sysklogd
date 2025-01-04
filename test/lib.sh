@@ -196,7 +196,7 @@ poll()
     return 0
 }
 
-# shellcheck disable=SC2046,SC2086
+# shellcheck disable=SC2002
 do_setup()
 {
     order=$1
@@ -220,12 +220,13 @@ do_setup()
     if ! poll "${pidfn}"; then
         FAIL "Failed starting $order syslogd"
     fi
-    cat "${pidfn}" >> "$DIR/PIDs"
+    pid=$(cat "${pidfn}" | tee -a "$DIR/PIDs")
+    dprint "Started as PID $pid"
 
     # Enable debugging ...
     if [ -z "$VALGRIND" ]; then
-	dprint "Enabling debugging USR1 ..."
-	kill -USR1 $(cat "${pidfn}")
+	dprint "Enabling debugging, sending USR1 to $pid ..."
+	kill -USR1 "$pid"
     fi
 }
 
