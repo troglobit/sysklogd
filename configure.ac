@@ -25,7 +25,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-AC_INIT([sysklogd], [2.7.0-rc1],
+AC_INIT([sysklogd], [2.7.0],
 	[https://github.com/troglobit/sysklogd/issues],,
 	[https://github.com/troglobit/sysklogd])
 AC_CONFIG_AUX_DIR(aux)
