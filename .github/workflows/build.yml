@@ -56,6 +56,9 @@ jobs:
           pushd /tmp/example/
           PKG_CONFIG_LIBDIR=/tmp/lib/pkgconfig make -f example.mk
           popd
+      - name: Enable unprivileged userns (unshare)
+        run: |
+          sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0
       - name: Run Tests
         run: |
           cd build/dir

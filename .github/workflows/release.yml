@@ -20,6 +20,9 @@ jobs:
         run: |
           ./autogen.sh
           ./configure --prefix=/tmp --with-systemd=/tmp/lib/systemd/system
+      - name: Enable unprivileged userns (unshare)
+        run: |
+          sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0
       - name: Build release ...
         run: |
           make release
