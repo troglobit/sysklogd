@@ -7,6 +7,14 @@ All relevant changes to the project are documented in this file.
 [v2.7.0][] - 2025-01-06
 -----------------------
 
+> [!CAUTION]
+> This release implicitly changes the behavior of forwarded messages.
+> By default, all outbound messages (each has only one syslog line)
+> to remote syslog servers are now capped to 1024 bytes total.
+>
+> See the full log of changes below and the documentation, the program
+> manual pages, for more information.
+
 ### Changes
 - `syslogd` by default now cap forwarded messages to 1024 bytes.  This
   can be adjusted using `-M size` or the config file setting `udp_size`.
