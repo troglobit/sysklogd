@@ -1508,7 +1508,6 @@ void printsys(char *msg)
 			 */
 			if (KeepKernTime || !sys_seqno_init) {
 				now = boot_time + ustime / 1000000;
-				localtime_r(&now, &buffer.timestamp.tm);
 			} else {
 				struct timeval tv;
 
