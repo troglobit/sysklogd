@@ -3895,7 +3895,7 @@ static int cfparse(FILE *fp, struct files *newf)
 					char *local = LocalHostName;
 
 					while (i < sizeof(host) - 1 && *local)
-						host[i++] = *local;
+						host[i++] = *local++;
 					p++;
 				} else if (!isprint(*p) || isblank(*p))
 					break;
