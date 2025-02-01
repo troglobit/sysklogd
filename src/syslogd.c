@@ -1511,11 +1511,11 @@ void printsys(char *msg)
 			} else {
 				struct timeval tv;
 
-				now = time(NULL);
 				if (gettimeofday(&tv, NULL) == -1) {
 					tv.tv_sec  = time(NULL);
 					tv.tv_usec = 0;
 				}
+				now    = tv.tv_sec;
 				ustime = tv.tv_usec;
 			}
 
