@@ -1242,16 +1242,38 @@ parsemsg_rfc3164_app_name_procid(char **msg, char **app_name, char **procid)
 		procid_length = 0;
 	}
 
-	/* Separator. */
-	if (m[0] != ':' || m[1] != ' ')
-		goto bad;
+	/*
+	 * Relaxed separator check.  This function is used both for
+	 * incoming remote/local syslog messages, and the /dev/kmsg
+	 * printsys() function.
+	 *
+	 * RFC3164 sec. 4.1.3 states that: "the conclusion of the TAG
+	 * field has been seen to be the left square bracket character
+	 * ('['), a colon character (':'), or a space character".  This
+	 * uncertainty continues in sec. 5.3: "a colon and a space
+	 * character *usually* follow the TAG" (emphasis added).
+	 *
+	 * Hence, we should be prepared for any of:
+	 *   - APP: msg
+	 *   - APP:msg
+	 *   - APP msg
+	 *   - APP[PID]: msg
+	 *   - APP[PID]:msg
+	 *   - APP[PID] msg
+	 */
+	if (*m == ':') {
+		m++;
+		if (isblank(*m))
+			m++;
+	} else if (isblank(*m))
+		m++;
 
 	/* Split strings from input. */
 	app_name_begin[app_name_length] = '\0';
 	if (procid_begin != 0)
 		procid_begin[procid_length] = '\0';
 
-	*msg = m + 2;
+	*msg = m;
 	*app_name = app_name_begin;
 	*procid = procid_begin;
 	return;
@@ -1630,29 +1652,10 @@ void printsys(char *msg)
 		/*
 		 * Check for user writing to /dev/kmsg before /dev/log
 		 * is up.  Syntax to write: <PRI>APP_NAME[PROC_ID]:msg
+		 * Kernel facility is 0, anything != 0 is userspace.
 		 */
-		if (buffer.pri & LOG_FACMASK) {
-			for (q = p; *q && !isspace(*q) && *q != '['; q++)
-				;
-
-			if (*q == '[') {
-				char *ptr = &q[1];
-
-				while (*ptr && isdigit(*ptr))
-					ptr++;
-
-				if (ptr[0] == ']' && ptr[1] == ':') {
-					*ptr++ = 0;
-					*q++   = 0;
-
-					buffer.app_name = p;
-					buffer.proc_id  = q;
-
-					/* user log message cont. here */
-					p = &ptr[1];
-				}
-			}
-		}
+		if (buffer.pri & LOG_FACMASK)
+			parsemsg_rfc3164_app_name_procid(&p, &buffer.app_name, &buffer.proc_id);
 
 		q = lp;
 		while (*p != '\0' && (c = *p++) != '\n' && q < &line[MAXLINE])
