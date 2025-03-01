@@ -411,10 +411,13 @@ the command line option always wins, so it must be removed for
 .Nm
 to consider the .conf file option instead.
 .It Fl T
-Always use the local time and date for messages received from the network,
-instead of the timestamp field supplied in the message by the remote host.
-This is useful if some of the originating hosts cannot keep time properly
-or are unable to generate a correct timestamp.
+Always use the local time and date for messages instead of the timestamp
+field in the log message.  This applies to both messages received from a
+remote syslog server and locally originated.  Useful if the originating
+hosts cannot keep time properly or are unable to generate a correct
+timestamp.  See
+.Fl t
+for details on the timestamp of (local) kernel messages.
 .It Fl t
 Keep (trust) kernel timestamp.
 .Pp
@@ -472,9 +475,9 @@ API included with the
 .Nm sysklogd
 project.
 .Pp
-The date and time are taken from the received message.  If the format of
-the timestamp field is incorrect, time obtained from the local host is
-used instead.  This can be overridden by the
+The date and time for a log message are by default read from the
+received message.  If the format of the timestamp field is incorrect,
+the time of reception is used instead.  See also the
 .Fl T
 flag.
 .Sh SECURITY

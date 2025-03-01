@@ -148,7 +148,7 @@ static int	  no_compress;		  /* don't compress messages (1=pipes, 2=all) */
 static int	  secure_opt;		  /* sink for others, log to remote, or only unix domain socks */
 static int	  secure_mode;		  /* same as above but from syslog.conf, only if cmdline unset */
 
-static int	  RemoteAddDate;	  /* Always set the date on remote messages */
+static int	  AlwaysAddDate;	  /* Always use our timestamp for log messages */
 static int	  RemoteHostname;	  /* Log remote hostname from the message */
 
 static int	  KernLog = 1;		  /* Track kernel logs by default */
@@ -458,7 +458,7 @@ int usage(int code)
 	       "            If specified twice, no socket at all will be opened, which also\n"
 	       "            disables support for logging to remote machines.\n"
 	       "  -t        Keep kernel timestamp, even after initial ring buffer emptying\n"
-	       "  -T        Use local time and date for messages received from remote hosts\n"
+	       "  -T        Use local time and date for log messages (both local and remote)\n"
 	       "  -?        Show this help text\n"
 	       "  -v        Show program version and exit\n"
 	       "\n"
@@ -585,7 +585,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'T':
-			RemoteAddDate = 1;
+			AlwaysAddDate = 1;
 			break;
 
 		case 't':	/* keep/trust kernel timestamp always */
@@ -1129,7 +1129,7 @@ parsemsg_rfc5424(const char *from, int pri, char *msg)
 		}
 #undef PARSE_NUMBER
 		PARSE_CHAR("TIMESTAMP", ' ');
-		if (!RemoteAddDate)
+		if (!AlwaysAddDate)
 			timestamp = &timestamp_remote;
 	}
 
@@ -1311,7 +1311,7 @@ parsemsg_rfc3164(const char *from, int pri, char *msg)
 
 		msg += RFC3164_DATELEN + 1;
 
-		if (!RemoteAddDate) {
+		if (!AlwaysAddDate) {
 			struct timeval tv;
 			time_t t_remote;
 			struct tm tm_now;
