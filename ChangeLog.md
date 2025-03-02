@@ -4,6 +4,19 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.7.1][UNRELEASED] - 2025-03-xx
+-----------------------
+
+### Changes
+- Update `syslogd -T` documentation, it applies to messages originating
+  both locally and from both remote syslog servers, issue #93
+
+### Fixes
+- Fix #99: hostname filtering support, introduced in v2.7.0, broken
+- Fix #100: parsing of userspace messages in `/dev/kmsg` inserted an
+  extra space before the message payload
+
+
 [v2.7.0][] - 2025-01-06
 -----------------------
 
@@ -667,6 +680,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 
 
 [UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.7.0...HEAD
+[v2.7.1]:     https://github.com/troglobit/sysklogd/compare/v2.7.0...v2.7.1
 [v2.7.0]:     https://github.com/troglobit/sysklogd/compare/v2.6.2...v2.7.0
 [v2.6.2]:     https://github.com/troglobit/sysklogd/compare/v2.6.1...v2.6.2
 [v2.6.1]:     https://github.com/troglobit/sysklogd/compare/v2.6.0...v2.6.1
