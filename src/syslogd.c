@@ -1467,6 +1467,9 @@ void printsys(char *msg)
 	char *lp, *p, *q;
 	int c;
 
+	/* Update current time before logging */
+	timer_update();
+
 	lp = line;
 	for (p = msg; *p != '\0';) {
 		memset(&buffer, 0, sizeof(buffer));
@@ -2668,6 +2671,9 @@ void flog(int pri, char *fmt, ...)
 	char buf[LINE_MAX];
 	char proc_id[10];
 	va_list ap;
+
+	/* Update current time before logging */
+	timer_update();
 
 	va_start(ap, fmt);
 	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
