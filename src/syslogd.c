@@ -177,7 +177,7 @@ static TAILQ_HEAD(notifiers, notifier) nothead = TAILQ_HEAD_INITIALIZER(nothead)
 static TAILQ_HEAD(peers, peer) pqueue = TAILQ_HEAD_INITIALIZER(pqueue);
 
 /*
- * List fo peers allowed to log to us.
+ * List of peers allowed to log to us.
  */
 static SIMPLEQ_HEAD(allowed, allowedpeer) aphead = SIMPLEQ_HEAD_INITIALIZER(aphead);
 
@@ -4456,7 +4456,7 @@ static void notifier_free_all(void)
 }
 
 /*
- * The following function is resposible for handling a SIGHUP signal.  Since
+ * The following function is responsible for handling a SIGHUP signal.  Since
  * we are now doing mallocs/free as part of init we had better not being
  * doing this during a signal handler.  Instead this function simply sets
  * a flag variable which will tell the main loop to go through a restart.

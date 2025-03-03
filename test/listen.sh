@@ -99,10 +99,10 @@ run_step "Verify listen off - no remote no ports"             verify_secure_daem
 run_step "Verify listen off - only send to remote, no ports"  verify_safe_daemon
 run_step "Verify listen on, default"                          verify_default_daemon
 
-run_step "Verfiy listen on 127.0.0.1:510"                     verify_local_daemon
+run_step "Verify listen on 127.0.0.1:510"                     verify_local_daemon
 run_step "Verify port 514 is closed"                          check_not_open 514
 
-run_step "Verfiy listen on 10.0.0.1:512"                      verify_bind
+run_step "Verify listen on 10.0.0.1:512"                      verify_bind
 run_step "Verify port 510 is closed"                          check_not_open 510
 
 run_step "Verify delayed bind to new address 10.0.0.2:513"    verify_delayed_bind

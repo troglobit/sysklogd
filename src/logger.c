@@ -286,7 +286,7 @@ static int usage(int code)
 	       "  -h HOST   Send (UDP) message to this remote syslog server (IP or DNS name)\n"
 	       "  -H NAME   Use NAME instead of system hostname in message header\n"
 	       "  -i        Log process ID of the logger process with each line (LOG_PID)\n"
-	       "  -I PID    Log process ID using PID, recommed using PID $$ for shell scripts\n"
+	       "  -I PID    Log process ID using PID, recommend using PID $$ for shell scripts\n"
 #ifdef __linux__
 	       "  -k        Log to kernel /dev/kmsg if /dev/log doesn't exist yet\n"
 #endif
