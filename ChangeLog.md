@@ -508,7 +508,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - New `syslogp()` API from NetBSD, for applications wanting to use
   RFC5424 features like MsgID or structured data
 - Many *incompatible changes* to command line options in `syslogd` and
-  `klogd` for compatiblity with FreeBSD and NetBSD syslogd.  Examples:
+  `klogd` for compatibility with FreeBSD and NetBSD syslogd.  Examples:
   - In syslogd: `-b` and `-c` have been replaced with `-r` for global
     log rotation, `-a` has been replaced with the new `-p` support.  The
     `-r` flag and `-s HOST` has also been dropped in favor of the BSD
