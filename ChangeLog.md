@@ -4,12 +4,12 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
-[v2.7.1][UNRELEASED] - 2025-03-xx
+[v2.7.1][] - 2025-03-03
 -----------------------
 
 ### Changes
 - Update `syslogd -T` documentation, it applies to messages originating
-  both locally and from both remote syslog servers, issue #93
+  both locally and from remote syslog servers, issue #93
 
 ### Fixes
 - Fix #99: hostname filtering support, introduced in v2.7.0, broken
