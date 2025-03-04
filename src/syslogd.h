@@ -224,7 +224,7 @@
 #define F_PIPE            9   /* named pipe */
 
 /*
- * Stuct to hold property-based filters
+ * Struct to hold property-based filters
  */
 struct prop_filter {
 	uint8_t	prop_type;

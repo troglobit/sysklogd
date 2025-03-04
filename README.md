@@ -63,7 +63,7 @@ Main differences from the original sysklogd package are:
 
 - The separate `klogd` daemon is no longer part of the sysklogd project,
   syslogd now natively supports logging kernel messages as well
-- *Major* command line changes to `syslogd`, for compatibilty with *BSD
+- *Major* command line changes to `syslogd`, for compatibility with *BSD
 - Supports `include /etc/syslog.d/*.conf` directive, see example .conf
 - Built-in log-rotation support, with compression by default, useful for
   embedded systems.  No need for cron and/or a separate log rotate daemon
