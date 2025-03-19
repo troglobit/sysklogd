@@ -1,6 +1,11 @@
 #!/bin/sh
-# Verify log filtering based on ident/tag.
-#DEBUG=true
+# Verify log filtering based on ident/tag for both RFC3154 (BSD)
+# and RFC5424 formatted log messages sent to syslogd.  A logged
+# message can also contain a [PID], so the combinations of various
+# tags + pid are also covered.
+#
+# Regression test for issue #102.
+#
 . "${srcdir:-.}/lib.sh"
 
 TG1=pimd
@@ -32,14 +37,34 @@ setup_syslogd()
     setup -m0
 }
 
+# Verify both RFC3164 (BSD) log format and RFC5424, because
+# they have different format parsers in syslogd.  Generates
+# three additional variants of the given log message: rev,
+# rot13, and alphabetically sorted.
 verify_tag()
 {
     tag="$1"; shift
     log="$1"; shift
     msg="$*"
+    rev=$(echo "$msg" | rev)
+    rot=$(echo "$msg" | tr 'a-zA-Z' 'n-za-mN-ZA-M')
+    bin=$(echo "$msg" | sed 's/./&\n/g' | sort | tr -d '\n')
 
-    logger -ip user.debug -t "$tag" "$msg"
-    grep "$msg" "$log" |grep "$tag"
+    # BSD log format (with -b)
+    logger -b -ip user.debug -t "$tag" "$msg"
+    verify_log "$log" "$msg" | grep "$tag" || return 1
+
+    # RFC5424 (default)
+    logger -ip user.debug -t "$tag" "$rev"
+    verify_log "$log" "$rev" | grep "$tag" || return 1
+
+    # BSD without -p flag
+    logger -b -i -t "$tag" "$rot"
+    verify_log "$log" "$rot" | grep "$tag" || return 1
+
+    # RFC5424 without -p flag
+    logger -i -t "$tag" "$bin"
+    verify_log "$log" "$bin" | grep "$tag" || return 1
 }
 
 verify_log()
