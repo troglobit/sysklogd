@@ -4,6 +4,17 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[v2.7.2][UNRELEASED]
+-----------------------
+
+### Changes
+- Increased code coverage testing of tag parser
+
+### Fixes
+- Fix #102: allow `.` in tag names, regression in v2.7.1
+- Fix various typos in documentation, by Luz Paz
+
+
 [v2.7.1][] - 2025-03-03
 -----------------------
 
@@ -679,7 +690,8 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.7.0...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.7.1...HEAD
+[v2.7.2]:     https://github.com/troglobit/sysklogd/compare/v2.7.1...v2.7.2
 [v2.7.1]:     https://github.com/troglobit/sysklogd/compare/v2.7.0...v2.7.1
 [v2.7.0]:     https://github.com/troglobit/sysklogd/compare/v2.6.2...v2.7.0
 [v2.6.2]:     https://github.com/troglobit/sysklogd/compare/v2.6.1...v2.6.2
