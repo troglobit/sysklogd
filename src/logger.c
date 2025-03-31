@@ -393,13 +393,17 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'o':
-			if (parse_opts(optarg, &iface, &ttl))
+			if (parse_opts(optarg, &iface, &ttl)) {
+				printf("Invalid option argument '-%c %s'\n", c, optarg);
 				return usage(1);
+			}
 			break;
 
 		case 'p':
-			if (parse_prio(optarg, &facility, &severity))
+			if (parse_prio(optarg, &facility, &severity)) {
+				printf("Invalid option argument '-%c %s'\n", c, optarg);
 				return usage(1);
+			}
 			break;
 
 		case 'P':
@@ -428,8 +432,12 @@ int main(int argc, char *argv[])
 			printf("%s\n", version_info);
 			return 0;
 
-		default:
+		case '?':
 			return usage(0);
+
+		default:
+			printf("Unsupported option '-%c'\n", c);
+			return usage(1);
 		}
 	}
 
