@@ -4,11 +4,13 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
-[v2.7.2][UNRELEASED]
+[v2.7.2][] - 2025-03-31
 -----------------------
 
 ### Changes
 - Increased code coverage testing of tag parser
+- Improved error handling in `logger` when invalid arguments to
+  `-p` and `-o` are encountered
 
 ### Fixes
 - Fix #102: allow `.` in tag names, regression in v2.7.1
