@@ -539,8 +539,10 @@ int main(int argc, char *argv[])
 	if (!buf[0]) {
 		while ((fgets(buf, sizeof(buf), stdin))) {
 			char *msg = chomp(buf);
+			int level;
 
-			syslogp_r(parse_level(&msg, severity), &log, msgid, sd, "%s", msg);
+			level = parse_level(&msg, severity);
+			syslogp_r(level, &log, msgid, sd, "%s", msg);
 		}
 	} else
 		syslogp_r(severity, &log, msgid, sd, "%s", buf);
