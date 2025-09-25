@@ -998,17 +998,108 @@ void untty(void)
 }
 
 /*
+ * Returns the length of a UTF-8 sequence starting at *in, or 0 if invalid.
+ * Does not validate the entire sequence, just checks the start byte.
+ */
+static size_t
+utf8_len(const unsigned char *in)
+{
+	unsigned char c = *in;
+
+	if ((c & 0x80) == 0x00) return 1;  /* ASCII: 0xxxxxxx */
+	if ((c & 0xE0) == 0xC0) return 2;  /* 110xxxxx */
+	if ((c & 0xF0) == 0xE0) return 3;  /* 1110xxxx */
+	if ((c & 0xF8) == 0xF0) return 4;  /* 11110xxx */
+
+	return 0;  /* Invalid start byte */
+}
+
+/*
+ * Validates a complete UTF-8 sequence of given length.
+ * Returns 1 if valid, 0 if invalid.
+ */
+static int
+utf8_valid(const unsigned char *in, size_t len)
+{
+	size_t i;
+
+	switch (len) {
+	case 1:
+		if ((*in & 0x80) != 0x00)
+			return 0;
+		break;
+	case 2:
+		if ((*in & 0xE0) != 0xC0)
+			return 0;
+		if (*in < 0xC2)
+			return 0;  /* Overlong encoding */
+		break;
+	case 3:
+		if ((*in & 0xF0) != 0xE0)
+			return 0;
+		break;
+	case 4:
+		if ((*in & 0xF8) != 0xF0)
+			return 0;
+		if (*in > 0xF4)
+			return 0;  /* Beyond Unicode range */
+		break;
+	default:
+		return 0;
+	}
+
+	/* Check continuation bytes */
+	for (i = 1; i < len; i++) {
+		if ((in[i] & 0xC0) != 0x80)
+			return 0;
+	}
+
+	/* Check for overlong encodings and surrogates */
+	if (len == 3 && *in == 0xE0 && (in[1] & 0xE0) == 0x80) return 0;
+	if (len == 4 && *in == 0xF0 && (in[1] & 0xF0) == 0x80) return 0;
+	if (len == 3 && *in == 0xED && (in[1] & 0xE0) == 0xA0) return 0;  /* Surrogates */
+
+	return 1;
+}
+
+/*
  * Removes characters from log messages that are unsafe to display.
- * TODO: Permit UTF-8 strings that include a BOM per RFC 5424?
+ * Preserves valid UTF-8 sequences, including BOM, with -8 flag.
  */
 static void
 parsemsg_remove_unsafe_characters(const char *in, char *out, size_t outlen)
 {
+	const unsigned char *p = (const unsigned char *)in;
 	char *q;
 	int c;
 
 	q = out;
-	while ((c = (unsigned char)*in++) != '\0' && q < out + outlen - 4) {
+	while (*p && q < out + outlen - 4) {
+		/* When -8 flag is used, try UTF-8 processing first */
+		if (!mask_C1 && (*p & 0x80)) {
+			size_t len = utf8_len(p);
+
+			/* Check if we have a complete UTF-8 sequence */
+			if (len > 0 && q + len < out + outlen) {
+				size_t i = 0;
+
+				/* Ensure we have enough input bytes */
+				while (i < len && p[i] != '\0')
+					i++;
+
+				if (i == len && utf8_valid(p, len)) {
+					/* Copy the entire valid UTF-8 sequence */
+					for (i = 0; i < len; i++)
+						*q++ = *p++;
+					continue;
+				}
+			}
+			/* Fall through to byte-by-byte processing for invalid UTF-8 */
+		}
+
+		/* Byte-by-byte processing */
+		c = *p++;
+
 		if (mask_C1 && (c & 0x80) && c < 0xA0) {
 			c &= 0x7F;
 			*q++ = 'M';
