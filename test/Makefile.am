@@ -3,10 +3,10 @@ EXTRA_DIST      += api.sh local.sh unicode.sh remote.sh fwd.sh mark.sh      \
 		   memleak.sh facility.sh notify.sh rotate_all.sh secure.sh \
 		   logger.sh listen.sh sighup.sh tag.sh hostname.sh	    \
 		   property.sh raw.sh regression.sh multicast.sh	    \
-		    mcast-fwd.sh mcast-iface.sh
+		    mcast-fwd.sh mcast-iface.sh parens.sh
 CLEANFILES       = *~ *.trs *.log
 TEST_EXTENSIONS  = .sh
-TESTS_ENVIRONMENT= unshare -mrun
+TESTS_ENVIRONMENT= unshare -mrun --map-auto
 
 check_PROGRAMS   = api
 api_SOURCES      = api.c
@@ -30,6 +30,7 @@ TESTS           += rotate_all.sh
 TESTS           += secure.sh
 TESTS           += sighup.sh
 TESTS           += tag.sh
+TESTS           += parens.sh
 TESTS           += hostname.sh
 TESTS           += property.sh
 TESTS           += raw.sh
