@@ -1309,15 +1309,36 @@ parsemsg_rfc3164_app_name_procid(char **msg, char **app_name, char **procid)
 	m = *msg;
 
 	/* Application name. */
-	app_name_begin = m;
-	app_name_length = strspn(m,
-	    "abcdefghijklmnopqrstuvwxyz"
-	    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	    "0123456789"
-	    "._-/");
+	/* Check if tag is surrounded by parentheses like (polkit-agent) */
+	if (*m == '(') {
+		char *closing = strchr(m + 1, ')');
+		if (closing && (closing[1] == ':' || closing[1] == '[' || isblank(closing[1]) || closing[1] == '\0')) {
+			/* Found complete parenthetical tag, strip parentheses */
+			app_name_begin = m + 1;
+			app_name_length = closing - (m + 1);
+			m = closing + 1;
+		} else {
+			/* Incomplete or malformed, treat normally */
+			app_name_begin = m;
+			app_name_length = strspn(m,
+			    "abcdefghijklmnopqrstuvwxyz"
+			    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+			    "0123456789"
+			    "._-/()");
+			m += app_name_length;
+		}
+	} else {
+		app_name_begin = m;
+		app_name_length = strspn(m,
+		    "abcdefghijklmnopqrstuvwxyz"
+		    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		    "0123456789"
+		    "._-/()");
+		m += app_name_length;
+	}
+
 	if (app_name_length == 0)
 		goto bad;
-	m += app_name_length;
 
 	/* Process identifier (optional). */
 	if (*m == '[') {
