@@ -155,6 +155,7 @@ static int	  KernLog = 1;		  /* Track kernel logs by default */
 static int	  KeepKernFac;		  /* Keep remotely logged kernel facility */
 static int	  KeepKernTime;		  /* Keep kernel timestamp, evern after initial read */
 static int	  KeepKernConsole;	  /* Keep kernel logging to console */
+static int	  IsLinuxKmsg;		  /* Set if reading from Linux /dev/kmsg */
 
 static int	  rotate_opt;	          /* Set if command line option has been given (wins) */
 static off_t	  RotateSz = 0;		  /* Max file size (bytes) before rotating, disabled by default */
@@ -651,8 +652,10 @@ int main(int argc, char *argv[])
 				     _PATH_KLOG);
 			else
 				kern_console_off();
-		} else
+		} else {
+			IsLinuxKmsg = 1;
 			kern_console_off();
+		}
 	}
 no_klogd:
 	consfile.f_type = F_CONSOLE;
@@ -1060,6 +1063,61 @@ utf8_valid(const unsigned char *in, size_t len)
 	if (len == 3 && *in == 0xED && (in[1] & 0xE0) == 0xA0) return 0;  /* Surrogates */
 
 	return 1;
+}
+
+/*
+ * Unescapes Linux /dev/kmsg messages that use C-style hex encoding.
+ * Converts "\xHH" sequences back to bytes and "\\" back to "\".
+ * Returns the new length of the unescaped string.
+ */
+static size_t kmsg_unescape(char *msg)
+{
+	char *src, *dst;
+	int hi, lo;
+
+	src = dst = msg;
+	while (*src) {
+		if (*src == '\\' && src[1]) {
+			if (src[1] == 'x' && src[2] && src[3]) {
+				/* Decode \xHH */
+				hi = src[2];
+				lo = src[3];
+
+				/* Convert hex digits to values */
+				if (hi >= '0' && hi <= '9')
+					hi = hi - '0';
+				else if (hi >= 'a' && hi <= 'f')
+					hi = hi - 'a' + 10;
+				else if (hi >= 'A' && hi <= 'F')
+					hi = hi - 'A' + 10;
+				else
+					goto copy_literal;
+
+				if (lo >= '0' && lo <= '9')
+					lo = lo - '0';
+				else if (lo >= 'a' && lo <= 'f')
+					lo = lo - 'a' + 10;
+				else if (lo >= 'A' && lo <= 'F')
+					lo = lo - 'A' + 10;
+				else
+					goto copy_literal;
+
+				*dst++ = (char)((hi << 4) | lo);
+				src += 4;
+				continue;
+			} else if (src[1] == '\\') {
+				/* Decode \\ to \ */
+				*dst++ = '\\';
+				src += 2;
+				continue;
+			}
+		}
+copy_literal:
+		*dst++ = *src++;
+	}
+	*dst = '\0';
+
+	return dst - msg;
 }
 
 /*
@@ -1773,9 +1831,24 @@ void printsys(char *msg)
 			parsemsg_rfc3164_app_name_procid(&p, &buffer.app_name, &buffer.proc_id);
 
 		q = lp;
-		while (*p != '\0' && (c = *p++) != '\n' && q < &line[MAXLINE])
-			*q++ = c;
-		*q = '\0';
+		if (IsLinuxKmsg) {
+			char tmp[MAXLINE + 1];
+			char *t = tmp;
+
+			while (*p != '\0' && *p != '\n' && t < &tmp[MAXLINE])
+				*t++ = *p++;
+			*t = '\0';
+
+			/* Unescape \xHH sequences and \\ */
+			kmsg_unescape(tmp);
+
+			/* Sanitize the unescaped message with UTF-8 support */
+			parsemsg_remove_unsafe_characters(tmp, lp, MAXLINE);
+		} else {
+			while (*p != '\0' && (c = *p++) != '\n' && q < &line[MAXLINE])
+				*q++ = c;
+			*q = '\0';
+		}
 
 		logmsg(&buffer);
 	}
