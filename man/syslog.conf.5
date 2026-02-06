@@ -89,7 +89,9 @@ ACTION   := /path/to/file
          |= |/path/to/named/pipe
 	 |= @remote[.host.tld][:PORT]
 	 |= @@remote[.host.tld][:PORT]
+	 |= @@@remote[.host.tld][:PORT]
 	 |= tcp://remote[.host.tld][:PORT]
+	 |= tls://remote[.host.tld][:PORT]
 OPTION   := [OPTION,]
 	 |= RFC3164
 	 |= RFC5424
@@ -97,6 +99,10 @@ OPTION   := [OPTION,]
 	 |= iface=IFNAME
          |= rotate=ROT
 	 |= ttl=1..255
+	 |= verify=off|optional|required|hostname
+	 |= fingerprint=SHA256:...
+	 |= tls_keyfile=PATH
+	 |= tls_certfile=PATH
 ROT      := SIZE:COUNT
          |= SIZE
 	 |= :COUNT
@@ -108,7 +114,13 @@ secure_mode [0,1,2]
 rotate_size  SIZE
 rotate_count NUMBER
 
-listen [address:port[%iface] | :port | address[%iface] | tcp://address:port]
+tls_keyfile   /path/to/server.key
+tls_certfile  /path/to/server.cert
+tls_cafile    /path/to/ca.pem
+tls_capath    /path/to/ca.d
+tls_verify    off|optional|required
+
+listen [address:port[%iface] | :port | address[%iface] | tcp://... | tls://...]
 
 include /etc/syslog.d/*.conf
 notify  /path/to/script-on-rotate
@@ -629,6 +641,23 @@ framing are supported.  To listen for TCP connections, use
 .Ql listen tcp://address:port
 in the configuration file.
 .Pp
+TLS forwarding per RFC 5425 is also available when compiled with
+OpenSSL support.  Use a triple at sign ('@@@') or the
+.Ql tls://
+URL syntax.  The default port for TLS is 6514.  TLS provides
+encryption and optional certificate-based authentication.  To listen
+for TLS connections, use
+.Ql listen tls://address:port
+in the configuration file.  Server certificates are configured with
+.Ql tls_keyfile
+and
+.Ql tls_certfile
+global options.  Per-action TLS options include
+.Ql verify=off|optional|required|hostname
+and
+.Ql fingerprint=SHA256:...
+for certificate pinning.
+.Pp
 This feature makes it possible to collect all syslog messages in a
 network on a central host.  This reduces administration needs and
 can be really helpful when debugging distributed systems.
@@ -1055,6 +1084,38 @@ in the configuration.
 
 # Listen for incoming TCP syslog connections
 listen tcp://[::]:1514
+.Ed
+.Ss Logging to Remote Syslog Server via TLS
+TLS forwarding per RFC 5425 can be configured using either the
+.Ql @@@
+prefix or the
+.Ql tls://
+URL syntax.  The default port is 6514.  TLS requires OpenSSL support
+to be compiled in.
+.Bd -literal -offset indent
+# Forward to remote host via TLS (skip verification for testing)
+*.*                @@@loghost        ;RFC5424,verify=off
+
+# Same using tls:// URL syntax with custom port
+*.*                tls://loghost:6514  ;RFC5424,verify=off
+
+# Verify server by fingerprint (no CA needed)
+*.*                tls://loghost:6514  ;RFC5424,fingerprint=SHA256:abc123...
+
+# Verify server hostname matches certificate
+*.*                tls://loghost:6514  ;RFC5424,verify=hostname
+
+# Mutual TLS with client certificate
+*.*                tls://loghost:6514  ;RFC5424,tls_keyfile=/etc/client.key,tls_certfile=/etc/client.cert
+
+# TLS listener configuration (server-side)
+tls_keyfile   /etc/syslog.d/server.key
+tls_certfile  /etc/syslog.d/server.cert
+tls_cafile    /etc/syslog.d/ca.pem
+tls_verify    optional
+
+# Listen for incoming TLS syslog connections
+listen tls://[::]:6514
 .Ed
 .Pp
 .Sy Note:
