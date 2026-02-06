@@ -18,6 +18,15 @@ All relevant changes to the project are documented in this file.
   `sign_sg`, `sign_delim_sg2`, `sign_keyfile`, `sign_certfile`.
   Provides cryptographic signing of messages for origin authentication,
   message integrity, and replay resistance
+- Add optional RFC 5425 TLS transport for syslog.  Requires OpenSSL
+  and `./configure --with-openssl`.  Three syntaxes supported for
+  forwarding: `@@@host:port`, `tls://host:port`, and `tls4://` or
+  `tls6://` for IPv4/IPv6 specific.  For receiving: `listen tls://addr:port`.
+  New config options: `tls_keyfile`, `tls_certfile`, `tls_cafile`,
+  `tls_capath`, `tls_verify`.  Per-action options: `verify=off|optional|
+  required|hostname`, `fingerprint=SHA256:...` for certificate pinning,
+  `tls_keyfile=`, `tls_certfile=` for mutual TLS authentication.
+  Default port is 6514 per RFC 5425
 
 ### Fixes
 - Fix use-after-free in socket polling when callbacks close sockets
