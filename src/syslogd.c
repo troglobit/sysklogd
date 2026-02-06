@@ -124,8 +124,22 @@ static int repeatinterval[] = { 30, 120, 600 };	/* # of secs before flush */
 static char *TypeNames[] = {
 	"UNUSED",        "FILE",  "TTY",  "CONSOLE",
 	"FORW",          "USERS", "WALL", "FORW(SUSPENDED)",
-	"FORW(UNKNOWN)", "PIPE"
+	"FORW(UNKNOWN)", "PIPE",
+	"FORW_TCP",      "FORW_TCP(SUSPENDED)", "FORW_TCP(UNKNOWN)"
 };
+
+/*
+ * TCP client connections for receive side (RFC 6587)
+ */
+struct tcp_conn {
+	LIST_ENTRY(tcp_conn) tc_link;
+	int    tc_sd;
+	char   tc_buf[MAXLINE + 64];  /* reassembly buffer */
+	size_t tc_len;
+	char   tc_hname[NI_MAXHOST];
+	size_t tc_hname_len;
+};
+static LIST_HEAD(, tcp_conn) tcp_clients = LIST_HEAD_INITIALIZER(tcp_clients);
 
 static SIMPLEQ_HEAD(files, filed) fhead = SIMPLEQ_HEAD_INITIALIZER(fhead);
 struct filed consfile;
@@ -232,6 +246,13 @@ static void signal_rotate(int sig);
 static int  validate(struct sockaddr *sa, const char *hname);
 static int  waitdaemon(int);
 static void timedout(int);
+static int  nslookup(const char *host, const char *service, int socktype, struct addrinfo **ai);
+static void tcp_connect(struct filed *f);
+static void tcp_accept_cb(int sd, void *arg);
+static void tcp_read_cb(int sd, void *arg);
+static void tcp_conn_close(struct tcp_conn *tc);
+static void tcp_close_all(void);
+static int  create_inet_tcp_socket(struct peer *pe);
 
 /*
  * Configuration file keywords, variables, and optional callbacks
@@ -294,7 +315,8 @@ static int addpeer(struct peer *pe0)
 		    ((pe->pe_serv == NULL && pe0->pe_serv == NULL) ||
 		     (pe->pe_serv != NULL && pe0->pe_serv != NULL && strcmp(pe->pe_serv, pe0->pe_serv) == 0)) &&
 		    ((pe->pe_iface == NULL && pe0->pe_iface == NULL) ||
-		     (pe->pe_iface != NULL && pe0->pe_iface != NULL && strcmp(pe->pe_iface, pe0->pe_iface) == 0))) {
+		     (pe->pe_iface != NULL && pe0->pe_iface != NULL && strcmp(pe->pe_iface, pe0->pe_iface) == 0)) &&
+		    pe->pe_tcp == pe0->pe_tcp) {
 			/* do not overwrite command line options */
 			if (pe->pe_mark == -1)
 				return -1;
@@ -912,11 +934,221 @@ static void inet_cb(int sd, void *arg)
 }
 
 /*
+ * TCP receive side -- RFC 6587 framing
+ */
+static void tcp_parse_messages(struct tcp_conn *tc)
+{
+	while (tc->tc_len > 0) {
+		char *buf = tc->tc_buf;
+		size_t msglen;
+		char msg[MAXLINE + 1];
+
+		if (isdigit((unsigned char)buf[0])) {
+			/* Octet counting: "LEN SP MSG" */
+			char *sp;
+			long octets;
+
+			octets = strtol(buf, &sp, 10);
+			if (sp == buf || *sp != ' ')
+				return; /* incomplete length prefix */
+			sp++; /* skip space */
+
+			if (octets <= 0 || octets > MAXLINE)
+				octets = MAXLINE;
+
+			msglen = sp - buf + octets;
+			if (tc->tc_len < msglen)
+				return; /* incomplete message */
+
+			memcpy(msg, sp, MIN((size_t)octets, sizeof(msg) - 1));
+			msg[MIN((size_t)octets, sizeof(msg) - 1)] = '\0';
+		} else {
+			/* Non-transparent framing: LF-delimited */
+			char *lf = memchr(buf, '\n', tc->tc_len);
+
+			if (!lf)
+				return; /* incomplete line */
+
+			msglen = lf - buf + 1;
+			size_t copylen = lf - buf;
+
+			/* Strip trailing CR */
+			if (copylen > 0 && buf[copylen - 1] == '\r')
+				copylen--;
+
+			memcpy(msg, buf, MIN(copylen, sizeof(msg) - 1));
+			msg[MIN(copylen, sizeof(msg) - 1)] = '\0';
+		}
+
+		parsemsg(tc->tc_hname, tc->tc_hname_len, msg);
+
+		/* Shift consumed bytes */
+		tc->tc_len -= msglen;
+		if (tc->tc_len > 0)
+			memmove(tc->tc_buf, tc->tc_buf + msglen, tc->tc_len);
+	}
+}
+
+static void tcp_conn_close(struct tcp_conn *tc)
+{
+	logit("TCP client %s disconnected (fd %d)\n", tc->tc_hname, tc->tc_sd);
+	socket_close(tc->tc_sd);
+	LIST_REMOVE(tc, tc_link);
+	free(tc);
+}
+
+static void tcp_read_cb(int sd, void *arg)
+{
+	struct tcp_conn *tc = (struct tcp_conn *)arg;
+	ssize_t len;
+
+	len = read(sd, tc->tc_buf + tc->tc_len, sizeof(tc->tc_buf) - tc->tc_len);
+	if (len <= 0) {
+		if (len < 0 && (errno == EINTR || errno == EAGAIN))
+			return;
+		tcp_conn_close(tc);
+		return;
+	}
+
+	tc->tc_len += len;
+	tcp_parse_messages(tc);
+}
+
+static void tcp_accept_cb(int sd, void *arg)
+{
+	struct sockaddr_storage ss;
+	socklen_t sslen = sizeof(ss);
+	struct tcp_conn *tc;
+	char *hname;
+	size_t hname_len;
+	int csd;
+
+	(void)arg;
+	csd = accept4(sd, (struct sockaddr *)&ss, &sslen, SOCK_CLOEXEC | SOCK_NONBLOCK);
+	if (csd < 0) {
+		if (errno != EINTR && errno != EAGAIN)
+			ERR("TCP accept()");
+		return;
+	}
+
+	hname = cvthname((struct sockaddr *)&ss, sslen, &hname_len);
+	unmapped((struct sockaddr *)&ss);
+	if (!validate((struct sockaddr *)&ss, hname)) {
+		logit("TCP connection from %s was rejected.\n", hname);
+		close(csd);
+		return;
+	}
+
+	tc = calloc(1, sizeof(*tc));
+	if (!tc) {
+		ERR("Failed allocating TCP client state");
+		close(csd);
+		return;
+	}
+
+	tc->tc_sd = csd;
+	strlcpy(tc->tc_hname, hname, sizeof(tc->tc_hname));
+	tc->tc_hname_len = hname_len;
+	LIST_INSERT_HEAD(&tcp_clients, tc, tc_link);
+
+	if (socket_register(csd, NULL, tcp_read_cb, tc) < 0) {
+		ERR("Failed registering TCP client socket");
+		LIST_REMOVE(tc, tc_link);
+		close(csd);
+		free(tc);
+		return;
+	}
+
+	logit("TCP client %s connected (fd %d)\n", hname, csd);
+}
+
+static void tcp_close_all(void)
+{
+	struct tcp_conn *tc, *next;
+
+	LIST_FOREACH_SAFE(tc, &tcp_clients, tc_link, next)
+		tcp_conn_close(tc);
+}
+
+static int create_inet_tcp_socket(struct peer *pe)
+{
+	struct addrinfo *ai, *res;
+	int err, rc = 0;
+
+	if (pe->pe_socknum)
+		return 0;	/* Already set up */
+
+	err = nslookup(pe->pe_name, pe->pe_serv, SOCK_STREAM, &res);
+	if (err) {
+		ERRX("%s:%s/tcp service unknown: %s", pe->pe_name ?: "*",
+		     pe->pe_serv ?: "514", gai_strerror(err));
+		return 1;
+	}
+
+	for (ai = res; ai; ai = ai->ai_next) {
+		int sd, on = 1;
+
+		if (pe->pe_socknum + 1 >= NELEMS(pe->pe_sock)) {
+			WARN("Only %zd IP addresses per socket supported.", NELEMS(pe->pe_sock));
+			break;
+		}
+
+		sd = socket(ai->ai_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
+		if (sd < 0)
+			continue;
+
+		if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+			close(sd);
+			continue;
+		}
+
+		if (ai->ai_family == AF_INET6) {
+			if (setsockopt(sd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) < 0) {
+				close(sd);
+				continue;
+			}
+		}
+
+		if (bind(sd, ai->ai_addr, ai->ai_addrlen) < 0) {
+			WARN("Failed binding TCP socket %s:%s: %s",
+			     pe->pe_name ?: "*", pe->pe_serv ?: "514", strerror(errno));
+			close(sd);
+			rc = 1;
+			continue;
+		}
+
+		if (listen(sd, 16) < 0) {
+			WARN("Failed listening on TCP socket %s:%s: %s",
+			     pe->pe_name ?: "*", pe->pe_serv ?: "514", strerror(errno));
+			close(sd);
+			rc = 1;
+			continue;
+		}
+
+		if (socket_register(sd, ai, tcp_accept_cb, NULL) < 0) {
+			close(sd);
+			rc = 1;
+			continue;
+		}
+
+		pe->pe_mode |= 01000;
+		NOTE("Opened TCP inet socket %s:%s", pe->pe_name ?: "*", pe->pe_serv ?: "514");
+		pe->pe_sock[pe->pe_socknum++] = sd;
+	}
+
+	freeaddrinfo(res);
+	if (rc && pe->pe_socknum == 0)
+		return rc;
+
+	return 0;
+}
+
+/*
  * Depending on the setup of /etc/resolv.conf, and the system resolver,
  * a call to this function may be blocked for 10 seconds, or even more,
  * waiting for a response.  See https://serverfault.com/a/562108/122484
  */
-static int nslookup(const char *host, const char *service, struct addrinfo **ai)
+static int nslookup(const char *host, const char *service, int socktype, struct addrinfo **ai)
 {
 	struct addrinfo hints;
 	const char *node = host;
@@ -937,7 +1169,7 @@ static int nslookup(const char *host, const char *service, struct addrinfo **ai)
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_flags    = !node ? AI_PASSIVE : 0;
 	hints.ai_family   = family;
-	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_socktype = socktype;
 
 	return getaddrinfo(node, service, &hints, ai);
 }
@@ -950,7 +1182,7 @@ static int create_inet_socket(struct peer *pe)
 	if (pe->pe_socknum)
 		return 0;	/* Already set up */
 
-	err = nslookup(pe->pe_name, pe->pe_serv, &res);
+	err = nslookup(pe->pe_name, pe->pe_serv, SOCK_DGRAM, &res);
 	if (err) {
 		ERRX("%s:%s/udp service unknown: %s", pe->pe_name ?: "*",
 		     pe->pe_serv ?: "514", gai_strerror(err));
@@ -2422,6 +2654,79 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 		}
 		break;
 
+	case F_FORW_TCP_SUSP:
+		fwd_suspend = timer_now() - f->f_time;
+		if (fwd_suspend >= INET_SUSPEND_TIME) {
+			logit("\nTCP forwarding suspension over, retrying ");
+			f->f_type = F_FORW_TCP_UNKN;
+			goto f_forw_tcp_unkn;
+		} else {
+			logit(" %s:%s/tcp\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+			logit("TCP forwarding suspension not over, time left: %d.\n",
+			      (int)(INET_SUSPEND_TIME - fwd_suspend));
+		}
+		break;
+
+	case F_FORW_TCP_UNKN:
+		logit("\n");
+	f_forw_tcp_unkn:
+		forw_lookup(f);
+		if (f->f_type == F_FORW_TCP)
+			goto f_forw_tcp;
+		break;
+
+	case F_FORW_TCP:
+	f_forw_tcp:
+		logit(" %s:%s/tcp\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+		f->f_time = timer_now();
+
+		/* Reconnect if needed */
+		if (f->f_un.f_forw.f_tcp_sd < 0) {
+			tcp_connect(f);
+			if (f->f_un.f_forw.f_tcp_sd < 0)
+				break;
+		}
+
+		/* Flatten iov into buffer, no UDP truncation for TCP */
+		len = 0;
+		for (int i = 0; i < iovcnt; i++)
+			len += iov[i].iov_len;
+
+		{
+			char frame[32];
+			char buf[MAXLINE * 2];
+			ssize_t pos = 0, rc;
+			int flen;
+
+			/* Build message into buffer */
+			for (int i = 0; i < iovcnt && pos < (ssize_t)sizeof(buf); i++) {
+				size_t chunk = MIN(iov[i].iov_len, sizeof(buf) - pos);
+				memcpy(buf + pos, iov[i].iov_base, chunk);
+				pos += chunk;
+			}
+
+			/* RFC 6587 octet counting: "LEN SP MSG" */
+			flen = snprintf(frame, sizeof(frame), "%zd ", pos);
+
+			/* Send frame header + message */
+			rc = send(f->f_un.f_forw.f_tcp_sd, frame, flen, MSG_NOSIGNAL);
+			if (rc > 0)
+				rc = send(f->f_un.f_forw.f_tcp_sd, buf, pos, MSG_NOSIGNAL);
+
+			if (rc <= 0) {
+				ERR("TCP send(%s:%s)", f->f_un.f_forw.f_hname,
+				    f->f_un.f_forw.f_serv);
+				close(f->f_un.f_forw.f_tcp_sd);
+				f->f_un.f_forw.f_tcp_sd = -1;
+				f->f_type = F_FORW_TCP_SUSP;
+				f->f_time = timer_now();
+			} else {
+				logit("Sent %zd bytes via TCP to %s:%s\n",
+				      pos, f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+			}
+		}
+		break;
+
 	case F_CONSOLE:
 		f->f_time = timer_now();
 		if (flags & IGN_CONS) {
@@ -2890,6 +3195,8 @@ static void forw_lookup(struct filed *f)
 {
 	char *host = f->f_un.f_forw.f_hname;
 	char *serv = f->f_un.f_forw.f_serv;
+	int is_tcp = f->f_un.f_forw.f_tcp;
+	int socktype = is_tcp ? SOCK_STREAM : SOCK_DGRAM;
 	struct addrinfo *ai;
 	time_t now, diff;
 	int err, first;
@@ -2898,7 +3205,7 @@ static void forw_lookup(struct filed *f)
 		if (f->f_un.f_forw.f_addr)
 			freeaddrinfo(f->f_un.f_forw.f_addr);
 		f->f_un.f_forw.f_addr = NULL;
-		f->f_type = F_FORW_UNKN;
+		f->f_type = is_tcp ? F_FORW_TCP_UNKN : F_FORW_UNKN;
 		return;
 	}
 
@@ -2917,21 +3224,59 @@ static void forw_lookup(struct filed *f)
 	if (!first && diff < INET_DNS_DELAY)
 		return;
 
-	err = nslookup(host, serv, &ai);
+	err = nslookup(host, serv, socktype, &ai);
 	if (err) {
-		f->f_type = F_FORW_UNKN;
+		f->f_type = is_tcp ? F_FORW_TCP_UNKN : F_FORW_UNKN;
 		f->f_time = now;
 		if (!first)
 			WARN("Failed resolving '%s:%s': %s", host, serv, gai_strerror(err));
 		return;
 	}
 
-	f->f_type = F_FORW;
 	f->f_un.f_forw.f_addr = ai;
 	f->f_prevcount = 0;
 
+	if (is_tcp) {
+		f->f_type = F_FORW_TCP;
+		tcp_connect(f);
+	} else {
+		f->f_type = F_FORW;
+	}
+
 	if (!first)
 		NOTE("Successfully resolved '%s:%s', initiating forwarding.", host, serv);
+}
+
+static void tcp_connect(struct filed *f)
+{
+	struct addrinfo *ai;
+	int sd, on = 1;
+
+	if (f->f_un.f_forw.f_tcp_sd >= 0) {
+		close(f->f_un.f_forw.f_tcp_sd);
+		f->f_un.f_forw.f_tcp_sd = -1;
+	}
+
+	for (ai = f->f_un.f_forw.f_addr; ai; ai = ai->ai_next) {
+		sd = socket(ai->ai_family, SOCK_STREAM | SOCK_CLOEXEC, 0);
+		if (sd < 0)
+			continue;
+
+		if (connect(sd, ai->ai_addr, ai->ai_addrlen) == 0) {
+			setsockopt(sd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
+			f->f_un.f_forw.f_tcp_sd = sd;
+			logit("TCP connected to %s:%s on fd %d\n",
+			      f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv, sd);
+			return;
+		}
+		close(sd);
+	}
+
+	/* All addresses failed */
+	logit("TCP connect to %s:%s failed\n",
+	      f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+	f->f_type = F_FORW_TCP_SUSP;
+	f->f_time = timer_now();
 }
 
 void domark(void *arg)
@@ -2947,6 +3292,11 @@ void doflush(void *arg)
 		if (f->f_type == F_FORW_UNKN) {
 			forw_lookup(f);
 			if (f->f_type != F_FORW)
+				continue;
+		}
+		if (f->f_type == F_FORW_TCP_UNKN) {
+			forw_lookup(f);
+			if (f->f_type != F_FORW_TCP)
 				continue;
 		}
 
@@ -2993,6 +3343,19 @@ static void close_open_log_files(void)
 				f->f_un.f_forw.f_addr = NULL;
 			}
 			break;
+
+		case F_FORW_TCP:
+		case F_FORW_TCP_SUSP:
+		case F_FORW_TCP_UNKN:
+			if (f->f_un.f_forw.f_tcp_sd >= 0) {
+				close(f->f_un.f_forw.f_tcp_sd);
+				f->f_un.f_forw.f_tcp_sd = -1;
+			}
+			if (f->f_un.f_forw.f_addr) {
+				freeaddrinfo(f->f_un.f_forw.f_addr);
+				f->f_un.f_forw.f_addr = NULL;
+			}
+			break;
 		}
 
 		if (f->f_iface)
@@ -3034,6 +3397,11 @@ void die(int signo)
 	 * Stop all active timers
 	 */
 	timer_exit();
+
+	/*
+	 * Close all accepted TCP client connections
+	 */
+	tcp_close_all();
 
 	/*
 	 * Close all UNIX and inet sockets
@@ -3216,8 +3584,12 @@ static void retry_init(void)
 			fail |= create_unix_socket(pe);
 		} else {
 			/* skip any marked for deletion */
-			if (SecureMode < 2)
-				fail |= create_inet_socket(pe);
+			if (SecureMode < 2) {
+				if (pe->pe_tcp)
+					fail |= create_inet_tcp_socket(pe);
+				else
+					fail |= create_inet_socket(pe);
+			}
 		}
 	}
 
@@ -3366,6 +3738,11 @@ static void init(void)
 	logit("syslogd: restarted.\n");
 
 	/*
+	 * Close all accepted TCP client connections before reopening sockets
+	 */
+	tcp_close_all();
+
+	/*
 	 * Open or close sockets for local and remote communication
 	 * These may be delayed, so start local logging first.
 	 */
@@ -3375,8 +3752,12 @@ static void init(void)
 		} else {
 			close_socket(pe);
 
-			if (SecureMode < 2)
-				fail |= create_inet_socket(pe);
+			if (SecureMode < 2) {
+				if (pe->pe_tcp)
+					fail |= create_inet_tcp_socket(pe);
+				else
+					fail |= create_inet_socket(pe);
+			}
 		}
 	}
 
@@ -3426,6 +3807,12 @@ static void init(void)
 					printf(" ttl=%d", f->f_ttl);
 				break;
 
+			case F_FORW_TCP:
+			case F_FORW_TCP_SUSP:
+			case F_FORW_TCP_UNKN:
+				printf("%s:%s/tcp", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+				break;
+
 			case F_USERS:
 				for (int i = 0; i < MAXUNAMES && *f->f_un.f_uname[i]; i++)
 					printf("%s%s", i > 0 ? ", " : "", f->f_un.f_uname[i]);
@@ -3455,11 +3842,18 @@ static void cflisten(char *ptr, void *arg)
 	int   mark = arg ? -1 : 0;	/* command line option */
 	char *peer = ptr;
 	char *p, *port;
+	int   tcp = 0;
 
 	while (*peer && isspace(*peer))
 		++peer;
 
 	logit("cflisten[%s]\n", peer);
+
+	/* Detect tcp:// prefix for TCP listeners */
+	if (!strncmp(peer, "tcp://", 6)) {
+		tcp = 1;
+		peer += 6;
+	}
 
 	p = peer;
 	if (*p == '[') {
@@ -3491,6 +3885,7 @@ static void cflisten(char *ptr, void *arg)
 			.pe_serv = port,
 			.pe_iface = ptr,
 			.pe_mark = mark,
+			.pe_tcp = tcp,
 		});
 }
 
@@ -3890,10 +4285,54 @@ static struct filed *cfline(char *line, const char *prog, const char *host, char
 		syncfile = 1;
 
 	logit("leading char in action: %c\n", *p);
+
+	/* Handle tcp:// prefix before the switch */
+	if (!strncmp(p, "tcp://", 6) || !strncmp(p, "tcp4://", 7) || !strncmp(p, "tcp6://", 7)) {
+		cfopts(p, f);
+		if (!strncmp(p, "tcp6://", 7))
+			p += 7;
+		else if (!strncmp(p, "tcp4://", 7))
+			p += 7;
+		else
+			p += 6;
+
+		if (*p == '[') {
+			p++;
+			q = strchr(p, ']');
+			if (!q) {
+				ERR("Invalid IPv6 address in tcp:// target, missing ']'");
+				goto tcp_done;
+			}
+			*q++ = 0;
+			bp = strchr(q, ':');
+		} else
+			bp = strchr(p, ':');
+		if (bp)
+			*bp++ = 0;
+		else
+			bp = "514";
+
+		f->f_un.f_forw.f_tcp = 1;
+		f->f_un.f_forw.f_tcp_sd = -1;
+		strlcpy(f->f_un.f_forw.f_hname, p, sizeof(f->f_un.f_forw.f_hname));
+		strlcpy(f->f_un.f_forw.f_serv, bp, sizeof(f->f_un.f_forw.f_serv));
+		logit("tcp forwarding host: '%s:%s'\n", p, bp);
+		forw_lookup(f);
+		goto tcp_done;
+	}
+
 	switch (*p) {
 	case '@':
 		cfopts(p, f);
 		p++;
+
+		/* @@ = TCP forwarding */
+		if (*p == '@') {
+			f->f_un.f_forw.f_tcp = 1;
+			f->f_un.f_forw.f_tcp_sd = -1;
+			p++;
+		}
+
 		if (*p == '[') {
 			p++;
 
@@ -3909,11 +4348,12 @@ static struct filed *cfline(char *line, const char *prog, const char *host, char
 		if (bp)
 			*bp++ = 0;
 		else
-			bp = "514"; /* default: 514/udp */
+			bp = "514";
 
 		strlcpy(f->f_un.f_forw.f_hname, p, sizeof(f->f_un.f_forw.f_hname));
 		strlcpy(f->f_un.f_forw.f_serv, bp, sizeof(f->f_un.f_forw.f_serv));
-		logit("forwarding host: '%s:%s'\n", p, bp);
+		logit("forwarding host: '%s:%s/%s'\n", p, bp,
+		      f->f_un.f_forw.f_tcp ? "tcp" : "udp");
 		forw_lookup(f);
 		break;
 
@@ -3964,11 +4404,14 @@ static struct filed *cfline(char *line, const char *prog, const char *host, char
 		f->f_type = F_USERS;
 		break;
 	}
+tcp_done:
 
 	/* Set default log format, unless format was already specified */
 	switch (f->f_type) {
 	case F_FORW:
 	case F_FORW_UNKN:
+	case F_FORW_TCP:
+	case F_FORW_TCP_UNKN:
 		/* Remote syslog defaults to BSD style, i.e. no timestamp or hostname */
 		break;
 

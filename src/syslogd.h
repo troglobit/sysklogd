@@ -223,6 +223,9 @@
 #define F_FORW_SUSP       7   /* suspended host forwarding */
 #define F_FORW_UNKN       8   /* unknown host forwarding */
 #define F_PIPE            9   /* named pipe */
+#define F_FORW_TCP       10   /* TCP forwarding (connected) */
+#define F_FORW_TCP_SUSP  11   /* TCP forwarding (suspended/error) */
+#define F_FORW_TCP_UNKN  12   /* TCP forwarding (DNS unresolved) */
 
 /*
  * Struct to hold property-based filters
@@ -264,6 +267,7 @@ struct peer {
 	mode_t		 pe_mode;
 	int		 pe_sock[16];
 	size_t		 pe_socknum;
+	int		 pe_tcp;	/* 1=TCP listener, 0=UDP */
 };
 
 /*
@@ -330,6 +334,8 @@ struct filed {
 			char f_hname[MAXHOSTNAMELEN + 1];
 			char f_serv[20];
 			struct addrinfo *f_addr;
+			int  f_tcp;       /* 1=TCP, 0=UDP */
+			int  f_tcp_sd;    /* persistent TCP socket, -1 if not connected */
 		} f_forw; /* forwarding address */
 		char f_fname[MAXFNAME];
 	} f_un;
