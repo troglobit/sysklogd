@@ -88,6 +88,8 @@ SELECTOR := [SELECTOR;]facility[,facility].[!=]severity
 ACTION   := /path/to/file
          |= |/path/to/named/pipe
 	 |= @remote[.host.tld][:PORT]
+	 |= @@remote[.host.tld][:PORT]
+	 |= tcp://remote[.host.tld][:PORT]
 OPTION   := [OPTION,]
 	 |= RFC3164
 	 |= RFC5424
@@ -106,7 +108,7 @@ secure_mode [0,1,2]
 rotate_size  SIZE
 rotate_count NUMBER
 
-listen [address:port[%iface] | :port | address[%iface]]
+listen [address:port[%iface] | :port | address[%iface] | tcp://address:port]
 
 include /etc/syslog.d/*.conf
 notify  /path/to/script-on-rotate
@@ -318,7 +320,7 @@ secure_mode 1
 .Ed
 .Pp
 The
-.Ql listen Op Ar address:port[%iface] | address[%iface] | :port
+.Ql listen Op Ar address:port[%iface] | address[%iface] | :port | tcp://address:port
 option is the same as the
 .Nm syslogd Fl b Ar addr[:port][%iface]
 command line option.  Like its counterpart it has no effect unless the
@@ -335,6 +337,14 @@ reports on the network.  The optional
 syntax is for multicast groups, it allows joining a group on a given
 interface (by name).  If the interface is omitted the routing table is
 used, which often is not desirable for multicast.
+.Pp
+To listen for incoming TCP syslog connections, prefix the address with
+.Ql tcp:// .
+For example,
+.Ql listen tcp://[::]:1514
+listens on all interfaces, port 1514, for TCP connections.  Both
+RFC 6587 octet counting and non-transparent (LF-delimited) framing
+are supported on incoming TCP connections.
 .Pp
 The
 .Ql notify <PATH>
@@ -541,11 +551,20 @@ with
 .Ss Remote Machine
 Full remote logging support is available in
 .Nm syslogd ,
-i.e. to send messages to a remote syslog server, and and to receive
-messages from remote hosts.  To forward messages to another host,
-prepend the hostname with the at sign ('@').  If a port number is added
+i.e. to send messages to a remote syslog server, and to receive
+messages from remote hosts.  To forward messages to another host
+over UDP, prepend the hostname with the at sign ('@').  For TCP
+forwarding, use a double at sign ('@@') or the
+.Ql tcp://
+URL syntax.  If a port number is added
 after a colon (':') then that port will be used as the destination port
 rather than the usual syslog port.
+.Pp
+TCP forwarding uses RFC 6587 octet counting for framing.  On the
+receiving side, both octet counting and non-transparent (LF-delimited)
+framing are supported.  To listen for TCP connections, use
+.Ql listen tcp://address:port
+in the configuration file.
 .Pp
 This feature makes it possible to collect all syslog messages in a
 network on a central host.  This reduces administration needs and
@@ -954,6 +973,25 @@ messages will egress
 *.*                @sibelius:5514  ;RFC3164
 *.*                @225.1.2.3      ;RFC3164,ttl=10
 *.*                @225.1.2.4      ;RFC5424,iface=eth2,ttl=3
+.Ed
+.Ss Logging to Remote Syslog Server via TCP
+TCP forwarding can be configured using either the
+.Ql @@
+prefix or the
+.Ql tcp://
+URL syntax.  Messages are framed using RFC 6587 octet counting.
+To receive TCP connections, use
+.Ql listen tcp://
+in the configuration.
+.Bd -literal -offset indent
+# Forward to remote host via TCP
+*.*                @@loghost:1514   ;RFC5424
+
+# Same using tcp:// URL syntax
+*.*                tcp://loghost:1514  ;RFC5424
+
+# Listen for incoming TCP syslog connections
+listen tcp://[::]:1514
 .Ed
 .Pp
 .Sy Note:

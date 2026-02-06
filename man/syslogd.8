@@ -615,12 +615,16 @@ kernel log device
 support both RFC3164 and RFC5424, as well as the pre-RFC BSD logging
 support.  It also supports RFC5426, the command line option
 .Fl M Ar length
-can be used to ensure no fragmentation occurs.
+can be used to ensure no fragmentation occurs.  TCP transport is
+supported per RFC6587, using octet counting for framing when sending
+and both octet counting and non-transparent (LF-delimited) framing
+when receiving.
 .Pp
 .Bl -tag -width RFC3164 -compact
 .It Lk https://datatracker.ietf.org/doc/html/rfc3164 RFC3164
 .It Lk https://datatracker.ietf.org/doc/html/rfc5424 RFC5424
 .It Lk https://datatracker.ietf.org/doc/html/rfc5426 RFC5426
+.It Lk https://datatracker.ietf.org/doc/html/rfc6587 RFC6587
 .El
 .Sh HISTORY
 .Nm
@@ -658,9 +662,9 @@ The
 utility first appeared in
 .Bx 4.3 .
 .Sh BUGS
-The ability to log messages received in UDP packets is equivalent to an
-unauthenticated remote disk-filling service, and should probably be
-disabled
+The ability to log messages received in UDP or TCP packets is equivalent
+to an unauthenticated remote disk-filling service, and should probably
+be disabled
 .Fl ( s )
 by default.  (The shipped systemd unit file disables this by default.)
 See also
