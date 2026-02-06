@@ -4,6 +4,22 @@ Change Log
 All relevant changes to the project are documented in this file.
 
 
+[UNRELEASED][]
+-----------------------
+
+### Changes
+- Add TCP transport for syslog forwarding per RFC 6587.  Two syntaxes
+  supported for forwarding: `@@host:port` and `tcp://host:port`.  For
+  receiving: `listen tcp://addr:port`.  Uses octet counting framing
+  for sending, supports both octet counting and LF-delimited framing
+  for receiving
+
+### Fixes
+- Fix use-after-free in socket polling when callbacks close sockets
+  during iteration.  Could cause undefined behavior when handling
+  multiple concurrent TCP connections
+
+
 [v2.7.2][] - 2025-03-31
 -----------------------
 
@@ -692,7 +708,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.7.1...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.7.2...HEAD
 [v2.7.2]:     https://github.com/troglobit/sysklogd/compare/v2.7.1...v2.7.2
 [v2.7.1]:     https://github.com/troglobit/sysklogd/compare/v2.7.0...v2.7.1
 [v2.7.0]:     https://github.com/troglobit/sysklogd/compare/v2.6.2...v2.7.0
