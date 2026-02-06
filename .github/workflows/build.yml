@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install tree tshark valgrind
+          sudo apt-get -y install tree tshark valgrind libssl-dev
       - uses: actions/checkout@v4
       - name: Configure
         run: |
@@ -35,7 +35,7 @@ jobs:
           ./autogen.sh
           mkdir -p build/dir
           cd build/dir
-          ../../configure --prefix=/tmp --with-systemd=/tmp/lib/systemd/system
+          ../../configure --prefix=/tmp --with-systemd=/tmp/lib/systemd/system --with-openssl
           chmod -R a+w .
       - name: Build
         run: |
