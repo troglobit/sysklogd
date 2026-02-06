@@ -95,6 +95,7 @@ static char sccsid[] __attribute__((unused)) =
 #include "socket.h"
 #include "timer.h"
 #include "compat.h"
+#include "sign.h"
 
 #ifndef MIN
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
@@ -206,6 +207,13 @@ static char *secure_str;		  /* string value of secure_mode  */
 static char *rotate_sz_str;		  /* string value of RotateSz     */
 static char *rotate_cnt_str;		  /* string value of RotateCnt    */
 
+#ifdef HAVE_OPENSSL
+static char *sign_sg_str;		  /* RFC 5848 signature group mode */
+static char *sign_delim_str;		  /* RFC 5848 SG=2 priority delims */
+static char *sign_keyfile_str;		  /* RFC 5848 private key file     */
+static char *sign_certfile_str;		  /* RFC 5848 certificate file     */
+#endif
+
 /* Function prototypes. */
 static int  allowaddr(char *s);
 void        untty(void);
@@ -269,6 +277,12 @@ const struct cfkey {
 	{ "rotate_size",  &rotate_sz_str,  NULL, NULL             },
 	{ "rotate_count", &rotate_cnt_str, NULL, NULL             },
 	{ "secure_mode",  &secure_str,     NULL, NULL             },
+#ifdef HAVE_OPENSSL
+	{ "sign_sg",        &sign_sg_str,       NULL, NULL        },
+	{ "sign_delim_sg2", &sign_delim_str,    NULL, NULL        },
+	{ "sign_keyfile",   &sign_keyfile_str,  NULL, NULL        },
+	{ "sign_certfile",  &sign_certfile_str, NULL, NULL        },
+#endif
 };
 
 /*
@@ -2387,6 +2401,12 @@ static void logmsg(struct buf_msg *buffer)
 			strlcpy(f->f_prevhost, buffer->hostname, sizeof(f->f_prevhost));
 			strlcpy(f->f_prevline, saved, sizeof(f->f_prevline));
 			f->f_prevlen = savedlen;
+
+#ifdef HAVE_OPENSSL
+			/* RFC 5848: compute and store hash for signing */
+			if (sign_enabled())
+				sign_msg_hash(buffer, f);
+#endif
 			fprintlog_first(f, buffer);
 		}
 	}
@@ -3393,6 +3413,11 @@ void die(int signo)
 		flog(LOG_SYSLOG | LOG_INFO, "exiting on signal %d", signo);
 	}
 
+#ifdef HAVE_OPENSSL
+	/* RFC 5848: send final signature blocks and cleanup */
+	sign_exit();
+#endif
+
 	/*
 	 * Stop all active timers
 	 */
@@ -3733,6 +3758,13 @@ static void init(void)
 	}
 
 	Initialized = 1;
+
+#ifdef HAVE_OPENSSL
+	/* Initialize RFC 5848 message signing if configured */
+	if (sign_config(sign_sg_str, sign_delim_str, sign_keyfile_str,
+			sign_certfile_str) == 0)
+		sign_init();
+#endif
 
 	flog(LOG_SYSLOG | LOG_INFO, "syslogd v" VERSION ": restart.");
 	logit("syslogd: restarted.\n");

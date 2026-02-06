@@ -39,9 +39,16 @@ AM_CPPFLAGS           = -DSYSCONFDIR=\"@sysconfdir@\" -DRUNSTATEDIR=\"@runstated
 AM_CPPFLAGS          += -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_GNU_SOURCE
 
 syslogd_SOURCES       = syslogd.c syslogd.h socket.c socket.h syslog.h
-syslogd_SOURCES      += timer.c timer.h queue.h compat.h
+syslogd_SOURCES      += timer.c timer.h queue.h compat.h sign.h
 syslogd_CPPFLAGS      = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
 syslogd_LDADD         = $(LIBS) $(LIBOBJS)
+
+# RFC 5848 Signed Syslog Messages (optional OpenSSL support)
+if ENABLE_SIGN
+syslogd_SOURCES      += sign.c
+syslogd_CFLAGS        = $(AM_CFLAGS) $(OPENSSL_CFLAGS)
+syslogd_LDADD        += $(OPENSSL_LIBS)
+endif
 
 logger_SOURCES        = logger.c syslog.h
 logger_CPPFLAGS       = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600

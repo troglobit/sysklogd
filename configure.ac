@@ -87,6 +87,23 @@ AC_ARG_WITH(logger,
 AS_IF([test "x$logger" != "xno"], with_logger="yes", with_logger="no")
 AM_CONDITIONAL([ENABLE_LOGGER], [test "x$with_logger" != "xno"])
 
+# Optional OpenSSL support for RFC 5848 signed syslog messages
+AC_ARG_WITH([openssl],
+     AS_HELP_STRING([--with-openssl], [Enable RFC 5848 signed syslog messages (requires OpenSSL)]),
+     [], [with_openssl=no])
+
+AS_IF([test "x$with_openssl" != "xno"], [
+     PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.0], [
+          AC_DEFINE([HAVE_OPENSSL], [1], [Define if OpenSSL is available for RFC 5848 signing])
+          have_openssl=yes
+     ], [
+          AS_IF([test "x$with_openssl" = "xyes"],
+               [AC_MSG_ERROR([OpenSSL >= 1.1.0 requested but not found])])
+          have_openssl=no
+     ])
+], [have_openssl=no])
+AM_CONDITIONAL([ENABLE_SIGN], [test "x$have_openssl" = "xyes"])
+
 AS_IF([test "x$dns_delay" != "xno"],[
 	AS_IF([test "x$dns_delay" = "xyes"],[
 		AC_MSG_ERROR([Must supply argument])])
@@ -149,6 +166,7 @@ cat <<EOF
   dns retry delay: $dns_delay sec
   suspend time...: $suspend_time sec
   systemd........: $with_systemd
+  RFC5848 signing: $have_openssl
 
 ------------- Compiler version --------------
 $($CC --version || true)
