@@ -3,7 +3,7 @@ EXTRA_DIST      += api.sh local.sh unicode.sh remote.sh fwd.sh mark.sh      \
 		   memleak.sh facility.sh notify.sh rotate_all.sh secure.sh \
 		   logger.sh listen.sh sighup.sh tag.sh hostname.sh	    \
 		   property.sh raw.sh regression.sh multicast.sh	    \
-		   mcast-fwd.sh mcast-iface.sh parens.sh tcp-fwd.sh
+		   mcast-fwd.sh mcast-iface.sh parens.sh tcp-fwd.sh sign.sh
 CLEANFILES       = *~ *.trs *.log
 TEST_EXTENSIONS  = .sh
 TESTS_ENVIRONMENT= unshare -mrun --map-auto
@@ -39,5 +39,8 @@ TESTS           += multicast.sh
 TESTS           += mcast-fwd.sh
 TESTS           += mcast-iface.sh
 TESTS           += tcp-fwd.sh
+if ENABLE_SIGN
+TESTS           += sign.sh
+endif
 
 programs: $(check_PROGRAMS)
