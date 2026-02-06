@@ -13,6 +13,11 @@ All relevant changes to the project are documented in this file.
   receiving: `listen tcp://addr:port`.  Uses octet counting framing
   for sending, supports both octet counting and LF-delimited framing
   for receiving
+- Add optional RFC 5848 signed syslog message support.  Requires
+  OpenSSL and `./configure --with-openssl`.  New config options:
+  `sign_sg`, `sign_delim_sg2`, `sign_keyfile`, `sign_certfile`.
+  Provides cryptographic signing of messages for origin authentication,
+  message integrity, and replay resistance
 
 ### Fixes
 - Fix use-after-free in socket polling when callbacks close sockets
