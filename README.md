@@ -13,34 +13,38 @@
 Table of Contents
 -----------------
 
-* [Introduction](#introduction)
-* [Using -lsyslog](#using--lsyslog)
-* [Build & Install](#build--install)
-* [Building from GIT](#building-from-git)
-* [Origin & References](#origin--references)
+- [Introduction](#introduction)
+- [Using -lsyslog](#using--lsyslog)
+- [Build & Install](#build--install)
+- [Building from GIT](#building-from-git)
+- [Origin & References](#origin--references)
 
-> **Tip:** the Gentoo project has a very nice article detailing sysklogd
+> [!TIP]
+> The Gentoo project has a very nice article detailing sysklogd
 > ➤ <https://wiki.gentoo.org/wiki/Sysklogd>
-
 
 Introduction
 ------------
 
-This is the continuation of the original Debian/Ubuntu syslog daemon,
-updated with full [RFC3164][] and [RFC5424][] support from NetBSD and
-FreeBSD.  The package includes the `libsyslog.{a,so}` library with a
-`syslog.h` header replacement, the `syslogd` daemon, and a command
-line tool called `logger`.
+This is the continuation of the original Debian/Ubuntu syslog daemon, updated to
+full RFC compliance according to syslog standards [RFC3164][] and [RFC5424][],
+derived from NetBSD and FreeBSD.  It also supports TCP ([RFC6587][]) and TLS
+encrypted transport ([RFC5425][]), as well as cryptographically signed log
+messages ([RFC5848][]).
 
-- https://man.troglobit.com/man1/logger.1.html
-- https://man.troglobit.com/man8/syslogd.8.html
-- https://man.troglobit.com/man5/syslog.conf.5.html
+The package includes the `libsyslog.{a,so}` library with a `syslog.h` header
+replacement, the `syslogd` daemon, and a command line tool called `logger`.
+`libsyslog` and `syslog/syslog.h` are derived directly from NetBSD and expose
+`syslogp()` and other new features available only in [RFC5424][] (not yet
+available in GLIBC).
 
-`libsyslog` and `syslog/syslog.h`, derived directly from NetBSD, expose
-`syslogp()` and other new features available only in [RFC5424][]:
+Read more about each component and the APIs:
 
-- https://man.troglobit.com/man3/syslogp.3.html
-- https://netbsd.gw.com/cgi-bin/man-cgi?syslog+3+NetBSD-current
+- <https://man.troglobit.com/man1/logger.1.html>
+- <https://man.troglobit.com/man8/syslogd.8.html>
+- <https://man.troglobit.com/man5/syslog.conf.5.html>
+- <https://man.troglobit.com/man3/syslogp.3.html>
+- <https://netbsd.gw.com/cgi-bin/man-cgi?syslog+3+NetBSD-current>
 
 The `syslogd` daemon is an enhanced version of the standard Berkeley
 utility program, updated with DNA from FreeBSD.  It provides logging of
@@ -88,6 +92,9 @@ Main differences from the original sysklogd package are:
 - Touch PID file on `SIGHUP`, for integration with [Finit][]
 - GNU configure & build system to ease porting/cross-compiling
 - Support for configuring remote syslog timeout
+- Support for [RFC6587][] TCP syslog transport, for sender and receiver
+- Support for [RFC5425][] TLS encrypted syslog transport (only if built with OpenSSL support)
+- Support for [RFC5848][] cryptographically signed log messages (only if built with OpenSSL support)
 
 Please file bug reports, or send pull requests for bug fixes and/or
 proposed extensions at [GitHub][Home].
@@ -208,6 +215,9 @@ now [3-clause BSD][BSD License] licensed.
 
 [RFC3164]:          https://tools.ietf.org/html/rfc3164
 [RFC5424]:          https://tools.ietf.org/html/rfc5424
+[RFC5425]:          https://tools.ietf.org/html/rfc5425
+[RFC5848]:          https://tools.ietf.org/html/rfc5848
+[RFC6587]:          https://tools.ietf.org/html/rfc6587
 [Martin Schulze]:   http://www.infodrom.org/projects/sysklogd/
 [Joachim Wiberg]:   https://troglobit.com
 [Finit]:            https://github.com/troglobit/finit
