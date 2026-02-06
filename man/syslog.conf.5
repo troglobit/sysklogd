@@ -371,6 +371,69 @@ has the following at the end:
 #
 include /etc/syslog.d/*.conf
 .Ed
+.Sh SIGNED SYSLOG MESSAGES
+When compiled with OpenSSL support
+.Pq Fl -with-openssl ,
+.Nm syslogd
+can generate cryptographically signed syslog messages per RFC 5848.
+This provides origin authentication, message integrity verification,
+replay resistance, and detection of missing messages.
+.Pp
+.Bl -tag -width "sign_delim_sg2" -compact
+.It Ql sign_sg Ar mode
+Enable signing with the specified signature group mode:
+.Pp
+.Bl -tag -compact -width "0" -offset indent
+.It 0
+Single signature group for all messages (default)
+.It 1
+One signature group per priority level (192 groups maximum)
+.It 2
+Signature groups for priority ranges, using delimiters
+.It 3
+One signature group per destination (NetBSD extension)
+.El
+.Pp
+.It Ql sign_delim_sg2 Ar delimiters
+Space-separated priority values defining group boundaries for
+.Ql sign_sg=2
+mode.
+Default is one group per facility.
+.Pp
+.It Ql sign_keyfile Ar path
+Path to PEM-encoded private key file for signing messages.
+This option is required to enable signing.
+.Pp
+.It Ql sign_certfile Ar path
+Path to PEM-encoded X.509 certificate file.
+Optional; used for certificate block transmission to receivers.
+.El
+.Pp
+Example configuration:
+.Bd -literal -offset indent
+# Enable signing with global signature group
+sign_sg        0
+sign_keyfile   /etc/syslog.d/syslog.key
+sign_certfile  /etc/syslog.d/syslog.cert
+.Ed
+.Pp
+Signature blocks (SD-ID:
+.Ql ssign )
+are sent periodically (every 30 seconds by default) and contain
+SHA-256 hashes of recent messages along with a digital signature.
+Certificate blocks (SD-ID:
+.Ql ssign-cert )
+are sent at startup and periodically to distribute the public key
+to receivers.
+.Pp
+.Sy Note:
+generating keys requires OpenSSL:
+.Bd -literal -offset indent
+openssl genrsa -out /etc/syslog.d/syslog.key 2048
+openssl req -new -x509 -key /etc/syslog.d/syslog.key \\
+    -out /etc/syslog.d/syslog.cert -days 365 -subj "/CN=syslog"
+chmod 600 /etc/syslog.d/syslog.key
+.Ed
 .Pp
 Note that if you use spaces as separators, your
 .Nm

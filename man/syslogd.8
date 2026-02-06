@@ -620,10 +620,18 @@ supported per RFC6587, using octet counting for framing when sending
 and both octet counting and non-transparent (LF-delimited) framing
 when receiving.
 .Pp
+When compiled with OpenSSL support,
+.Nm
+also supports RFC5848 for cryptographically signed syslog messages.
+See
+.Xr syslog.conf 5
+for configuration details.
+.Pp
 .Bl -tag -width RFC3164 -compact
 .It Lk https://datatracker.ietf.org/doc/html/rfc3164 RFC3164
 .It Lk https://datatracker.ietf.org/doc/html/rfc5424 RFC5424
 .It Lk https://datatracker.ietf.org/doc/html/rfc5426 RFC5426
+.It Lk https://datatracker.ietf.org/doc/html/rfc5848 RFC5848
 .It Lk https://datatracker.ietf.org/doc/html/rfc6587 RFC6587
 .El
 .Sh HISTORY
