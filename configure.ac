@@ -102,7 +102,7 @@ AS_IF([test "x$with_openssl" != "xno"], [
           have_openssl=no
      ])
 ], [have_openssl=no])
-AM_CONDITIONAL([ENABLE_SIGN], [test "x$have_openssl" = "xyes"])
+AM_CONDITIONAL([ENABLE_SSL], [test "x$have_openssl" = "xyes"])
 
 AS_IF([test "x$dns_delay" != "xno"],[
 	AS_IF([test "x$dns_delay" = "xyes"],[

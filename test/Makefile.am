@@ -39,7 +39,7 @@ TESTS           += multicast.sh
 TESTS           += mcast-fwd.sh
 TESTS           += mcast-iface.sh
 TESTS           += tcp-fwd.sh
-if ENABLE_SIGN
+if ENABLE_SSL
 TESTS           += sign.sh
 endif
 

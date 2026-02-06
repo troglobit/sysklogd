@@ -226,6 +226,9 @@
 #define F_FORW_TCP       10   /* TCP forwarding (connected) */
 #define F_FORW_TCP_SUSP  11   /* TCP forwarding (suspended/error) */
 #define F_FORW_TCP_UNKN  12   /* TCP forwarding (DNS unresolved) */
+#define F_FORW_TLS       13   /* TLS forwarding (connected) */
+#define F_FORW_TLS_SUSP  14   /* TLS forwarding (suspended/error) */
+#define F_FORW_TLS_UNKN  15   /* TLS forwarding (DNS unresolved) */
 
 /*
  * Struct to hold property-based filters
@@ -256,6 +259,22 @@ struct prop_filter {
 };
 
 /*
+ * TCP client connections for receive side (RFC 6587, RFC 5425)
+ */
+struct tcp_conn {
+	LIST_ENTRY(tcp_conn) tc_link;
+	int    tc_sd;
+	char   tc_buf[MAXLINE + 64];  /* reassembly buffer */
+	size_t tc_len;
+	char   tc_hname[NI_MAXHOST];
+	size_t tc_hname_len;
+#ifdef HAVE_OPENSSL
+	void  *tc_ssl;                /* SSL connection (cast to SSL*) */
+	int    tc_tls_handshake;      /* 1 if handshake in progress */
+#endif
+};
+
+/*
  * Struct to hold records of peers and sockets
  */
 struct peer {
@@ -268,6 +287,7 @@ struct peer {
 	int		 pe_sock[16];
 	size_t		 pe_socknum;
 	int		 pe_tcp;	/* 1=TCP listener, 0=UDP */
+	int		 pe_tls;	/* 1=TLS listener, 0=plain */
 };
 
 /*
@@ -336,6 +356,14 @@ struct filed {
 			struct addrinfo *f_addr;
 			int  f_tcp;       /* 1=TCP, 0=UDP */
 			int  f_tcp_sd;    /* persistent TCP socket, -1 if not connected */
+			/* TLS fields (RFC 5425) */
+			int   f_tls;               /* 1=TLS enabled */
+			void *f_ssl;               /* SSL connection (cast to SSL*) */
+			int   f_tls_handshake;     /* 1=handshake in progress */
+			int   f_tls_verify;        /* TLS_VERIFY_* mode */
+			char *f_tls_fingerprint;   /* Expected server fingerprint */
+			char *f_tls_keyfile;       /* Client key (mutual auth) */
+			char *f_tls_certfile;      /* Client cert (mutual auth) */
 		} f_forw; /* forwarding address */
 		char f_fname[MAXFNAME];
 	} f_un;

@@ -96,6 +96,7 @@ static char sccsid[] __attribute__((unused)) =
 #include "timer.h"
 #include "compat.h"
 #include "sign.h"
+#include "tls.h"
 
 #ifndef MIN
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
@@ -126,20 +127,11 @@ static char *TypeNames[] = {
 	"UNUSED",        "FILE",  "TTY",  "CONSOLE",
 	"FORW",          "USERS", "WALL", "FORW(SUSPENDED)",
 	"FORW(UNKNOWN)", "PIPE",
-	"FORW_TCP",      "FORW_TCP(SUSPENDED)", "FORW_TCP(UNKNOWN)"
+	"FORW_TCP",      "FORW_TCP(SUSPENDED)", "FORW_TCP(UNKNOWN)",
+	"FORW_TLS",      "FORW_TLS(SUSPENDED)", "FORW_TLS(UNKNOWN)"
 };
 
-/*
- * TCP client connections for receive side (RFC 6587)
- */
-struct tcp_conn {
-	LIST_ENTRY(tcp_conn) tc_link;
-	int    tc_sd;
-	char   tc_buf[MAXLINE + 64];  /* reassembly buffer */
-	size_t tc_len;
-	char   tc_hname[NI_MAXHOST];
-	size_t tc_hname_len;
-};
+/* TCP client connections list (struct tcp_conn is in syslogd.h) */
 static LIST_HEAD(, tcp_conn) tcp_clients = LIST_HEAD_INITIALIZER(tcp_clients);
 
 static SIMPLEQ_HEAD(files, filed) fhead = SIMPLEQ_HEAD_INITIALIZER(fhead);
@@ -212,6 +204,11 @@ static char *sign_sg_str;		  /* RFC 5848 signature group mode */
 static char *sign_delim_str;		  /* RFC 5848 SG=2 priority delims */
 static char *sign_keyfile_str;		  /* RFC 5848 private key file     */
 static char *sign_certfile_str;		  /* RFC 5848 certificate file     */
+static char *tls_keyfile_str;		  /* RFC 5425 server private key   */
+static char *tls_certfile_str;		  /* RFC 5425 server certificate   */
+static char *tls_cafile_str;		  /* RFC 5425 CA certificate file  */
+static char *tls_capath_str;		  /* RFC 5425 CA certificate dir   */
+static char *tls_verify_str;		  /* RFC 5425 verification mode    */
 #endif
 
 /* Function prototypes. */
@@ -261,6 +258,8 @@ static void tcp_read_cb(int sd, void *arg);
 static void tcp_conn_close(struct tcp_conn *tc);
 static void tcp_close_all(void);
 static int  create_inet_tcp_socket(struct peer *pe);
+static int  create_inet_tls_socket(struct peer *pe);
+static void tls_connect_forw(struct filed *f);
 
 /*
  * Configuration file keywords, variables, and optional callbacks
@@ -282,6 +281,11 @@ const struct cfkey {
 	{ "sign_delim_sg2", &sign_delim_str,    NULL, NULL        },
 	{ "sign_keyfile",   &sign_keyfile_str,  NULL, NULL        },
 	{ "sign_certfile",  &sign_certfile_str, NULL, NULL        },
+	{ "tls_keyfile",    &tls_keyfile_str,   NULL, NULL        },
+	{ "tls_certfile",   &tls_certfile_str,  NULL, NULL        },
+	{ "tls_cafile",     &tls_cafile_str,    NULL, NULL        },
+	{ "tls_capath",     &tls_capath_str,    NULL, NULL        },
+	{ "tls_verify",     &tls_verify_str,    NULL, NULL        },
 #endif
 };
 
@@ -330,7 +334,7 @@ static int addpeer(struct peer *pe0)
 		     (pe->pe_serv != NULL && pe0->pe_serv != NULL && strcmp(pe->pe_serv, pe0->pe_serv) == 0)) &&
 		    ((pe->pe_iface == NULL && pe0->pe_iface == NULL) ||
 		     (pe->pe_iface != NULL && pe0->pe_iface != NULL && strcmp(pe->pe_iface, pe0->pe_iface) == 0)) &&
-		    pe->pe_tcp == pe0->pe_tcp) {
+		    pe->pe_tcp == pe0->pe_tcp && pe->pe_tls == pe0->pe_tls) {
 			/* do not overwrite command line options */
 			if (pe->pe_mark == -1)
 				return -1;
@@ -1006,6 +1010,10 @@ static void tcp_parse_messages(struct tcp_conn *tc)
 static void tcp_conn_close(struct tcp_conn *tc)
 {
 	logit("TCP client %s disconnected (fd %d)\n", tc->tc_hname, tc->tc_sd);
+#ifdef HAVE_OPENSSL
+	if (tc->tc_ssl)
+		tls_conn_close(tc);
+#endif
 	socket_close(tc->tc_sd);
 	LIST_REMOVE(tc, tc_link);
 	free(tc);
@@ -1016,7 +1024,12 @@ static void tcp_read_cb(int sd, void *arg)
 	struct tcp_conn *tc = (struct tcp_conn *)arg;
 	ssize_t len;
 
-	len = read(sd, tc->tc_buf + tc->tc_len, sizeof(tc->tc_buf) - tc->tc_len);
+#ifdef HAVE_OPENSSL
+	if (tc->tc_ssl)
+		len = tls_read(tc, tc->tc_buf + tc->tc_len, sizeof(tc->tc_buf) - tc->tc_len);
+	else
+#endif
+		len = read(sd, tc->tc_buf + tc->tc_len, sizeof(tc->tc_buf) - tc->tc_len);
 	if (len <= 0) {
 		if (len < 0 && (errno == EINTR || errno == EAGAIN))
 			return;
@@ -1036,26 +1049,26 @@ static void tcp_accept_cb(int sd, void *arg)
 	char *hname;
 	size_t hname_len;
 	int csd;
+	int is_tls = (arg != NULL);  /* arg non-NULL indicates TLS listener */
 
-	(void)arg;
 	csd = accept4(sd, (struct sockaddr *)&ss, &sslen, SOCK_CLOEXEC | SOCK_NONBLOCK);
 	if (csd < 0) {
 		if (errno != EINTR && errno != EAGAIN)
-			ERR("TCP accept()");
+			ERR("%s accept()", is_tls ? "TLS" : "TCP");
 		return;
 	}
 
 	hname = cvthname((struct sockaddr *)&ss, sslen, &hname_len);
 	unmapped((struct sockaddr *)&ss);
 	if (!validate((struct sockaddr *)&ss, hname)) {
-		logit("TCP connection from %s was rejected.\n", hname);
+		logit("%s connection from %s was rejected.\n", is_tls ? "TLS" : "TCP", hname);
 		close(csd);
 		return;
 	}
 
 	tc = calloc(1, sizeof(*tc));
 	if (!tc) {
-		ERR("Failed allocating TCP client state");
+		ERR("Failed allocating %s client state", is_tls ? "TLS" : "TCP");
 		close(csd);
 		return;
 	}
@@ -1065,15 +1078,34 @@ static void tcp_accept_cb(int sd, void *arg)
 	tc->tc_hname_len = hname_len;
 	LIST_INSERT_HEAD(&tcp_clients, tc, tc_link);
 
+#ifdef HAVE_OPENSSL
+	/* Initiate TLS handshake for TLS listeners */
+	if (is_tls) {
+		int rc = tls_accept(tc);
+		if (rc < 0) {
+			ERRX("TLS handshake failed for %s", hname);
+			LIST_REMOVE(tc, tc_link);
+			close(csd);
+			free(tc);
+			return;
+		}
+		/* rc == 1 means handshake in progress, will continue in tcp_read_cb */
+	}
+#endif
+
 	if (socket_register(csd, NULL, tcp_read_cb, tc) < 0) {
-		ERR("Failed registering TCP client socket");
+		ERR("Failed registering %s client socket", is_tls ? "TLS" : "TCP");
+#ifdef HAVE_OPENSSL
+		if (tc->tc_ssl)
+			tls_conn_close(tc);
+#endif
 		LIST_REMOVE(tc, tc_link);
 		close(csd);
 		free(tc);
 		return;
 	}
 
-	logit("TCP client %s connected (fd %d)\n", hname, csd);
+	logit("%s client %s connected (fd %d)\n", is_tls ? "TLS" : "TCP", hname, csd);
 }
 
 static void tcp_close_all(void)
@@ -1155,6 +1187,91 @@ static int create_inet_tcp_socket(struct peer *pe)
 		return rc;
 
 	return 0;
+}
+
+static int create_inet_tls_socket(struct peer *pe)
+{
+#ifdef HAVE_OPENSSL
+	struct addrinfo *ai, *res;
+	int err, rc = 0;
+
+	if (!tls_enabled()) {
+		ERRX("TLS not configured, cannot create TLS listener %s:%s",
+		     pe->pe_name ?: "*", pe->pe_serv ?: "6514");
+		return 1;
+	}
+
+	if (pe->pe_socknum)
+		return 0;	/* Already set up */
+
+	err = nslookup(pe->pe_name, pe->pe_serv, SOCK_STREAM, &res);
+	if (err) {
+		ERRX("%s:%s/tls service unknown: %s", pe->pe_name ?: "*",
+		     pe->pe_serv ?: "6514", gai_strerror(err));
+		return 1;
+	}
+
+	for (ai = res; ai; ai = ai->ai_next) {
+		int sd, on = 1;
+
+		if (pe->pe_socknum + 1 >= NELEMS(pe->pe_sock)) {
+			WARN("Only %zd IP addresses per socket supported.", NELEMS(pe->pe_sock));
+			break;
+		}
+
+		sd = socket(ai->ai_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
+		if (sd < 0)
+			continue;
+
+		if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+			close(sd);
+			continue;
+		}
+
+		if (ai->ai_family == AF_INET6) {
+			if (setsockopt(sd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) < 0) {
+				close(sd);
+				continue;
+			}
+		}
+
+		if (bind(sd, ai->ai_addr, ai->ai_addrlen) < 0) {
+			WARN("Failed binding TLS socket %s:%s: %s",
+			     pe->pe_name ?: "*", pe->pe_serv ?: "6514", strerror(errno));
+			close(sd);
+			rc = 1;
+			continue;
+		}
+
+		if (listen(sd, 16) < 0) {
+			WARN("Failed listening on TLS socket %s:%s: %s",
+			     pe->pe_name ?: "*", pe->pe_serv ?: "6514", strerror(errno));
+			close(sd);
+			rc = 1;
+			continue;
+		}
+
+		/* Pass non-NULL arg to indicate TLS listener */
+		if (socket_register(sd, ai, tcp_accept_cb, (void *)1) < 0) {
+			close(sd);
+			rc = 1;
+			continue;
+		}
+
+		pe->pe_mode |= 01000;
+		NOTE("Opened TLS inet socket %s:%s", pe->pe_name ?: "*", pe->pe_serv ?: "6514");
+		pe->pe_sock[pe->pe_socknum++] = sd;
+	}
+
+	freeaddrinfo(res);
+	if (rc && pe->pe_socknum == 0)
+		return rc;
+
+	return 0;
+#else
+	ERRX("TLS support not compiled in");
+	return 1;
+#endif
 }
 
 /*
@@ -2747,6 +2864,82 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 		}
 		break;
 
+	case F_FORW_TLS_SUSP:
+		fwd_suspend = timer_now() - f->f_time;
+		if (fwd_suspend >= INET_SUSPEND_TIME) {
+			logit("\nTLS forwarding suspension over, retrying ");
+			f->f_type = F_FORW_TLS_UNKN;
+			goto f_forw_tls_unkn;
+		} else {
+			logit(" %s:%s/tls\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+			logit("TLS forwarding suspension not over, time left: %d.\n",
+			      (int)(INET_SUSPEND_TIME - fwd_suspend));
+		}
+		break;
+
+	case F_FORW_TLS_UNKN:
+		logit("\n");
+	f_forw_tls_unkn:
+		forw_lookup(f);
+		if (f->f_type == F_FORW_TLS)
+			goto f_forw_tls;
+		break;
+
+	case F_FORW_TLS:
+	f_forw_tls:
+		logit(" %s:%s/tls\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+		f->f_time = timer_now();
+
+#ifdef HAVE_OPENSSL
+		/* Reconnect if needed */
+		if (f->f_un.f_forw.f_tcp_sd < 0 || !f->f_un.f_forw.f_ssl) {
+			tls_connect_forw(f);
+			if (f->f_un.f_forw.f_tcp_sd < 0 || !f->f_un.f_forw.f_ssl)
+				break;
+		}
+
+		/* Flatten iov into buffer, no UDP truncation for TLS */
+		len = 0;
+		for (int i = 0; i < iovcnt; i++)
+			len += iov[i].iov_len;
+
+		{
+			char frame[32];
+			char buf[MAXLINE * 2];
+			ssize_t pos = 0, rc;
+			int flen;
+
+			/* Build message into buffer */
+			for (int i = 0; i < iovcnt && pos < (ssize_t)sizeof(buf); i++) {
+				size_t chunk = MIN(iov[i].iov_len, sizeof(buf) - pos);
+				memcpy(buf + pos, iov[i].iov_base, chunk);
+				pos += chunk;
+			}
+
+			/* RFC 6587 octet counting: "LEN SP MSG" */
+			flen = snprintf(frame, sizeof(frame), "%zd ", pos);
+
+			/* Send frame header + message via TLS */
+			rc = tls_write(f, frame, flen);
+			if (rc > 0)
+				rc = tls_write(f, buf, pos);
+
+			if (rc <= 0) {
+				ERR("TLS send(%s:%s)", f->f_un.f_forw.f_hname,
+				    f->f_un.f_forw.f_serv);
+				tls_forw_close(f);
+				close(f->f_un.f_forw.f_tcp_sd);
+				f->f_un.f_forw.f_tcp_sd = -1;
+				f->f_type = F_FORW_TLS_SUSP;
+				f->f_time = timer_now();
+			} else {
+				logit("Sent %zd bytes via TLS to %s:%s\n",
+				      pos, f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+			}
+		}
+#endif
+		break;
+
 	case F_CONSOLE:
 		f->f_time = timer_now();
 		if (flags & IGN_CONS) {
@@ -3216,7 +3409,8 @@ static void forw_lookup(struct filed *f)
 	char *host = f->f_un.f_forw.f_hname;
 	char *serv = f->f_un.f_forw.f_serv;
 	int is_tcp = f->f_un.f_forw.f_tcp;
-	int socktype = is_tcp ? SOCK_STREAM : SOCK_DGRAM;
+	int is_tls = f->f_un.f_forw.f_tls;
+	int socktype = (is_tcp || is_tls) ? SOCK_STREAM : SOCK_DGRAM;
 	struct addrinfo *ai;
 	time_t now, diff;
 	int err, first;
@@ -3225,7 +3419,12 @@ static void forw_lookup(struct filed *f)
 		if (f->f_un.f_forw.f_addr)
 			freeaddrinfo(f->f_un.f_forw.f_addr);
 		f->f_un.f_forw.f_addr = NULL;
-		f->f_type = is_tcp ? F_FORW_TCP_UNKN : F_FORW_UNKN;
+		if (is_tls)
+			f->f_type = F_FORW_TLS_UNKN;
+		else if (is_tcp)
+			f->f_type = F_FORW_TCP_UNKN;
+		else
+			f->f_type = F_FORW_UNKN;
 		return;
 	}
 
@@ -3246,7 +3445,12 @@ static void forw_lookup(struct filed *f)
 
 	err = nslookup(host, serv, socktype, &ai);
 	if (err) {
-		f->f_type = is_tcp ? F_FORW_TCP_UNKN : F_FORW_UNKN;
+		if (is_tls)
+			f->f_type = F_FORW_TLS_UNKN;
+		else if (is_tcp)
+			f->f_type = F_FORW_TCP_UNKN;
+		else
+			f->f_type = F_FORW_UNKN;
 		f->f_time = now;
 		if (!first)
 			WARN("Failed resolving '%s:%s': %s", host, serv, gai_strerror(err));
@@ -3256,7 +3460,10 @@ static void forw_lookup(struct filed *f)
 	f->f_un.f_forw.f_addr = ai;
 	f->f_prevcount = 0;
 
-	if (is_tcp) {
+	if (is_tls) {
+		f->f_type = F_FORW_TLS;
+		tls_connect_forw(f);
+	} else if (is_tcp) {
 		f->f_type = F_FORW_TCP;
 		tcp_connect(f);
 	} else {
@@ -3299,6 +3506,57 @@ static void tcp_connect(struct filed *f)
 	f->f_time = timer_now();
 }
 
+static void tls_connect_forw(struct filed *f)
+{
+#ifdef HAVE_OPENSSL
+	struct addrinfo *ai;
+	int sd, on = 1, rc;
+
+	/* Wait for TLS to be initialized (happens after cfparse) */
+	if (!tls_enabled())
+		return;
+
+	/* Close any existing TLS connection */
+	if (f->f_un.f_forw.f_ssl)
+		tls_forw_close(f);
+
+	if (f->f_un.f_forw.f_tcp_sd >= 0) {
+		close(f->f_un.f_forw.f_tcp_sd);
+		f->f_un.f_forw.f_tcp_sd = -1;
+	}
+
+	for (ai = f->f_un.f_forw.f_addr; ai; ai = ai->ai_next) {
+		sd = socket(ai->ai_family, SOCK_STREAM | SOCK_CLOEXEC, 0);
+		if (sd < 0)
+			continue;
+
+		if (connect(sd, ai->ai_addr, ai->ai_addrlen) == 0) {
+			setsockopt(sd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
+			f->f_un.f_forw.f_tcp_sd = sd;
+
+			/* Initiate TLS handshake */
+			rc = tls_connect(f);
+			if (rc < 0) {
+				close(sd);
+				f->f_un.f_forw.f_tcp_sd = -1;
+				continue;
+			}
+
+			logit("TLS connected to %s:%s on fd %d\n",
+			      f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv, sd);
+			return;
+		}
+		close(sd);
+	}
+
+	/* All addresses failed */
+	logit("TLS connect to %s:%s failed\n",
+	      f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+	f->f_type = F_FORW_TLS_SUSP;
+	f->f_time = timer_now();
+#endif
+}
+
 void domark(void *arg)
 {
 	flog(INTERNAL_MARK | LOG_INFO, "-- MARK --");
@@ -3317,6 +3575,11 @@ void doflush(void *arg)
 		if (f->f_type == F_FORW_TCP_UNKN) {
 			forw_lookup(f);
 			if (f->f_type != F_FORW_TCP)
+				continue;
+		}
+		if (f->f_type == F_FORW_TLS_UNKN) {
+			forw_lookup(f);
+			if (f->f_type != F_FORW_TLS)
 				continue;
 		}
 
@@ -3376,6 +3639,26 @@ static void close_open_log_files(void)
 				f->f_un.f_forw.f_addr = NULL;
 			}
 			break;
+
+		case F_FORW_TLS:
+		case F_FORW_TLS_SUSP:
+		case F_FORW_TLS_UNKN:
+#ifdef HAVE_OPENSSL
+			if (f->f_un.f_forw.f_ssl)
+				tls_forw_close(f);
+#endif
+			if (f->f_un.f_forw.f_tcp_sd >= 0) {
+				close(f->f_un.f_forw.f_tcp_sd);
+				f->f_un.f_forw.f_tcp_sd = -1;
+			}
+			if (f->f_un.f_forw.f_addr) {
+				freeaddrinfo(f->f_un.f_forw.f_addr);
+				f->f_un.f_forw.f_addr = NULL;
+			}
+			free(f->f_un.f_forw.f_tls_fingerprint);
+			free(f->f_un.f_forw.f_tls_keyfile);
+			free(f->f_un.f_forw.f_tls_certfile);
+			break;
 		}
 
 		if (f->f_iface)
@@ -3416,6 +3699,9 @@ void die(int signo)
 #ifdef HAVE_OPENSSL
 	/* RFC 5848: send final signature blocks and cleanup */
 	sign_exit();
+
+	/* RFC 5425: cleanup TLS */
+	tls_exit();
 #endif
 
 	/*
@@ -3610,7 +3896,9 @@ static void retry_init(void)
 		} else {
 			/* skip any marked for deletion */
 			if (SecureMode < 2) {
-				if (pe->pe_tcp)
+				if (pe->pe_tls)
+					fail |= create_inet_tls_socket(pe);
+				else if (pe->pe_tcp)
 					fail |= create_inet_tcp_socket(pe);
 				else
 					fail |= create_inet_socket(pe);
@@ -3764,6 +4052,11 @@ static void init(void)
 	if (sign_config(sign_sg_str, sign_delim_str, sign_keyfile_str,
 			sign_certfile_str) == 0)
 		sign_init();
+
+	/* Initialize RFC 5425 TLS transport if configured */
+	if (tls_config(tls_keyfile_str, tls_certfile_str,
+		       tls_cafile_str, tls_capath_str, tls_verify_str) == 0)
+		tls_init();
 #endif
 
 	flog(LOG_SYSLOG | LOG_INFO, "syslogd v" VERSION ": restart.");
@@ -3785,7 +4078,9 @@ static void init(void)
 			close_socket(pe);
 
 			if (SecureMode < 2) {
-				if (pe->pe_tcp)
+				if (pe->pe_tls)
+					fail |= create_inet_tls_socket(pe);
+				else if (pe->pe_tcp)
 					fail |= create_inet_tcp_socket(pe);
 				else
 					fail |= create_inet_socket(pe);
@@ -3845,6 +4140,12 @@ static void init(void)
 				printf("%s:%s/tcp", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
 				break;
 
+			case F_FORW_TLS:
+			case F_FORW_TLS_SUSP:
+			case F_FORW_TLS_UNKN:
+				printf("%s:%s/tls", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+				break;
+
 			case F_USERS:
 				for (int i = 0; i < MAXUNAMES && *f->f_un.f_uname[i]; i++)
 					printf("%s%s", i > 0 ? ", " : "", f->f_un.f_uname[i]);
@@ -3875,6 +4176,7 @@ static void cflisten(char *ptr, void *arg)
 	char *peer = ptr;
 	char *p, *port;
 	int   tcp = 0;
+	int   tls = 0;
 
 	while (*peer && isspace(*peer))
 		++peer;
@@ -3884,6 +4186,10 @@ static void cflisten(char *ptr, void *arg)
 	/* Detect tcp:// prefix for TCP listeners */
 	if (!strncmp(peer, "tcp://", 6)) {
 		tcp = 1;
+		peer += 6;
+	} else if (!strncmp(peer, "tls://", 6)) {
+		tls = 1;
+		tcp = 1;  /* TLS is built on TCP */
 		peer += 6;
 	}
 
@@ -3906,7 +4212,7 @@ static void cflisten(char *ptr, void *arg)
 		*port++ = 0;
 		p = port;
 	} else
-		port = "514";
+		port = tls ? "6514" : "514";  /* RFC 5425: TLS uses port 6514 */
 
 	ptr = strchr(p, '%');	/* only relevant for multicast */
 	if (ptr)
@@ -3918,6 +4224,7 @@ static void cflisten(char *ptr, void *arg)
 			.pe_iface = ptr,
 			.pe_mark = mark,
 			.pe_tcp = tcp,
+			.pe_tls = tls,
 		});
 }
 
@@ -3994,7 +4301,30 @@ static void cfopts(char *ptr, struct filed *f)
 			f->f_flags |= PRI;
 		} else if (cfopt(&opt, "rotate="))
 			cfrot(opt, f);
-		else
+		else if (cfopt(&opt, "verify=")) {
+			/* TLS verification mode: off, optional, required, hostname */
+			if (!strcasecmp(opt, "off") || !strcasecmp(opt, "no"))
+				f->f_un.f_forw.f_tls_verify = TLS_VERIFY_OFF;
+			else if (!strcasecmp(opt, "optional"))
+				f->f_un.f_forw.f_tls_verify = TLS_VERIFY_OPTIONAL;
+			else if (!strcasecmp(opt, "required") || !strcasecmp(opt, "on") || !strcasecmp(opt, "yes"))
+				f->f_un.f_forw.f_tls_verify = TLS_VERIFY_REQUIRED;
+			else if (!strcasecmp(opt, "hostname"))
+				f->f_un.f_forw.f_tls_verify = TLS_VERIFY_HOSTNAME;
+		} else if (cfopt(&opt, "fingerprint=")) {
+			/* TLS fingerprint verification */
+			free(f->f_un.f_forw.f_tls_fingerprint);
+			f->f_un.f_forw.f_tls_fingerprint = strdup(opt);
+			f->f_un.f_forw.f_tls_verify = TLS_VERIFY_FINGERPRINT;
+		} else if (cfopt(&opt, "tls_keyfile=")) {
+			/* TLS client key for mutual authentication */
+			free(f->f_un.f_forw.f_tls_keyfile);
+			f->f_un.f_forw.f_tls_keyfile = strdup(opt);
+		} else if (cfopt(&opt, "tls_certfile=")) {
+			/* TLS client certificate for mutual authentication */
+			free(f->f_un.f_forw.f_tls_certfile);
+			f->f_un.f_forw.f_tls_certfile = strdup(opt);
+		} else
 			cfrot(ptr, f); /* Compat v1.6 syntax */
 
 		opt = strtok(NULL, ";,");
@@ -4353,16 +4683,59 @@ static struct filed *cfline(char *line, const char *prog, const char *host, char
 		goto tcp_done;
 	}
 
+	/* Handle tls:// prefix before the switch (RFC 5425) */
+	if (!strncmp(p, "tls://", 6) || !strncmp(p, "tls4://", 7) || !strncmp(p, "tls6://", 7)) {
+		cfopts(p, f);
+		if (!strncmp(p, "tls6://", 7))
+			p += 7;
+		else if (!strncmp(p, "tls4://", 7))
+			p += 7;
+		else
+			p += 6;
+
+		if (*p == '[') {
+			p++;
+			q = strchr(p, ']');
+			if (!q) {
+				ERR("Invalid IPv6 address in tls:// target, missing ']'");
+				goto tcp_done;
+			}
+			*q++ = 0;
+			bp = strchr(q, ':');
+		} else
+			bp = strchr(p, ':');
+		if (bp)
+			*bp++ = 0;
+		else
+			bp = "6514";  /* RFC 5425 default port */
+
+		f->f_un.f_forw.f_tls = 1;
+		f->f_un.f_forw.f_tcp_sd = -1;
+		strlcpy(f->f_un.f_forw.f_hname, p, sizeof(f->f_un.f_forw.f_hname));
+		strlcpy(f->f_un.f_forw.f_serv, bp, sizeof(f->f_un.f_forw.f_serv));
+		logit("tls forwarding host: '%s:%s'\n", p, bp);
+		forw_lookup(f);
+		goto tcp_done;
+	}
+
 	switch (*p) {
 	case '@':
 		cfopts(p, f);
 		p++;
 
-		/* @@ = TCP forwarding */
+		/* @@ = TCP forwarding, @@@ = TLS forwarding */
 		if (*p == '@') {
-			f->f_un.f_forw.f_tcp = 1;
-			f->f_un.f_forw.f_tcp_sd = -1;
 			p++;
+			if (*p == '@') {
+				/* @@@ = TLS forwarding */
+				f->f_un.f_forw.f_tls = 1;
+				f->f_un.f_forw.f_tcp_sd = -1;
+				p++;
+			} else {
+				/* @@ = TCP forwarding */
+				f->f_un.f_forw.f_tcp = 1;
+				f->f_un.f_forw.f_tcp_sd = -1;
+			}
 		}
 
 		if (*p == '[') {
@@ -4380,12 +4753,12 @@ static struct filed *cfline(char *line, const char *prog, const char *host, char
 		if (bp)
 			*bp++ = 0;
 		else
-			bp = "514";
+			bp = f->f_un.f_forw.f_tls ? "6514" : "514";
 
 		strlcpy(f->f_un.f_forw.f_hname, p, sizeof(f->f_un.f_forw.f_hname));
 		strlcpy(f->f_un.f_forw.f_serv, bp, sizeof(f->f_un.f_forw.f_serv));
 		logit("forwarding host: '%s:%s/%s'\n", p, bp,
-		      f->f_un.f_forw.f_tcp ? "tcp" : "udp");
+		      f->f_un.f_forw.f_tls ? "tls" : (f->f_un.f_forw.f_tcp ? "tcp" : "udp"));
 		forw_lookup(f);
 		break;
 
@@ -4444,6 +4817,8 @@ tcp_done:
 	case F_FORW_UNKN:
 	case F_FORW_TCP:
 	case F_FORW_TCP_UNKN:
+	case F_FORW_TLS:
+	case F_FORW_TLS_UNKN:
 		/* Remote syslog defaults to BSD style, i.e. no timestamp or hostname */
 		break;
 

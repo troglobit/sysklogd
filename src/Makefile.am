@@ -43,9 +43,9 @@ syslogd_SOURCES      += timer.c timer.h queue.h compat.h sign.h
 syslogd_CPPFLAGS      = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
 syslogd_LDADD         = $(LIBS) $(LIBOBJS)
 
-# RFC 5848 Signed Syslog Messages (optional OpenSSL support)
-if ENABLE_SIGN
-syslogd_SOURCES      += sign.c
+# RFC 5848 Signed Syslog Messages + RFC 5425 TLS Transport (optional OpenSSL)
+if ENABLE_SSL
+syslogd_SOURCES      += sign.c tls.c tls.h
 syslogd_CFLAGS        = $(AM_CFLAGS) $(OPENSSL_CFLAGS)
 syslogd_LDADD        += $(OPENSSL_LIBS)
 endif
