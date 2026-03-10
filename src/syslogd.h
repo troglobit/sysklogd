@@ -192,6 +192,7 @@
 #define RFC3164   0x010  /* format log message according to RFC 3164 */
 #define RFC5424   0x020  /* format log message according to RFC 5424 */
 #define PRI       0x040  /* always print priority */
+#define STOP_FLAG 0x080  /* stop processing further rules after match */
 
 /* Syslog timestamp formats. */
 #define	BSDFMT_DATELEN	0

@@ -2526,6 +2526,9 @@ static void logmsg(struct buf_msg *buffer)
 #endif
 			fprintlog_first(f, buffer);
 		}
+
+		if (f->f_flags & STOP_FLAG)
+			break;
 	}
 
 	sigprocmask(SIG_UNBLOCK, &mask, NULL);
@@ -4153,9 +4156,9 @@ static void init(void)
 			}
 
 			if (f->f_program)
-				printf(" (%s)", f->f_program);
+				printf(" (%s%s)", (f->f_flags & STOP_FLAG) ? "!!" : "", f->f_program);
 			if (f->f_host)
-				printf(" [%s]", f->f_host);
+				printf(" [%s%s]", (f->f_flags & STOP_FLAG) ? "++" : "", f->f_host);
 
 			if (f->f_flags & RFC5424)
 				printf("\t;RFC5424");
@@ -4901,6 +4904,7 @@ static int cfparse(FILE *fp, struct files *newf)
 	char host[LINE_MAX] = "*";
 	char prog[LINE_MAX] = "*";
 	char cbuf[LINE_MAX];
+	int stop_block = 0;
 	struct filed *f;
 	char *cline;
 	char *p;
@@ -4933,11 +4937,20 @@ static int cfparse(FILE *fp, struct files *newf)
 		if (*p == '+' || *p == '-') {
 			host[i++] = *p++;
 
+			/* ++ means final block (like OpenBSD), - never final */
+			if (*p == '+') {
+				stop_block = 1;
+				p++;
+			} else {
+				stop_block = 0;
+			}
+
 			while (isblank(*p))
 				p++;
 
 			if (*p == '*') {
 				(void)strlcpy(host, "*", sizeof(host));
+				stop_block = 0;
 				continue;
 			}
 
@@ -4959,11 +4972,21 @@ static int cfparse(FILE *fp, struct files *newf)
 
 		if (*p == '!') {
 			p++;
+
+			/* !! means final block, matching OpenBSD syslogd */
+			if (*p == '!') {
+				stop_block = 1;
+				p++;
+			} else {
+				stop_block = 0;
+			}
+
 			while (isblank(*p))
 				p++;
 
 			if (*p == '\0' || *p == '*') {
 				(void)strlcpy(prog, "*", sizeof(prog));
+				stop_block = 0;
 				continue;
 			}
 
@@ -4978,10 +5001,20 @@ static int cfparse(FILE *fp, struct files *newf)
 
 		if (*p == ':') {
 			p++;
+
+			/* :: means final block, analogous to !! for programs */
+			if (*p == ':') {
+				stop_block = 1;
+				p++;
+			} else {
+				stop_block = 0;
+			}
+
 			while (isblank(*p))
 				p++;
 			if (!*p || *p == '*') {
 				strlcpy(pfilter, "*", sizeof(pfilter));
+				stop_block = 0;
 				continue;
 			}
 			strlcpy(pfilter, p, sizeof(pfilter));
@@ -5043,6 +5076,9 @@ static int cfparse(FILE *fp, struct files *newf)
 		f = cfline(cline, prog, host, pfilter);
 		if (!f)
 			continue;
+
+		if (stop_block)
+			f->f_flags |= STOP_FLAG;
 
 		SIMPLEQ_INSERT_TAIL(newf, f, f_link);
 	}

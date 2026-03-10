@@ -63,11 +63,14 @@ single backslash ('\\') character.
 .Pp
 .Bd -literal -offset indent
 PROGRAM  := !IDENT[,IDENT]
+         |= !!IDENT[,IDENT]
          |= !+IDENT[,IDENT]
 	 |= !-IDENT[,IDENT]
 HOSTNAME := +IDENT[,IDENT]
+         |= ++IDENT[,IDENT]
 	 |= -IDENT[,IDENT]
 PROPERTY := :PROP, [PREFIX]OPERATOR, "VALUE"
+         |= ::PROP, [PREFIX]OPERATOR, "VALUE"
 PROP     := hostname
 	 |= msg
          |= msgid
@@ -177,6 +180,16 @@ You can reset the program specification at any time using the
 syntax.  The program specification is also reset for each included .conf
 file.
 .Pp
+The
+.Ql !!prog
+form works like
+.Ql !prog
+but causes evaluation to stop after a matching rule in this block fires,
+ensuring no further rules are applied to that message.
+Use
+.Ql !*
+to cancel the effect and resume normal evaluation for subsequent blocks.
+.Pp
 A
 .Em hostname filter
 specification of the form
@@ -198,6 +211,16 @@ the local hostname will be used.  Similar to program specifications,
 multiple comma-separated values may be specified for hostname
 specifications.
 .Pp
+The
+.Ql ++hostname
+form works like
+.Ql +hostname
+but causes evaluation to stop after a matching rule in this block fires,
+ensuring no further rules are applied to that message.
+Use
+.Ql +*
+to cancel the effect and resume normal evaluation for subsequent blocks.
+.Pp
 A
 .Em property-based filter
 specification is a line beginning with
@@ -205,7 +228,17 @@ specification is a line beginning with
 or
 .Ql :
 and the following blocks will be applied only when filter value matches
-given filter properties value.  See
+given filter properties value.
+The
+.Ql ::
+form works like
+.Ql :
+but causes evaluation to stop after a matching rule in this block fires,
+ensuring no further rules are applied to that message.
+Use
+.Ql :*
+to cancel the effect and resume normal evaluation for subsequent blocks.
+See
 .Sx PROPERTY-BASED FILTERS
 section for more details.  For examples, see
 .Sx EXAMPLES
@@ -860,6 +893,37 @@ These examples show off the substring and regexp matching capabilities.
 # Log messages from servers in racks 10-19 in multiple locations, case insensitive
 :hostname, icase_ereregex, "^server-(dcA|podB|cdn)-rack1[0-9]{2}\..*"
 *.*			     /var/log/racks10-19.log
+.Ed
+.Ss Stop Processing
+In this example, firewall messages tagged with
+.Ql [nftables
+are captured in a dedicated log file and then processing stops,
+preventing the same messages from also appearing in
+.Pa /var/log/syslog .
+Without the
+.Ql ::
+prefix on the property filter, both files would receive the message.
+.Bd -literal -offset indent
+# Capture firewall messages exclusively in their own log file.
+# The :: prefix stops further rule evaluation once a match fires.
+::msg, contains, "[nftables"
+kern.*                       /var/log/nftables.log
+
+# Reset the property filter, then log general kernel/warn messages.
+# Firewall messages never reach this rule.
+:*
+*.warn;\e
+    authpriv.none;cron.none;mail.none;news.none    /var/log/syslog
+.Ed
+.Pp
+The same behaviour is available for program and hostname blocks.
+Here, all messages from
+.Nm spamd
+are routed to their own log and nowhere else:
+.Bd -literal -offset indent
+!!spamd
+daemon.info                  /var/log/spamd
+!*
 .Ed
 .Ss Critical
 This stores all messages of priority
