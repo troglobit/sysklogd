@@ -407,9 +407,28 @@ The
 option can be used to include all files with names ending in '.conf' and
 not beginning with a '.' contained in the directory following the
 keyword.  This keyword can only be used in the first level configuration
-file.  The included example
+file.  Included files are parsed in glob order and their rules are
+inserted into the rule list at the position of the
+.Ql include
+line.
+.Pp
+This ordering matters for stop-processing blocks
+.Pq Ql !! , ++ , ::
+\&: such a block can only suppress rules that appear
+.Em after
+it in the parsed list.  Rules already processed before the
+.Ql include
+line are unaffected.  For snippets in
+.Pa /etc/syslog.d/
+to be able to prevent messages from reaching the general catch-all rules
+in the main configuration file, the
+.Ql include
+line must appear
+.Em before
+those catch-all rules.  The shipped
 .Pa /etc/syslog.conf
-has the following at the end:
+is structured accordingly.
+.Pp
 .Bd -literal -offset indent
 #
 # Drop your subsystem .conf file in /etc/syslog.d/
@@ -925,6 +944,20 @@ are routed to their own log and nowhere else:
 daemon.info                  /var/log/spamd
 !*
 .Ed
+.Pp
+.Sy Note:
+stop-processing only suppresses rules that follow the matching rule in
+the parsed order.
+A stop-block placed in a snippet under
+.Pa /etc/syslog.d/
+cannot suppress rules already parsed from the main configuration file
+above the
+.Ql include
+line.
+Place the
+.Ql include
+directive before any general catch-all rules so that snippets are
+evaluated first.
 .Ss Critical
 This stores all messages of priority
 .Ql crit
