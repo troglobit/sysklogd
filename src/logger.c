@@ -216,6 +216,19 @@ static int nslookup(const char *host, const char *svcname, int family, int sockt
 	return 0;
 }
 
+static void print_peer(const struct sockaddr_storage *sa, socklen_t addrlen,
+		       const char *transport)
+{
+	char host[NI_MAXHOST], port[NI_MAXSERV];
+
+	if (getnameinfo((const struct sockaddr *)sa, addrlen,
+			host, sizeof(host), port, sizeof(port),
+			NI_NUMERICHOST | NI_NUMERICSERV) == 0)
+		fprintf(stderr, "%s port %s (%s)", host, port, transport);
+	else
+		fprintf(stderr, "(unknown) (%s)", transport);
+}
+
 static int tcp_connect(struct sockaddr_storage *sa, socklen_t addrlen)
 {
 	int sock;
@@ -241,7 +254,7 @@ static int tcp_connect(struct sockaddr_storage *sa, socklen_t addrlen)
  */
 static int tcp_send(int sock, int pri, const char *hostname, const char *tag,
 		    int pid, int log_opts, const char *msgid, const char *sd_data,
-		    const char *msg)
+		    const char *msg, int verbose)
 {
 	char mbuf[MAXLINE];
 	char frame[16];
@@ -288,6 +301,9 @@ static int tcp_send(int sock, int pri, const char *hostname, const char *tag,
 				sd_data ? sd_data : "-",
 				msg);
 	}
+
+	if (verbose)
+		fprintf(stderr, "sending (%d bytes): %.*s\n", mlen, mlen, mbuf);
 
 	/* RFC 6587 octet-count framing: "LEN SP MSG" (two sends, no newline) */
 	flen = snprintf(frame, sizeof(frame), "%d ", mlen);
@@ -478,6 +494,8 @@ static int usage(int code)
 	       "  -s        Log to stderr as well as the system log\n"
 	       "  -t TAG    Log using the specified tag (defaults to user name)\n"
 	       "  -u SOCK   Log to UNIX domain socket `SOCK` instead of default %s\n"
+	       "  -V        Verbose: print resolved peer and message to stderr, useful\n"
+	       "            for verifying syslogd setups when used with -h\n"
 	       "  -?        This help text\n"
 	       "  -v        Show program version\n"
 	       "\n"
@@ -503,6 +521,7 @@ int main(int argc, char *argv[])
 	int family = AF_UNSPEC;
 	int allow_kmsg = 0;
 	int use_tcp = 0;
+	int verbose = 0;
 	char buf[MAXLINE] = "";
 	char *iface = NULL;
 	int log_opts = 0;
@@ -511,7 +530,7 @@ int main(int argc, char *argv[])
 	int rotate = 0;
 	int ttl = 1;
 
-	while ((c = getopt(argc, argv, "46?bcd:f:h:H:iI:km:no:p:P:r:st:u:v")) != EOF) {
+	while ((c = getopt(argc, argv, "46?bcd:f:h:H:iI:km:no:p:P:r:st:u:Vv")) != EOF) {
 		switch (c) {
 		case '4':
 			family = AF_INET;
@@ -607,6 +626,10 @@ int main(int argc, char *argv[])
 			sockpath = optarg;
 			break;
 
+		case 'V':
+			verbose = 1;
+			break;
+
 		case 'v':	/* version */
 			printf("%s\n", version_info);
 			return 0;
@@ -678,6 +701,11 @@ int main(int argc, char *argv[])
 		log.log_ttl   = ttl;
 		if (nslookup(host, svcname, family, SOCK_DGRAM, &sa, &addrlen))
 			return 1;
+		if (verbose) {
+			fprintf(stderr, "sending to ");
+			print_peer(&sa, addrlen, "udp");
+			fprintf(stderr, "\n");
+		}
 		log_opts |= LOG_NDELAY;
 	}
 
@@ -695,7 +723,15 @@ int main(int argc, char *argv[])
 		if (nslookup(host, svcname, family, SOCK_STREAM, &sa, &addrlen))
 			return 1;
 
+		if (verbose) {
+			fprintf(stderr, "connecting to ");
+			print_peer(&sa, addrlen, "tcp");
+			fprintf(stderr, " ... ");
+		}
+
 		sock = tcp_connect(&sa, addrlen);
+		if (verbose)
+			fprintf(stderr, sock < 0 ? "failed\n" : "connected\n");
 		if (sock < 0)
 			return 1;
 
@@ -705,14 +741,14 @@ int main(int argc, char *argv[])
 				int level = parse_level(&msg, facility | severity);
 
 				if (tcp_send(sock, level, hostname, ident,
-					     pid_val, log_opts, msgid, sd, msg)) {
+					     pid_val, log_opts, msgid, sd, msg, verbose)) {
 					rc = 1;
 					break;
 				}
 			}
 		} else {
 			rc = tcp_send(sock, facility | severity, hostname, ident,
-				      pid_val, log_opts, msgid, sd, buf);
+				      pid_val, log_opts, msgid, sd, buf, verbose);
 		}
 
 		close(sock);
