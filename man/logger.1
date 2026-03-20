@@ -109,9 +109,25 @@ will be used.  This is the same as using the special character
 as the
 .Ar hostname .
 .It Fl h Ar host
-Send the message to the remote system
+Send the message to the remote syslog server
 .Ar host
 instead of logging it locally.
+The argument may include a transport prefix and an optional port:
+.Bl -tag -compact -width "tcp://HOST:PORT"
+.It Cm udp:// Ns Ar HOST Ns Op : Ns Ar PORT
+Send over UDP (default when no prefix is given).
+.It Cm tcp:// Ns Ar HOST Ns Op : Ns Ar PORT
+Send over TCP using RFC 6587 octet-count framing.
+.El
+When a port is embedded in the URL it takes precedence over
+.Fl P .
+IPv6 addresses require bracket notation:
+.Ql tcp://[::1]:514 .
+Note: bare IPv6 address literals (e.g.
+.Ql ::1 )
+are not supported directly in
+.Fl h ;
+always use bracket notation when specifying an IPv6 address.
 .It Fl I Ar PID
 Like
 .Fl i ,
@@ -213,6 +229,8 @@ call.
 .Bd -unfilled -offset left
 logger -t dropbear -p auth.notice "Successful login for user 'admin' from 1.2.3.4"
 logger -t udhcpc -f /tmp/script.log "New lease 1.2.3.200 obtained for interface eth0"
+logger -p kern.warn -h tcp://logserver:514 "test message over TCP"
+logger -p kern.warn -h tcp://[::1]:514 "test message to local IPv6 TCP listener"
 .Ed
 .Sh FILES
 .Bl -tag -width /dev/log -compact

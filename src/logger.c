@@ -39,8 +39,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 
@@ -129,7 +131,58 @@ static void log_kmsg(FILE *fp, char *ident, int pri, int opts, char *buf)
 	fprintf(fp, "<%d>%s[%d]:%s\n", pri, ident, getpid(), buf);
 }
 
-static int nslookup(const char *host, const char *svcname, int family, struct sockaddr *sa)
+/*
+ * Parse optional transport://[host]:port URL in the -h argument.
+ * Detects tcp://, udp://, tls:// prefixes and an optional embedded :port.
+ * IPv6 addresses must use bracket notation: tcp://[::1]:514
+ * Returns 1 if TCP transport requested, 0 for UDP (default).
+ * Updates *hostp and, if a port is embedded in the URL, *svcnamep.
+ */
+static int parse_url(const char *arg, const char **hostp, const char **svcnamep)
+{
+	static char buf[NI_MAXHOST + 16];
+	char *h, *port = NULL;
+	int tcp = 0;
+
+	strlcpy(buf, arg, sizeof(buf));
+	h = buf;
+
+	if (!strncmp(h, "udp://", 6))
+		h += 6;
+	else if (!strncmp(h, "tcp://", 6)) {
+		h += 6;
+		tcp = 1;
+	} else if (!strncmp(h, "tls://", 6))
+		errx(1, "TLS transport not yet supported in logger");
+
+	/* Extract port: [IPv6]:port or host:port */
+	if (*h == '[') {
+		char *end = strchr(h + 1, ']');
+
+		if (end) {
+			*end = '\0';
+			h++;
+			if (*(end + 1) == ':')
+				port = end + 2;
+		}
+	} else {
+		char *colon = strrchr(h, ':');
+
+		if (colon) {
+			*colon = '\0';
+			port = colon + 1;
+		}
+	}
+
+	*hostp = h;
+	if (port)
+		*svcnamep = port;
+
+	return tcp;
+}
+
+static int nslookup(const char *host, const char *svcname, int family, int socktype,
+		    struct sockaddr_storage *sa, socklen_t *addrlen)
 {
 	struct addrinfo hints, *ai, *result;
 	int error;
@@ -137,7 +190,7 @@ static int nslookup(const char *host, const char *svcname, int family, struct so
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_flags    = !host ? AI_PASSIVE : 0;
 	hints.ai_family   = family;
-	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_socktype = socktype;
 
 	error = getaddrinfo(host, svcname, &hints, &result);
 	if (error == EAI_SERVICE) {
@@ -155,9 +208,94 @@ static int nslookup(const char *host, const char *svcname, int family, struct so
 			continue;
 
 		memcpy(sa, ai->ai_addr, ai->ai_addrlen);
+		*addrlen = ai->ai_addrlen;
 		break;
 	}
 	freeaddrinfo(result);
+
+	return 0;
+}
+
+static int tcp_connect(struct sockaddr_storage *sa, socklen_t addrlen)
+{
+	int sock;
+
+	sock = socket(sa->ss_family, SOCK_STREAM, 0);
+	if (sock < 0) {
+		warn("socket");
+		return -1;
+	}
+
+	if (connect(sock, (struct sockaddr *)sa, addrlen) < 0) {
+		warn("connect");
+		close(sock);
+		return -1;
+	}
+
+	return sock;
+}
+
+/*
+ * Format and send one syslog message over an open TCP socket.
+ * Uses RFC 6587 octet-count framing to match syslogd's TCP send path.
+ */
+static int tcp_send(int sock, int pri, const char *hostname, const char *tag,
+		    int pid, int log_opts, const char *msgid, const char *sd_data,
+		    const char *msg)
+{
+	char mbuf[MAXLINE];
+	char frame[16];
+	struct timeval tv;
+	struct tm tm;
+	int mlen, flen;
+
+	if (!tag)
+		tag = getprogname();
+	if (!tag)
+		tag = "-";
+
+	gettimeofday(&tv, NULL);
+	localtime_r(&tv.tv_sec, &tm);
+
+	if (log_opts & LOG_RFC3164) {
+		char ts[16];
+
+		strftime(ts, sizeof(ts), "%b %e %T", &tm);
+		if (log_opts & LOG_PID)
+			mlen = snprintf(mbuf, sizeof(mbuf), "<%d>%s %s %s[%d]: %s",
+					pri, ts, hostname, tag, pid, msg);
+		else
+			mlen = snprintf(mbuf, sizeof(mbuf), "<%d>%s %s %s: %s",
+					pri, ts, hostname, tag, msg);
+	} else {
+		char ts[33], tz[7] = "Z", tzraw[6], pidstr[16];
+
+		strftime(ts, sizeof(ts), "%FT%T", &tm);
+		if (strftime(tzraw, sizeof(tzraw), "%z", &tm) == 5)
+			snprintf(tz, sizeof(tz), "%c%c%c:%c%c",
+				 tzraw[0], tzraw[1], tzraw[2], tzraw[3], tzraw[4]);
+
+		if (log_opts & LOG_PID)
+			snprintf(pidstr, sizeof(pidstr), "%d", pid);
+		else
+			strlcpy(pidstr, "-", sizeof(pidstr));
+
+		mlen = snprintf(mbuf, sizeof(mbuf),
+				"<%d>1 %s.%06ld%s %s %s %s %s %s %s",
+				pri, ts, (long)tv.tv_usec, tz,
+				hostname, tag, pidstr,
+				msgid   ? msgid   : "-",
+				sd_data ? sd_data : "-",
+				msg);
+	}
+
+	/* RFC 6587 octet-count framing: "LEN SP MSG" (two sends, no newline) */
+	flen = snprintf(frame, sizeof(frame), "%d ", mlen);
+	if (send(sock, frame, flen, MSG_NOSIGNAL) <= 0 ||
+	    send(sock, mbuf, mlen, MSG_NOSIGNAL) <= 0) {
+		warn("send");
+		return 1;
+	}
 
 	return 0;
 }
@@ -319,7 +457,10 @@ static int usage(int code)
 	       "  -c        Log to console (LOG_CONS) on failure\n"
 	       "  -d SD     Log SD as RFC5424 style 'structured data' in message\n"
 	       "  -f FILE   Log file to write messages to, instead of syslog daemon\n"
-	       "  -h HOST   Send (UDP) message to this remote syslog server (IP or DNS name)\n"
+	       "  -h HOST   Send message to remote syslog server; HOST may be prefixed with\n"
+	       "            udp:// (default), or tcp:// to select the transport.\n"
+	       "            An optional port may be embedded: tcp://HOST:PORT\n"
+	       "            IPv6 addresses require bracket notation: tcp://[::1]:514\n"
 	       "  -H NAME   Use NAME instead of system hostname in message header\n"
 	       "  -i        Log process ID of the logger process with each line (LOG_PID)\n"
 	       "  -I PID    Log process ID using PID, recommend using PID $$ for shell scripts\n"
@@ -351,15 +492,17 @@ static int usage(int code)
 int main(int argc, char *argv[])
 {
 	char *ident = NULL, *logfile = NULL;
-	char *host = NULL, *sockpath = NULL;
+	const char *host = NULL, *svcname = "syslog";
+	char *sockpath = NULL;
 	char *msgid = NULL, *sd = NULL;
-	char *svcname = "syslog";
+	struct sockaddr_storage sa;
+	socklen_t addrlen = 0;
 	off_t size = 200 * 1024;
 	int facility = LOG_USER;
 	int severity = LOG_NOTICE;
 	int family = AF_UNSPEC;
-	struct sockaddr sa;
 	int allow_kmsg = 0;
+	int use_tcp = 0;
 	char buf[MAXLINE] = "";
 	char *iface = NULL;
 	int log_opts = 0;
@@ -395,7 +538,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'h':
-			host = optarg;
+			use_tcp = parse_url(optarg, &host, &svcname);
 			break;
 
 		case 'H':
@@ -529,13 +672,51 @@ int main(int argc, char *argv[])
 
 			return fclose(fp);
 		}
-	} else if (host) {
+	} else if (host && !use_tcp) {
 		log.log_host  = &sa;
 		log.log_iface = iface;
 		log.log_ttl   = ttl;
-		if (nslookup(host, svcname, family, &sa))
+		if (nslookup(host, svcname, family, SOCK_DGRAM, &sa, &addrlen))
 			return 1;
 		log_opts |= LOG_NDELAY;
+	}
+
+	if (use_tcp) {
+		char hostname[NI_MAXHOST];
+		int sock, pid_val, rc = 0;
+
+		if (log.log_hostname[0])
+			strlcpy(hostname, log.log_hostname, sizeof(hostname));
+		else if (gethostname(hostname, sizeof(hostname)) < 0)
+			strlcpy(hostname, "-", sizeof(hostname));
+
+		pid_val = (log.log_pid != -1) ? log.log_pid : getpid();
+
+		if (nslookup(host, svcname, family, SOCK_STREAM, &sa, &addrlen))
+			return 1;
+
+		sock = tcp_connect(&sa, addrlen);
+		if (sock < 0)
+			return 1;
+
+		if (!buf[0]) {
+			while (fgets(buf, sizeof(buf), stdin)) {
+				char *msg = chomp(buf);
+				int level = parse_level(&msg, facility | severity);
+
+				if (tcp_send(sock, level, hostname, ident,
+					     pid_val, log_opts, msgid, sd, msg)) {
+					rc = 1;
+					break;
+				}
+			}
+		} else {
+			rc = tcp_send(sock, facility | severity, hostname, ident,
+				      pid_val, log_opts, msgid, sd, buf);
+		}
+
+		close(sock);
+		return rc;
 	}
 
 	openlog_r(ident, log_opts, facility, &log);
