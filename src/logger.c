@@ -48,6 +48,10 @@
 #include "compat.h"
 #include "syslog.h"
 
+#ifndef MAXLINE
+#define MAXLINE 2048		/* keep in sync with syslogd's MAXLINE */
+#endif
+
 static const char version_info[] = PACKAGE_NAME " v" PACKAGE_VERSION;
 static struct syslog_data log    = SYSLOG_DATA_INIT;
 
@@ -137,7 +141,7 @@ static int nslookup(const char *host, const char *svcname, int family, struct so
 
 	error = getaddrinfo(host, svcname, &hints, &result);
 	if (error == EAI_SERVICE) {
-		warnx("%s/udp: unknown service, trying syslog port 514", svcname);
+		warnx("%s: unknown service, trying syslog port 514", svcname);
 		svcname = "514";
 		error = getaddrinfo(host, svcname, &hints, &result);
 	}
@@ -179,18 +183,18 @@ static int checksz(FILE *fp, off_t sz)
 
 static char *chomp(char *str)
 {
-        char *p;
+	char *p;
 
-        if (!str || strlen(str) < 1) {
-                errno = EINVAL;
-                return NULL;
-        }
+	if (!str || strlen(str) < 1) {
+		errno = EINVAL;
+		return NULL;
+	}
 
-        p = str + strlen(str) - 1;
-        while (p >= str && *p == '\n')
-                *p-- = 0;
+	p = str + strlen(str) - 1;
+	while (p >= str && *p == '\n')
+		*p-- = 0;
 
-        return str;
+	return str;
 }
 
 /*
@@ -356,7 +360,7 @@ int main(int argc, char *argv[])
 	int family = AF_UNSPEC;
 	struct sockaddr sa;
 	int allow_kmsg = 0;
-	char buf[512] = "";
+	char buf[MAXLINE] = "";
 	char *iface = NULL;
 	int log_opts = 0;
 	FILE *fp = NULL;
