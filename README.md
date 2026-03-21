@@ -93,6 +93,9 @@ Main differences from the original sysklogd package are:
 - GNU configure & build system to ease porting/cross-compiling
 - Support for configuring remote syslog timeout
 - Support for [RFC6587][] TCP syslog transport, for sender and receiver
+- Per-destination in-memory send queue for TCP forwarding: messages accumulate
+  during outages and are flushed automatically on reconnect, with configurable
+  suspension time (`tcp_suspend_time` in `syslog.conf`)
 - Support for [RFC5425][] TLS encrypted syslog transport (only if built with OpenSSL support)
 - Support for [RFC5848][] cryptographically signed log messages (only if built with OpenSSL support)
 
