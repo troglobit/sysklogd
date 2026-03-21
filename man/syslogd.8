@@ -552,6 +552,8 @@ perform a re-initialization.  All open files are closed, the
 configuration file (see above) is reread and the
 .Xr syslog 3
 facility is started again.
+Any messages queued in the in-memory per-destination TCP send queue
+are discarded.
 .It TERM
 This tells 
 .Nm
@@ -618,7 +620,13 @@ support.  It also supports RFC5426, the command line option
 can be used to ensure no fragmentation occurs.  TCP transport is
 supported per RFC6587, using octet counting for framing when sending
 and both octet counting and non-transparent (LF-delimited) framing
-when receiving.
+when receiving.  An in-memory per-destination send queue accumulates
+messages during TCP outages and flushes them automatically on
+reconnect; see
+.Xr syslog.conf 5
+for the
+.Ql tcp_suspend_time
+tunable.
 .Pp
 When compiled with OpenSSL support,
 .Nm

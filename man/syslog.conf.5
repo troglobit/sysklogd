@@ -114,6 +114,8 @@ udp_size 480..2048
 
 secure_mode [0,1,2]
 
+tcp_suspend_time SECONDS
+
 rotate_size  SIZE
 rotate_count NUMBER
 
@@ -390,6 +392,29 @@ For example,
 listens on all interfaces, port 1514, for TCP connections.  Both
 RFC 6587 octet counting and non-transparent (LF-delimited) framing
 are supported on incoming TCP connections.
+.Pp
+The
+.Ql tcp_suspend_time Ar seconds
+option sets the number of seconds a TCP forwarding destination remains
+suspended after a connection failure before a reconnection is attempted.
+The default is 180 seconds.
+.Pp
+During the suspension window, messages destined for the failed remote host
+are held in an in-memory per-destination queue rather than dropped.  When
+.Xr syslogd 8
+successfully reconnects, the queue is flushed in order before the current
+message is sent.  The queue is bounded by compile-time limits (1000
+messages or 1 MiB of payload per destination, whichever is reached first);
+when a limit is exceeded, the oldest queued entry is evicted to make room
+for the new one, and a warning is logged once per overflow event.
+.Pp
+.Sy Note:
+the queue is discarded when
+.Xr syslogd 8
+receives
+.Dv SIGHUP
+or exits.  For persistent queueing across restarts, use an external log
+shipper.
 .Pp
 The
 .Ql notify <PATH>
@@ -692,6 +717,17 @@ receiving side, both octet counting and non-transparent (LF-delimited)
 framing are supported.  To listen for TCP connections, use
 .Ql listen tcp://address:port
 in the configuration file.
+.Pp
+When a TCP connection to a remote host fails,
+.Xr syslogd 8
+enters a suspension state for
+.Ql tcp_suspend_time
+seconds (default 180).  During this window, messages are accumulated in
+an in-memory per-destination send queue instead of being dropped.  Once
+the suspension window expires and a new message arrives,
+.Xr syslogd 8
+attempts to reconnect.  On success, any queued messages are flushed to
+the remote host in order before the triggering message is sent.
 .Pp
 TLS forwarding per RFC 5425 is also available when compiled with
 OpenSSL support.  Use a triple at sign ('@@@') or the
