@@ -194,10 +194,12 @@ static SIMPLEQ_HEAD(allowed, allowedpeer) aphead = SIMPLEQ_HEAD_INITIALIZER(aphe
  * address for their values as strings.  If there is no value ptr, the
  * parser moves the argument to the beginning of the parsed line.
  */
-static char *udpsz_str;			  /* string value of udp_size     */
-static char *secure_str;		  /* string value of secure_mode  */
-static char *rotate_sz_str;		  /* string value of RotateSz     */
-static char *rotate_cnt_str;		  /* string value of RotateCnt    */
+static char *udpsz_str;			  /* string value of udp_size        */
+static char *secure_str;		  /* string value of secure_mode     */
+static char *rotate_sz_str;		  /* string value of RotateSz        */
+static char *rotate_cnt_str;		  /* string value of RotateCnt       */
+static char *tcp_suspend_str;		  /* string value of tcp_suspend_time */
+static int   TcpSuspendTime = INET_SUSPEND_TIME; /* TCP backoff period (seconds) */
 
 #ifdef HAVE_OPENSSL
 static char *sign_sg_str;		  /* RFC 5848 signature group mode */
@@ -253,6 +255,10 @@ static int  waitdaemon(int);
 static void timedout(int);
 static int  nslookup(const char *host, const char *service, int socktype, struct addrinfo **ai);
 static void tcp_connect(struct filed *f);
+static size_t tcp_build_frame(const struct iovec *iov, int iovcnt, char *out, size_t outsz);
+static void forw_queue_enqueue(struct filed *f, const char *data, size_t len);
+static size_t forw_queue_flush(struct filed *f);
+static void forw_queue_clear(struct filed *f);
 static void tcp_accept_cb(int sd, void *arg);
 static void tcp_read_cb(int sd, void *arg);
 static void tcp_conn_close(struct tcp_conn *tc);
@@ -275,7 +281,8 @@ const struct cfkey {
 	{ "udp_size",     &udpsz_str,      NULL, NULL             },
 	{ "rotate_size",  &rotate_sz_str,  NULL, NULL             },
 	{ "rotate_count", &rotate_cnt_str, NULL, NULL             },
-	{ "secure_mode",  &secure_str,     NULL, NULL             },
+	{ "secure_mode",      &secure_str,      NULL, NULL         },
+	{ "tcp_suspend_time", &tcp_suspend_str, NULL, NULL         },
 #ifdef HAVE_OPENSSL
 	{ "sign_sg",        &sign_sg_str,       NULL, NULL        },
 	{ "sign_delim_sg2", &sign_delim_str,    NULL, NULL        },
@@ -2796,73 +2803,73 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 
 	case F_FORW_TCP_SUSP:
 		fwd_suspend = timer_now() - f->f_time;
-		if (fwd_suspend >= INET_SUSPEND_TIME) {
+		if (fwd_suspend >= TcpSuspendTime) {
 			logit("\nTCP forwarding suspension over, retrying ");
-			f->f_type = F_FORW_TCP_UNKN;
-			goto f_forw_tcp_unkn;
+			/*
+			 * Go directly to tcp_connect rather than through the
+			 * UNKN/forw_lookup path: forw_lookup() has a 60-second
+			 * DNS-delay guard (INET_DNS_DELAY) that would prevent
+			 * reconnection when TcpSuspendTime < 60.  The address
+			 * stored in f_addr is still valid from the last lookup.
+			 */
+			f->f_type = F_FORW_TCP;
+			goto f_forw_tcp;
 		} else {
+			char sendbuf[32 + MAXLINE * 2];
+			size_t total;
+
 			logit(" %s:%s/tcp\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
 			logit("TCP forwarding suspension not over, time left: %d.\n",
-			      (int)(INET_SUSPEND_TIME - fwd_suspend));
+			      (int)(TcpSuspendTime - fwd_suspend));
+			total = tcp_build_frame(iov, iovcnt, sendbuf, sizeof(sendbuf));
+			forw_queue_enqueue(f, sendbuf, total);
 		}
 		break;
 
 	case F_FORW_TCP_UNKN:
 		logit("\n");
-	f_forw_tcp_unkn:
 		forw_lookup(f);
 		if (f->f_type == F_FORW_TCP)
 			goto f_forw_tcp;
+		{
+			/* DNS still unresolved -- queue for later delivery */
+			char sendbuf[32 + MAXLINE * 2];
+			size_t total = tcp_build_frame(iov, iovcnt, sendbuf, sizeof(sendbuf));
+			forw_queue_enqueue(f, sendbuf, total);
+		}
 		break;
 
 	case F_FORW_TCP:
 	f_forw_tcp:
 		logit(" %s:%s/tcp\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
 		f->f_time = timer_now();
-
-		/* Reconnect if needed */
-		if (f->f_un.f_forw.f_tcp_sd < 0) {
-			tcp_connect(f);
-			if (f->f_un.f_forw.f_tcp_sd < 0)
-				break;
-		}
-
-		/* Flatten iov into buffer, no UDP truncation for TCP */
-		len = 0;
-		for (int i = 0; i < iovcnt; i++)
-			len += iov[i].iov_len;
-
 		{
-			char frame[32];
-			char buf[MAXLINE * 2];
-			ssize_t pos = 0, rc;
-			int flen;
+			char sendbuf[32 + MAXLINE * 2];
+			size_t total = tcp_build_frame(iov, iovcnt, sendbuf, sizeof(sendbuf));
 
-			/* Build message into buffer */
-			for (int i = 0; i < iovcnt && pos < (ssize_t)sizeof(buf); i++) {
-				size_t chunk = MIN(iov[i].iov_len, sizeof(buf) - pos);
-				memcpy(buf + pos, iov[i].iov_base, chunk);
-				pos += chunk;
+			if (f->f_un.f_forw.f_tcp_sd < 0) {
+				tcp_connect(f);
+				if (f->f_un.f_forw.f_tcp_sd < 0) {
+					/* connect failed -> tcp_connect() set SUSP; enqueue */
+					forw_queue_enqueue(f, sendbuf, total);
+					break;
+				}
+				forw_queue_flush(f); /* drain backlog before sending current */
 			}
 
-			/* RFC 6587 octet counting: "LEN SP MSG" */
-			flen = snprintf(frame, sizeof(frame), "%zd ", pos);
-
-			/* Send frame header + message */
-			rc = send(f->f_un.f_forw.f_tcp_sd, frame, flen, MSG_NOSIGNAL);
-			if (rc > 0)
-				rc = send(f->f_un.f_forw.f_tcp_sd, buf, pos, MSG_NOSIGNAL);
-
-			if (rc <= 0) {
+			if (send(f->f_un.f_forw.f_tcp_sd, sendbuf, total, MSG_NOSIGNAL) <= 0) {
 				ERR("TCP send(%s:%s)", f->f_un.f_forw.f_hname,
 				    f->f_un.f_forw.f_serv);
 				close(f->f_un.f_forw.f_tcp_sd);
 				f->f_un.f_forw.f_tcp_sd = -1;
 				f->f_type = F_FORW_TCP_SUSP;
 				f->f_time = timer_now();
+				forw_queue_enqueue(f, sendbuf, total);
 			} else {
-				logit("Sent %zd bytes via TCP to %s:%s\n",
-				      pos, f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+				logit("Sent %zu bytes via TCP to %s:%s\n",
+				      total, f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+				if (f->f_qlen > 0)
+					forw_queue_flush(f);
 			}
 		}
 		break;
@@ -3143,7 +3150,9 @@ static void fprintlog_first(struct filed *f, struct buf_msg *buffer)
 
 	logit("Called fprintlog_first(), ");
 
-	if (f->f_type != F_FORW_SUSP && f->f_type != F_FORW_UNKN) {
+	if (f->f_type != F_FORW_SUSP     && f->f_type != F_FORW_UNKN     &&
+	    f->f_type != F_FORW_TCP_SUSP  && f->f_type != F_FORW_TCP_UNKN  &&
+	    f->f_type != F_FORW_TLS_SUSP  && f->f_type != F_FORW_TLS_UNKN) {
 		f->f_time = timer_now();
 		f->f_prevcount = 0;
 	}
@@ -3509,6 +3518,110 @@ static void tcp_connect(struct filed *f)
 	f->f_time = timer_now();
 }
 
+/*
+ * Flatten iovec into a single RFC 6587 octet-counted frame: "LEN SP MSG"
+ * Returns the total frame length written to 'out'.
+ */
+static size_t tcp_build_frame(const struct iovec *iov, int iovcnt,
+			      char *out, size_t outsz)
+{
+	char hdr[32];
+	size_t pos = 0;
+	int hlen;
+
+	/* Leave 32 bytes at front for the length header */
+	for (int i = 0; i < iovcnt && pos < outsz - 32; i++) {
+		size_t chunk = MIN(iov[i].iov_len, outsz - 32 - pos);
+		memcpy(out + 32 + pos, iov[i].iov_base, chunk);
+		pos += chunk;
+	}
+	hlen = snprintf(hdr, sizeof(hdr), "%zu ", pos);
+	memmove(out + hlen, out + 32, pos);
+	memcpy(out, hdr, hlen);
+	return hlen + pos;
+}
+
+/*
+ * Add a framed message to a destination's send queue.  Evicts oldest entries
+ * when either the count or byte limit is exceeded.
+ */
+static void forw_queue_enqueue(struct filed *f, const char *data, size_t len)
+{
+	struct fwd_qentry *qe;
+
+	while (f->f_qlen >= FORW_QUEUE_MAX_LEN ||
+	       (f->f_qsize + len > FORW_QUEUE_MAX_SIZE && f->f_qlen > 0)) {
+		qe = SIMPLEQ_FIRST(&f->f_queue);
+		SIMPLEQ_REMOVE_HEAD(&f->f_queue, fq_link);
+		f->f_qsize -= qe->fq_len;
+		f->f_qlen--;
+		free(qe->fq_data);
+		free(qe);
+		if (!f->f_qoverflow) {
+			NOTE("TCP queue overflow for %s:%s, dropping oldest",
+			     f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+			f->f_qoverflow = 1;
+		}
+	}
+
+	qe = malloc(sizeof(*qe));
+	if (!qe)
+		return;
+	qe->fq_data = malloc(len);
+	if (!qe->fq_data) { free(qe); return; }
+	memcpy(qe->fq_data, data, len);
+	qe->fq_len = len;
+	SIMPLEQ_INSERT_TAIL(&f->f_queue, qe, fq_link);
+	f->f_qlen++;
+	f->f_qsize += len;
+}
+
+/*
+ * Drain the send queue over the destination's live TCP socket.  Stops on the
+ * first failed send; remaining entries stay queued.  Returns number of messages
+ * sent.
+ */
+static size_t forw_queue_flush(struct filed *f)
+{
+	struct fwd_qentry *qe, *next;
+	size_t sent = 0;
+
+	SIMPLEQ_FOREACH_SAFE(qe, &f->f_queue, fq_link, next) {
+		if (send(f->f_un.f_forw.f_tcp_sd, qe->fq_data, qe->fq_len,
+			 MSG_NOSIGNAL) <= 0)
+			break;
+		SIMPLEQ_REMOVE_HEAD(&f->f_queue, fq_link);
+		f->f_qsize -= qe->fq_len;
+		f->f_qlen--;
+		free(qe->fq_data);
+		free(qe);
+		sent++;
+	}
+	if (sent > 0) {
+		logit("Flushed %zu queued messages to %s:%s/tcp\n",
+		      sent, f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+		f->f_qoverflow = 0;
+	}
+	return sent;
+}
+
+/*
+ * Discard all queued messages for a destination (SIGHUP / shutdown).
+ */
+static void forw_queue_clear(struct filed *f)
+{
+	struct fwd_qentry *qe, *next;
+
+	SIMPLEQ_FOREACH_SAFE(qe, &f->f_queue, fq_link, next) {
+		free(qe->fq_data);
+		free(qe);
+	}
+	SIMPLEQ_INIT(&f->f_queue);
+	f->f_qlen  = 0;
+	f->f_qsize = 0;
+	f->f_qoverflow = 0;
+}
+
 static void tls_connect_forw(struct filed *f)
 {
 #ifdef HAVE_OPENSSL
@@ -3686,6 +3799,7 @@ static void close_open_log_files(void)
 			}
 			free(f->f_prop_filter);
 		}
+		forw_queue_clear(f);
 		free(f);
 	}
 }
@@ -4523,6 +4637,7 @@ static struct filed *cfline(char *line, const char *prog, const char *host, char
 		ERR("Cannot allocate memory for log file");
 		return NULL;
 	}
+	SIMPLEQ_INIT(&f->f_queue);
 
 	/* scan through the list of selectors */
 	for (p = line; *p && *p != '\t' && *p != ' ';) {
@@ -5133,6 +5248,17 @@ static int cfparse(FILE *fp, struct files *newf)
 
 		free(rotate_cnt_str);
 		rotate_cnt_str = NULL;
+	}
+
+	if (tcp_suspend_str) {
+		int val = atoi(tcp_suspend_str);
+		if (val <= 0)
+			logit("Invalid value to tcp_suspend_time = %s\n", tcp_suspend_str);
+		else
+			TcpSuspendTime = val;
+
+		free(tcp_suspend_str);
+		tcp_suspend_str = NULL;
 	}
 
 	return 0;

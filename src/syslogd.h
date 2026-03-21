@@ -129,6 +129,13 @@
 #define INET_SUSPEND_TIME 180 /* equal to 3 minutes */
 #endif
 
+#ifndef FORW_QUEUE_MAX_LEN
+#define FORW_QUEUE_MAX_LEN   1000            /* max queued messages per dest */
+#endif
+#ifndef FORW_QUEUE_MAX_SIZE
+#define FORW_QUEUE_MAX_SIZE  (1024 * 1024)   /* max total bytes per dest */
+#endif
+
 #define LIST_DELIMITER    ':' /* delimiter between two hosts */
 
 #define	AI_SECURE	0x8000	/* Tell socket_create() to not bind() */
@@ -334,6 +341,16 @@ struct buf_msg {
 };
 
 /*
+ * Per-destination TCP send queue entry and head type.
+ */
+struct fwd_qentry {
+	SIMPLEQ_ENTRY(fwd_qentry) fq_link;
+	char  *fq_data;   /* RFC 6587 framed message: "LEN SP MSG" */
+	size_t fq_len;    /* total length of fq_data */
+};
+SIMPLEQ_HEAD(fwd_qhead, fwd_qentry);
+
+/*
  * This structure represents the files that will have log
  * copies printed.
  * We require f_file to be valid if f_type is F_FILE, F_CONSOLE, F_TTY
@@ -380,6 +397,12 @@ struct filed {
 	int	 f_rotatesz;
 	char    *f_iface;                      /* only for multicast fwd */
 	int      f_ttl;                        /* only for multicast fwd */
+
+	/* Per-destination send queue (TCP forwarding only) */
+	struct fwd_qhead f_queue;
+	size_t           f_qlen;       /* current message count */
+	size_t           f_qsize;      /* current total bytes */
+	int              f_qoverflow;  /* 1 = overflow notice already emitted */
 };
 
 /*
