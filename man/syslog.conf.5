@@ -91,6 +91,7 @@ ACTION   := /path/to/file
 OPTION   := [OPTION,]
 	 |= RFC3164
 	 |= RFC5424
+	 |= pri
 	 |= iface=IFNAME
          |= rotate=ROT
 	 |= ttl=1..255
@@ -204,8 +205,8 @@ specified action.  The
 details where or what to do with the selected input.  The
 .Em option
 field, which must start with the semi-colon option delimiter (';'),
-currently supports log formatting, log rotation, outbound interface and
-TTL when forwarding to a multicast group.
+currently supports priority, log formatting, log rotation, outbound
+interface and TTL when forwarding to a multicast group.
 .Pp
 The default log format is the traditional RFC3164 (included here for
 completeness),
@@ -223,6 +224,22 @@ it is only the default for remote targets for compatibility reasons.
 .Li Aug 24 05:14:15 192.0.2.1 myproc[8710]: Kilroy was here.
 .It Sy RFC5424:
 .Li 2003-08-24T05:14:15.000003-07:00 192.0.2.1 myproc 8710 - - Kilroy was here.
+.El
+.Pp
+By default,
+.Nm sysklogd
+does not print the priority of a message. However, it will if
+.Sy pri
+is added to the options. Printing the priority adds the priority in
+angled brackets to the message header in accordance with the RFC
+standard in use. Below is an example using the user-level facility and a
+warning severity.
+.Pp
+.Bl -tag -compact -width "RFC3164:"
+.It Sy RFC3164:
+.Li <12> Aug 24 05:14:15 192.0.2.1 myproc[8710]: Kilroy was here.
+.It Sy RFC5424:
+.Li <12>1 2003-08-24T05:14:15.000003-07:00 192.0.2.1 myproc 8710 - - Kilroy was here.
 .El
 .Pp
 The log rotation, which is only relevant for files, details the max
@@ -900,6 +917,20 @@ command line option,
 # every 100 kiB and keep up to 10 aged out, and compressed, files.
 #
 *.*;kern.none               -/var/log/messages    ;rotate=100k:10
+.Ed
+.Ss Priority
+The first example logs user messages to the file
+.Pa /var/log/messages
+with syncing and prints the priority for each message. The second
+example logs syslog messages to the file
+.Pa /var/log/syslog
+without syncing and with the rotation from the above example, on top of
+printing the priority for each message.
+.Bd -literal -offset indent
+# Turn on priority printing for each user and syslog message.
+#
+user.*                      /var/log/messages     ;pri
+syslog.*                    -/var/log/syslog      ;rotate=100k:10,pri
 .Ed
 .Ss Logging to Remote Syslog Server
 These rules redirect all messages to remote hosts.  The first is to

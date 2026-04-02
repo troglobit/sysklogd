@@ -2311,6 +2311,7 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 	ssize_t len = 0;
 	ssize_t lsent;
 	time_t fwd_suspend;
+	int start;
 
 	switch (f->f_type) {
 	case F_UNUSED:
@@ -2448,7 +2449,13 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 		if (f->f_type == F_FILE)
 			logrotate(f);
 
-		if (writev(f->f_file, &iov[1], iovcnt - 1) < 0) {
+		/* This returns 1 if priority is not set, and 0 if it is.
+		   Since the priority is in the first index (0) of the iovec,
+		   this becomes the index of the first item in use, skipping
+		   the priority if the option is off. */
+		start = ((f->f_flags & PRI) == 0);
+
+		if (writev(f->f_file, &iov[start], iovcnt - start) < 0) {
 			int e = errno;
 
 			/* If a named pipe is full, just ignore it for now */
@@ -3555,6 +3562,9 @@ static void cfopts(char *ptr, struct filed *f)
 			if (ttl <= 0 || ttl > 255)
 				ttl = 0;
 			f->f_ttl = ttl;
+		}
+		else if (cfopt(&opt, "pri")) {
+			f->f_flags |= PRI;
 		} else if (cfopt(&opt, "rotate="))
 			cfrot(opt, f);
 		else
