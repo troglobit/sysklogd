@@ -11,6 +11,10 @@ on:
     branches:
       - '**'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     # Verify we can build on latest Ubuntu with both gcc and clang
@@ -26,9 +30,8 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          sudo apt-get -y update
           sudo apt-get -y install tree tshark valgrind libssl-dev
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Configure
         run: |
           set -x
@@ -63,7 +66,7 @@ jobs:
         run: |
           cd build/dir
           make check || (cat test/test-suite.log; false)
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.compiler }}-test-logs
           path: build/dir/test/*.log
