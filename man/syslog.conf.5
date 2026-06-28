@@ -751,10 +751,29 @@ in the configuration file.  Server certificates are configured with
 and
 .Ql tls_certfile
 global options.  Per-action TLS options include
-.Ql verify=off|optional|required|hostname
-and
+.Ql verify=off|optional|required|hostname ,
 .Ql fingerprint=SHA256:...
-for certificate pinning.
+for certificate pinning, and
+.Ql tls_keyfile=
+with
+.Ql tls_certfile=
+to present a client certificate for mutual TLS, distinct from the global
+server identity above.
+.Pp
+The
+.Ql verify=
+modes differ in strictness:
+.Ql off
+does not check the server certificate;
+.Ql optional
+validates the chain when a certificate is presented but proceeds (with a
+warning) if validation fails;
+.Ql required
+demands a certificate that chains to a trusted CA
+.Po Ql tls_cafile / Ql tls_capath Pc ;
+and
+.Ql hostname
+additionally requires the certificate name to match the forwarding target.
 .Pp
 This feature makes it possible to collect all syslog messages in a
 network on a central host.  This reduces administration needs and

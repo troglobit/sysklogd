@@ -7,6 +7,7 @@ EXTRA_DIST      += api.sh local.sh unicode.sh remote.sh fwd.sh mark.sh      \
 		   tls-fwd.sh stop.sh tcp-queue.sh
 EXTRA_DIST      += pri.sh
 EXTRA_DIST      += loglevel.sh
+EXTRA_DIST      += tls-auth.sh
 CLEANFILES       = *~ *.trs *.log
 TEST_EXTENSIONS  = .sh
 TESTS_ENVIRONMENT= unshare -mrun --map-auto
@@ -49,6 +50,7 @@ TESTS           += loglevel.sh
 if ENABLE_SSL
 TESTS           += sign.sh
 TESTS           += tls-fwd.sh
+TESTS           += tls-auth.sh
 endif
 
 programs: $(check_PROGRAMS)

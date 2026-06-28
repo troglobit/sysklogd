@@ -323,6 +323,78 @@ int tls_accept_continue(struct tcp_conn *tc)
 	return -1;
 }
 
+/*
+ * Map the per-action verify mode to the handshake-time SSL_VERIFY policy.
+ * REQUIRED/HOSTNAME abort the handshake on a bad chain; OFF, OPTIONAL and
+ * FINGERPRINT complete the handshake and are checked afterwards (optional
+ * best-effort, fingerprint by pin, off not at all).
+ */
+static void tls_client_set_verify(SSL *ssl, int mode)
+{
+	if (mode == TLS_VERIFY_REQUIRED || mode == TLS_VERIFY_HOSTNAME)
+		SSL_set_verify(ssl, SSL_VERIFY_PEER, NULL);
+	else
+		SSL_set_verify(ssl, SSL_VERIFY_NONE, NULL);
+}
+
+/*
+ * Post-handshake peer verification.  Returns 0 if the connection may be
+ * used, -1 if it must be torn down.  optional logs a warning on a bad
+ * chain but proceeds; required and hostname reject; hostname also checks
+ * the name; fingerprint pins the cert without requiring a CA chain.
+ */
+static int tls_client_verify_peer(SSL *ssl, struct filed *f)
+{
+	int mode = f->f_un.f_forw.f_tls_verify;
+	const char *host = f->f_un.f_forw.f_hname;
+	X509 *cert;
+	long res;
+
+	if (mode == TLS_VERIFY_OFF)
+		return 0;
+
+	if (mode == TLS_VERIFY_FINGERPRINT) {
+		if (tls_verify_fingerprint(ssl, f->f_un.f_forw.f_tls_fingerprint) < 0) {
+			ERRX("TLS fingerprint verification failed for %s", host);
+			return -1;
+		}
+		return 0;
+	}
+
+	cert = SSL_get_peer_certificate(ssl);
+	res  = SSL_get_verify_result(ssl);
+
+	if (mode == TLS_VERIFY_OPTIONAL) {
+		if (cert && res != X509_V_OK)
+			WARN("TLS server certificate for %s did not verify: %s "
+			     "(verify=optional, proceeding)", host,
+			     X509_verify_cert_error_string(res));
+		if (cert)
+			X509_free(cert);
+		return 0;
+	}
+
+	/* REQUIRED and HOSTNAME: a trusted, valid chain is mandatory */
+	if (!cert) {
+		ERRX("TLS: no server certificate from %s", host);
+		return -1;
+	}
+	if (res != X509_V_OK) {
+		ERRX("TLS chain verification failed for %s: %s", host,
+		     X509_verify_cert_error_string(res));
+		X509_free(cert);
+		return -1;
+	}
+	X509_free(cert);
+
+	if (mode == TLS_VERIFY_HOSTNAME && tls_verify_hostname(ssl, host) < 0) {
+		ERRX("TLS hostname verification failed for %s", host);
+		return -1;
+	}
+
+	return 0;
+}
+
 int tls_connect(struct filed *f)
 {
 	SSL *ssl;
@@ -353,12 +425,37 @@ int tls_connect(struct filed *f)
 	/* Set SNI hostname */
 	SSL_set_tlsext_host_name(ssl, f->f_un.f_forw.f_hname);
 
-	/* Configure verification based on per-action settings */
-	if (f->f_un.f_forw.f_tls_verify == TLS_VERIFY_OFF) {
-		SSL_set_verify(ssl, SSL_VERIFY_NONE, NULL);
-	} else {
-		SSL_set_verify(ssl, SSL_VERIFY_PEER, NULL);
+	/* Present a client certificate for mutual TLS, if configured.  Use
+	 * the per-connection SSL_use_*() variants, not SSL_CTX_*(), since
+	 * tls_client_ctx is shared across all forwarding destinations. */
+	if (f->f_un.f_forw.f_tls_certfile || f->f_un.f_forw.f_tls_keyfile) {
+		if (!f->f_un.f_forw.f_tls_certfile || !f->f_un.f_forw.f_tls_keyfile) {
+			ERRX("TLS: tls_certfile and tls_keyfile must both be set for "
+			     "client authentication to %s", f->f_un.f_forw.f_hname);
+			SSL_free(ssl);
+			return -1;
+		}
+		if (SSL_use_certificate_file(ssl, f->f_un.f_forw.f_tls_certfile,
+					     SSL_FILETYPE_PEM) != 1) {
+			tls_log_errors("loading client certificate");
+			SSL_free(ssl);
+			return -1;
+		}
+		if (SSL_use_PrivateKey_file(ssl, f->f_un.f_forw.f_tls_keyfile,
+					    SSL_FILETYPE_PEM) != 1) {
+			tls_log_errors("loading client private key");
+			SSL_free(ssl);
+			return -1;
+		}
+		if (SSL_check_private_key(ssl) != 1) {
+			tls_log_errors("client certificate/key mismatch");
+			SSL_free(ssl);
+			return -1;
+		}
 	}
+
+	/* Configure verification based on per-action settings */
+	tls_client_set_verify(ssl, f->f_un.f_forw.f_tls_verify);
 
 	f->f_un.f_forw.f_ssl = ssl;
 	f->f_un.f_forw.f_tls_handshake = 1;
@@ -368,23 +465,10 @@ int tls_connect(struct filed *f)
 		f->f_un.f_forw.f_tls_handshake = 0;
 		NOTE("TLS handshake completed for %s", f->f_un.f_forw.f_hname);
 
-		/* Verify certificate after successful handshake */
-		if (f->f_un.f_forw.f_tls_verify == TLS_VERIFY_FINGERPRINT) {
-			if (tls_verify_fingerprint(ssl, f->f_un.f_forw.f_tls_fingerprint) < 0) {
-				ERRX("TLS fingerprint verification failed for %s",
-				     f->f_un.f_forw.f_hname);
-				SSL_free(ssl);
-				f->f_un.f_forw.f_ssl = NULL;
-				return -1;
-			}
-		} else if (f->f_un.f_forw.f_tls_verify == TLS_VERIFY_HOSTNAME) {
-			if (tls_verify_hostname(ssl, f->f_un.f_forw.f_hname) < 0) {
-				ERRX("TLS hostname verification failed for %s",
-				     f->f_un.f_forw.f_hname);
-				SSL_free(ssl);
-				f->f_un.f_forw.f_ssl = NULL;
-				return -1;
-			}
+		if (tls_client_verify_peer(ssl, f) < 0) {
+			SSL_free(ssl);
+			f->f_un.f_forw.f_ssl = NULL;
+			return -1;
 		}
 		return 0;
 	}
@@ -423,21 +507,10 @@ int tls_connect_continue(struct filed *f)
 	if (rc == 1) {
 		f->f_un.f_forw.f_tls_handshake = 0;
 
-		/* Verify certificate after successful handshake */
-		if (f->f_un.f_forw.f_tls_verify == TLS_VERIFY_FINGERPRINT) {
-			if (tls_verify_fingerprint(f->f_un.f_forw.f_ssl,
-						   f->f_un.f_forw.f_tls_fingerprint) < 0) {
-				ERRX("TLS fingerprint verification failed for %s",
-				     f->f_un.f_forw.f_hname);
-				return -1;
-			}
-		} else if (f->f_un.f_forw.f_tls_verify == TLS_VERIFY_HOSTNAME) {
-			if (tls_verify_hostname(f->f_un.f_forw.f_ssl,
-						f->f_un.f_forw.f_hname) < 0) {
-				ERRX("TLS hostname verification failed for %s",
-				     f->f_un.f_forw.f_hname);
-				return -1;
-			}
+		if (tls_client_verify_peer(f->f_un.f_forw.f_ssl, f) < 0) {
+			SSL_free(f->f_un.f_forw.f_ssl);
+			f->f_un.f_forw.f_ssl = NULL;
+			return -1;
 		}
 		return 0;
 	}
