@@ -111,6 +111,8 @@ MSG_OPT="verify optional accept message"
 MSG_HOST_BAD="verify hostname reject message"
 MSG_FP_OK="verify fingerprint accept message"
 MSG_FP_BAD="verify fingerprint reject message"
+MSG_TLS6="tls6 family accept message"
+MSG_TLS4="tls4 family reject message"
 
 # A well-formed but non-matching SHA-256 fingerprint.
 WRONG_FP="SHA256:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF"
@@ -208,6 +210,24 @@ pin_wrong()        { write_sender_fp "${WRONG_FP}"; }
 verify_fp_accept() { fwd_arrives "${MSG_FP_OK}"; }
 verify_fp_reject() { fwd_blocked "${MSG_FP_BAD}"; }
 
+# Forward over the given TLS scheme ($1 = tls4|tls6) to localhost, which
+# resolves to both families; verify=off isolates family from cert checks.
+write_sender_scheme()
+{
+    cat <<-EOF >"${CONFD}/fwd.conf"
+	tcp_suspend_time  3
+	kern.*            /dev/null
+	ntp.*             $1://localhost:${PORT2}  ;RFC5424,verify=off
+	EOF
+    reload
+    sleep 1
+}
+
+sender_tls6()      { write_sender_scheme tls6; }
+sender_tls4()      { write_sender_scheme tls4; }
+verify_tls6_ok()   { fwd_arrives "${MSG_TLS6}"; }
+verify_tls4_block() { fwd_blocked "${MSG_TLS4}"; }
+
 run_step "Check OpenSSL availability"               check_openssl
 run_step "Generate CA, server and client certs"     setup_ca
 run_step "Set up receiver requiring a client cert"  setup_receiver_mtls
@@ -237,3 +257,10 @@ run_step "Sender pins the correct fingerprint"      pin_correct
 run_step "Fingerprint pinning accepts matching cert" verify_fp_accept
 run_step "Sender pins a wrong fingerprint"          pin_wrong
 run_step "Fingerprint pinning rejects wrong pin"    verify_fp_reject
+
+# Address-family forcing for tls4:// / tls6:// (receiver is IPv6-only)
+run_step "Receiver presents cert on [::1]"          restart_receiver_srv server
+run_step "Sender forwards via tls6://localhost"     sender_tls6
+run_step "tls6:// reaches the IPv6 receiver"        verify_tls6_ok
+run_step "Sender forwards via tls4://localhost"     sender_tls4
+run_step "tls4:// blocked (no IPv4 listener)"       verify_tls4_block
