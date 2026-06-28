@@ -234,6 +234,11 @@ until EOF.  In this mode every new row (newline separated) is converted
 into an independent
 .Xr syslogp 3
 call.
+A line beginning with a
+.Ql <N>
+severity prefix (systemd journal style, where N is 0-7) sets the
+priority for that line, e.g. when redirecting a daemon's output with
+.Ql program --foreground 2>&1 | logger .
 .El
 .Sh EXAMPLES
 .Bd -unfilled -offset left

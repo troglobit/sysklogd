@@ -82,10 +82,14 @@ Main differences from the original sysklogd package are:
 - Support for FreeBSD Secure Mode, remote logging enabled by default(!)
 - Support for FreeBSD style property based filtering.  Filter messages
   using host or program name, regexp, substring match, and more!
+- Support for OpenBSD style stop-processing block prefixes (`!!prog`,
+  `++host`, `::filter`) to capture a message exclusively, preventing it
+  from also matching later rules
 - Support for remote logging to a multicast group, as well as acting as
   a multicast group receiver of syslog messages, both IPv4 and IPv6
 - Includes a fit for purpose `logger` tool, compatible with `syslogd`,
-  leveraging the full RFC5424 capabilities (`msgid` etc.)
+  leveraging the full RFC5424 capabilities (`msgid` etc.), with UDP, TCP,
+  and TLS transport and a verbose (`-V`) mode for verifying remote setups
 - Includes a syslog library and system header replacement for logging
 - FreeBSD socket receive buffer size patch
 - Avoid blocking `syslogd` if console is backed up
