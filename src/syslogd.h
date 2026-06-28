@@ -371,6 +371,7 @@ struct filed {
 		struct {
 			char f_hname[MAXHOSTNAMELEN + 1];
 			char f_serv[20];
+			int  f_family;    /* AF_INET/AF_INET6 to force, 0=any */
 			struct addrinfo *f_addr;
 			int  f_tcp;       /* 1=TCP, 0=UDP */
 			int  f_tcp_sd;    /* persistent TCP socket, -1 if not connected */

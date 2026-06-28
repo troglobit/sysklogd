@@ -93,8 +93,8 @@ ACTION   := /path/to/file
 	 |= @remote[.host.tld][:PORT]
 	 |= @@remote[.host.tld][:PORT]
 	 |= @@@remote[.host.tld][:PORT]
-	 |= tcp://remote[.host.tld][:PORT]
-	 |= tls://remote[.host.tld][:PORT]
+	 |= tcp[4|6]://remote[.host.tld][:PORT]
+	 |= tls[4|6]://remote[.host.tld][:PORT]
 OPTION   := [OPTION,]
 	 |= RFC3164
 	 |= RFC5424
@@ -711,6 +711,16 @@ forwarding, use a double at sign ('@@') or the
 URL syntax.  If a port number is added
 after a colon (':') then that port will be used as the destination port
 rather than the usual syslog port.
+.Pp
+The address family is otherwise selected automatically.  Append a
+.Ql 4
+or
+.Ql 6
+to the URL scheme to force IPv4 or IPv6, e.g.
+.Ql tcp4://remote
+or
+.Ql tls6://remote ,
+which is useful for dual-stack hosts.
 .Pp
 TCP forwarding uses RFC 6587 octet counting for framing.  On the
 receiving side, both octet counting and non-transparent (LF-delimited)

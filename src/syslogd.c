@@ -253,7 +253,7 @@ static void signal_rotate(int sig);
 static int  validate(struct sockaddr *sa, const char *hname);
 static int  waitdaemon(int);
 static void timedout(int);
-static int  nslookup(const char *host, const char *service, int socktype, struct addrinfo **ai);
+static int  nslookup(const char *host, const char *service, int socktype, int af, struct addrinfo **ai);
 static void tcp_connect(struct filed *f);
 static size_t tcp_build_frame(const struct iovec *iov, int iovcnt, char *out, size_t outsz);
 static void forw_queue_enqueue(struct filed *f, const char *data, size_t len);
@@ -1131,7 +1131,7 @@ static int create_inet_tcp_socket(struct peer *pe)
 	if (pe->pe_socknum)
 		return 0;	/* Already set up */
 
-	err = nslookup(pe->pe_name, pe->pe_serv, SOCK_STREAM, &res);
+	err = nslookup(pe->pe_name, pe->pe_serv, SOCK_STREAM, AF_UNSPEC, &res);
 	if (err) {
 		ERRX("%s:%s/tcp service unknown: %s", pe->pe_name ?: "*",
 		     pe->pe_serv ?: "514", gai_strerror(err));
@@ -1211,7 +1211,7 @@ static int create_inet_tls_socket(struct peer *pe)
 	if (pe->pe_socknum)
 		return 0;	/* Already set up */
 
-	err = nslookup(pe->pe_name, pe->pe_serv, SOCK_STREAM, &res);
+	err = nslookup(pe->pe_name, pe->pe_serv, SOCK_STREAM, AF_UNSPEC, &res);
 	if (err) {
 		ERRX("%s:%s/tls service unknown: %s", pe->pe_name ?: "*",
 		     pe->pe_serv ?: "6514", gai_strerror(err));
@@ -1286,7 +1286,7 @@ static int create_inet_tls_socket(struct peer *pe)
  * a call to this function may be blocked for 10 seconds, or even more,
  * waiting for a response.  See https://serverfault.com/a/562108/122484
  */
-static int nslookup(const char *host, const char *service, int socktype, struct addrinfo **ai)
+static int nslookup(const char *host, const char *service, int socktype, int af, struct addrinfo **ai)
 {
 	struct addrinfo hints;
 	const char *node = host;
@@ -1306,7 +1306,7 @@ static int nslookup(const char *host, const char *service, int socktype, struct 
 	logit("nslookup '%s:%s'\n", node ?: "*", service ?: "514");
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_flags    = !node ? AI_PASSIVE : 0;
-	hints.ai_family   = family;
+	hints.ai_family   = (af != AF_UNSPEC) ? af : family;
 	hints.ai_socktype = socktype;
 
 	return getaddrinfo(node, service, &hints, ai);
@@ -1320,7 +1320,7 @@ static int create_inet_socket(struct peer *pe)
 	if (pe->pe_socknum)
 		return 0;	/* Already set up */
 
-	err = nslookup(pe->pe_name, pe->pe_serv, SOCK_DGRAM, &res);
+	err = nslookup(pe->pe_name, pe->pe_serv, SOCK_DGRAM, AF_UNSPEC, &res);
 	if (err) {
 		ERRX("%s:%s/udp service unknown: %s", pe->pe_name ?: "*",
 		     pe->pe_serv ?: "514", gai_strerror(err));
@@ -3423,6 +3423,7 @@ static void forw_lookup(struct filed *f)
 	int is_tcp = f->f_un.f_forw.f_tcp;
 	int is_tls = f->f_un.f_forw.f_tls;
 	int socktype = (is_tcp || is_tls) ? SOCK_STREAM : SOCK_DGRAM;
+	int af = f->f_un.f_forw.f_family;
 	struct addrinfo *ai;
 	time_t now, diff;
 	int err, first;
@@ -3455,7 +3456,7 @@ static void forw_lookup(struct filed *f)
 	if (!first && diff < INET_DNS_DELAY)
 		return;
 
-	err = nslookup(host, serv, socktype, &ai);
+	err = nslookup(host, serv, socktype, af, &ai);
 	if (err) {
 		if (is_tls)
 			f->f_type = F_FORW_TLS_UNKN;
@@ -4784,11 +4785,13 @@ static struct filed *cfline(char *line, const char *prog, const char *host, char
 	/* Handle tcp:// prefix before the switch */
 	if (!strncmp(p, "tcp://", 6) || !strncmp(p, "tcp4://", 7) || !strncmp(p, "tcp6://", 7)) {
 		cfopts(p, f);
-		if (!strncmp(p, "tcp6://", 7))
+		if (!strncmp(p, "tcp6://", 7)) {
+			f->f_un.f_forw.f_family = AF_INET6;
 			p += 7;
-		else if (!strncmp(p, "tcp4://", 7))
+		} else if (!strncmp(p, "tcp4://", 7)) {
+			f->f_un.f_forw.f_family = AF_INET;
 			p += 7;
-		else
+		} else
 			p += 6;
 
 		if (*p == '[') {
@@ -4819,11 +4822,13 @@ static struct filed *cfline(char *line, const char *prog, const char *host, char
 	/* Handle tls:// prefix before the switch (RFC 5425) */
 	if (!strncmp(p, "tls://", 6) || !strncmp(p, "tls4://", 7) || !strncmp(p, "tls6://", 7)) {
 		cfopts(p, f);
-		if (!strncmp(p, "tls6://", 7))
+		if (!strncmp(p, "tls6://", 7)) {
+			f->f_un.f_forw.f_family = AF_INET6;
 			p += 7;
-		else if (!strncmp(p, "tls4://", 7))
+		} else if (!strncmp(p, "tls4://", 7)) {
+			f->f_un.f_forw.f_family = AF_INET;
 			p += 7;
-		else
+		} else
 			p += 6;
 
 		if (*p == '[') {
