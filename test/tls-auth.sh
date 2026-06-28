@@ -109,6 +109,11 @@ MSG_HOST_OK="verify hostname accept message"
 MSG_REQ_BAD="verify required reject message"
 MSG_OPT="verify optional accept message"
 MSG_HOST_BAD="verify hostname reject message"
+MSG_FP_OK="verify fingerprint accept message"
+MSG_FP_BAD="verify fingerprint reject message"
+
+# A well-formed but non-matching SHA-256 fingerprint.
+WRONG_FP="SHA256:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF"
 
 # Restart the receiver presenting server cert "$1" (basename under $DIR),
 # without requiring a client cert -- for server-cert verification tests.
@@ -180,6 +185,29 @@ verify_required_reject()  { fwd_blocked "${MSG_REQ_BAD}"; }
 verify_optional_accept()  { fwd_arrives "${MSG_OPT}"; }
 verify_hostname_reject()  { fwd_blocked "${MSG_HOST_BAD}"; }
 
+# The SHA-256 fingerprint of cert "$1", as "SHA256:AA:BB:..." for pinning.
+cert_fp()
+{
+    echo "SHA256:$(openssl x509 -in "$1" -noout -fingerprint -sha256 | sed 's/.*=//')"
+}
+
+# Pin the server by fingerprint "$1"; no CA, chain not validated.
+write_sender_fp()
+{
+    cat <<-EOF >"${CONFD}/fwd.conf"
+	tcp_suspend_time  3
+	kern.*            /dev/null
+	ntp.*             @@@[::1]:${PORT2}  ;RFC5424,fingerprint=$1
+	EOF
+    reload
+    sleep 1
+}
+
+pin_correct()      { write_sender_fp "$(cert_fp "${DIR}/server-bad.cert")"; }
+pin_wrong()        { write_sender_fp "${WRONG_FP}"; }
+verify_fp_accept() { fwd_arrives "${MSG_FP_OK}"; }
+verify_fp_reject() { fwd_blocked "${MSG_FP_BAD}"; }
+
 run_step "Check OpenSSL availability"               check_openssl
 run_step "Generate CA, server and client certs"     setup_ca
 run_step "Set up receiver requiring a client cert"  setup_receiver_mtls
@@ -202,3 +230,10 @@ run_step "verify=optional accepts untrusted cert"   verify_optional_accept
 run_step "Receiver presents CA-signed wrong CN"     restart_receiver_srv server-wrong
 run_step "Sender verify=hostname to ip6-localhost"      sender_verify hostname ip6-localhost
 run_step "verify=hostname rejects wrong CN"         verify_hostname_reject
+
+# Certificate fingerprint pinning (no CA; self-signed server cert)
+run_step "Receiver presents self-signed cert"       restart_receiver_srv server-bad
+run_step "Sender pins the correct fingerprint"      pin_correct
+run_step "Fingerprint pinning accepts matching cert" verify_fp_accept
+run_step "Sender pins a wrong fingerprint"          pin_wrong
+run_step "Fingerprint pinning rejects wrong pin"    verify_fp_reject
