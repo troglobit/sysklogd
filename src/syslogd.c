@@ -2369,6 +2369,37 @@ prop_filter_skip(const struct prop_filter *filter, const char *value)
  * priority.  Log messages are formatted according to RFC3164 or RFC5424
  * in subsequent fprintlog_*() functions.
  */
+#ifdef HAVE_OPENSSL
+/*
+ * Set while emitting an RFC 5848 block, so the injected block message is
+ * not itself hashed/counted by the sign hooks below (which would recurse).
+ * Relies on emission being synchronous and syslogd single-threaded.
+ */
+static int sign_emitting;
+
+void sign_emit_block(const char *msgid, const char *sd)
+{
+	char emptymsg[] = "";
+	struct buf_msg buffer;
+	char proc_id[16];
+
+	(void)snprintf(proc_id, sizeof(proc_id), "%d", getpid());
+	memset(&buffer, 0, sizeof(buffer));
+	buffer.hostname = LocalHostName;
+	buffer.app_name = "syslogd";
+	buffer.proc_id  = proc_id;
+	buffer.pri      = LOG_SYSLOG | LOG_INFO;
+	buffer.msgid    = (char *)msgid;
+	buffer.sd       = (char *)sd;
+	buffer.msg      = emptymsg;
+	buffer.flags    = RFC5424;
+
+	sign_emitting = 1;
+	logmsg(&buffer);
+	sign_emitting = 0;
+}
+#endif
+
 static void logmsg(struct buf_msg *buffer)
 {
 	struct filed *f;
@@ -2435,6 +2466,12 @@ static void logmsg(struct buf_msg *buffer)
 			    buffer->proc_id == NULL ? "-" : buffer->proc_id,
 			    buffer->msgid == NULL ? "-" : buffer->msgid,
 			    buffer->sd == NULL ? "-" : buffer->sd, buffer->msg);
+
+#ifdef HAVE_OPENSSL
+	/* RFC 5848: advance the message counter once, before distribution */
+	if (sign_enabled() && !sign_emitting)
+		sign_msg_begin();
+#endif
 
 	SIMPLEQ_FOREACH(f, &fhead, f_link) {
 		/* skip messages that are incorrect priority */
@@ -2528,7 +2565,7 @@ static void logmsg(struct buf_msg *buffer)
 
 #ifdef HAVE_OPENSSL
 			/* RFC 5848: compute and store hash for signing */
-			if (sign_enabled())
+			if (sign_enabled() && !sign_emitting)
 				sign_msg_hash(buffer, f);
 #endif
 			fprintlog_first(f, buffer);
@@ -2537,6 +2574,12 @@ static void logmsg(struct buf_msg *buffer)
 		if (f->f_flags & STOP_FLAG)
 			break;
 	}
+
+#ifdef HAVE_OPENSSL
+	/* RFC 5848: emit any signature block that filled while hashing */
+	if (sign_enabled() && !sign_emitting)
+		sign_flush_blocks();
+#endif
 
 	sigprocmask(SIG_UNBLOCK, &mask, NULL);
 }

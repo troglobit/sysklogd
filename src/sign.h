@@ -89,10 +89,30 @@ int  sign_config(const char *sg_str, const char *delim_str,
 int  sign_enabled(void);
 
 /*
- * Called for each message during logmsg() to compute and store hash.
- * Must be called before message is distributed to filed entries.
+ * Called once per message in logmsg(), before the destination loop, to
+ * advance the global message counter.
+ */
+void sign_msg_begin(void);
+
+/*
+ * Called for each matching destination during logmsg() to compute and
+ * store the message hash in its signature group.
  */
 void sign_msg_hash(struct buf_msg *msg, struct filed *f);
+
+/*
+ * Called once per message in logmsg(), after the destination loop, to
+ * emit any signature block that filled up while hashing the message.
+ * Deferred to here so block emission never re-enters the loop.
+ */
+void sign_flush_blocks(void);
+
+/*
+ * Inject a signature/certificate block as an RFC5424 message.  Defined
+ * in syslogd.c (needs logmsg()); guards against re-hashing its own
+ * output.  msgid is "SIGN" or "CERT", sd the "[ssign...]" structured data.
+ */
+void sign_emit_block(const char *msgid, const char *sd);
 
 /*
  * Timer callback to send signature blocks.
@@ -113,7 +133,9 @@ void sign_send_cert_block(void);
 #define sign_exit()                      do {} while(0)
 #define sign_config(s, d, k, c)          (0)
 #define sign_enabled()                   (0)
+#define sign_msg_begin()                 do {} while(0)
 #define sign_msg_hash(msg, f)            do {} while(0)
+#define sign_flush_blocks()              do {} while(0)
 #define sign_send_blocks(arg)            do {} while(0)
 #define sign_send_cert_block()           do {} while(0)
 

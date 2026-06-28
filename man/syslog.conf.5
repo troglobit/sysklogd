@@ -484,10 +484,11 @@ One signature group per destination (NetBSD extension)
 .El
 .Pp
 .It Ql sign_delim_sg2 Ar delimiters
-Space-separated priority values defining group boundaries for
+Space-separated priority values (0-191, facility*8+severity) defining the
+upper bound of each signature group range for
 .Ql sign_sg=2
 mode.
-Default is one group per facility.
+With no delimiters configured all messages fall into a single group.
 .Pp
 .It Ql sign_keyfile Ar path
 Path to PEM-encoded private key file for signing messages.

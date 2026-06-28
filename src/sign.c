@@ -107,6 +107,7 @@ static int       sign_initialized;	/* Flag: signing is ready */
 static uint64_t  sign_msgnum;		/* Global message number counter */
 static int       sign_delim[8];		/* Priority delimiters for SG=2 */
 static int       sign_delim_count;	/* Number of delimiters */
+static int       sign_pending;		/* A group filled, flush after msg */
 
 /* Configuration strings (set by cfparse) */
 static char *cfg_keyfile;
@@ -433,9 +434,6 @@ static void sign_send_sig_block(struct sign_group *sg)
 	char hb[SIGN_MAX_SD_LENGTH];
 	char *sig_b64;
 	size_t hb_len = 0;
-	struct buf_msg buffer;
-	char pribuf[8];
-	char timebuf[RFC5424_DATELEN + 1];
 
 	if (sg->sg_hash_count == 0)
 		return;
@@ -480,31 +478,8 @@ static void sign_send_sig_block(struct sign_group *sg)
 	sg->sg_hash_count = 0;
 	sg->sg_cnt = 0;
 
-	/* Create and send the signature block message */
-	memset(&buffer, 0, sizeof(buffer));
-	buffer.pri = LOG_SYSLOG | LOG_INFO;
-	snprintf(pribuf, sizeof(pribuf), "<%d>", buffer.pri);
-	buffer.pribuf[0] = '\0';
-	strlcpy(buffer.pribuf, pribuf, sizeof(buffer.pribuf));
-	buffer.flags = RFC5424;
-
-	/* Generate timestamp */
-	time_t now = time(NULL);
-	struct tm tm;
-	localtime_r(&now, &tm);
-	strftime(timebuf, sizeof(timebuf), RFC5424_DATEFMT, &tm);
-	strlcpy(buffer.timebuf, timebuf, sizeof(buffer.timebuf));
-
-	buffer.hostname = NULL;  /* Will be filled by logmsg */
-	buffer.app_name = "syslogd";
-	buffer.proc_id = NULL;
-	buffer.msgid = "SIGN";
-	buffer.sd = sd;
-	buffer.msg = "";
-
-	/* Log internally - this will distribute to configured destinations */
-	flog(LOG_SYSLOG | LOG_INFO, "RFC5848 signature block SG=%d GBC=%lu",
-	     sg->sg_id, (unsigned long)(sg->sg_gbc - 1));
+	/* Emit the [ssign] block as an RFC5424 message to all destinations */
+	sign_emit_block("SIGN", sd);
 }
 
 /*
@@ -567,6 +542,11 @@ int sign_config(const char *sg_str, const char *delim_str,
  */
 int sign_init(void)
 {
+	/* Apply once, like tls_init(): a SIGHUP must not re-add the timer
+	 * or reset the RSID and message counter mid-session. */
+	if (sign_initialized)
+		return 0;
+
 	/* If no keyfile configured, signing is disabled */
 	if (!cfg_keyfile) {
 		sign_initialized = 0;
@@ -654,6 +634,15 @@ int sign_enabled(void)
 }
 
 /*
+ * Public API: Advance the message counter, once per message
+ */
+void sign_msg_begin(void)
+{
+	if (sign_initialized)
+		sign_msgnum++;
+}
+
+/*
  * Public API: Compute and store hash for a message
  */
 void sign_msg_hash(struct buf_msg *msg, struct filed *f)
@@ -663,18 +652,19 @@ void sign_msg_hash(struct buf_msg *msg, struct filed *f)
 	if (!sign_initialized)
 		return;
 
-	/* Increment global message counter */
-	sign_msgnum++;
-
 	/* Get signature group for this message */
 	sg = sign_get_group(f, msg->pri);
 	if (!sg)
 		return;
 
-	/* Check if group hash buffer is full */
+	/*
+	 * If the group is full, defer the block emission to after the
+	 * message has been distributed (see sign_flush_blocks); emitting
+	 * here would re-enter the logmsg() destination loop.
+	 */
 	if (sg->sg_hash_count >= SIGN_MAX_HASHES) {
-		/* Send current signature block and start new one */
-		sign_send_sig_block(sg);
+		sign_pending = 1;
+		return;
 	}
 
 	/* Compute and store hash */
@@ -682,6 +672,26 @@ void sign_msg_hash(struct buf_msg *msg, struct filed *f)
 			      sizeof(sg->sg_hashes[0])) == 0) {
 		sg->sg_hash_count++;
 		sg->sg_cnt++;
+		if (sg->sg_hash_count >= SIGN_MAX_HASHES)
+			sign_pending = 1;
+	}
+}
+
+/*
+ * Public API: Emit signature blocks for groups that filled while hashing
+ * the current message.  Called after the logmsg() destination loop.
+ */
+void sign_flush_blocks(void)
+{
+	struct sign_group *sg;
+
+	if (!sign_initialized || !sign_pending)
+		return;
+
+	sign_pending = 0;
+	LIST_FOREACH(sg, &sign_group_list, sg_link) {
+		if (sg->sg_hash_count >= SIGN_MAX_HASHES)
+			sign_send_sig_block(sg);
 	}
 }
 
@@ -752,9 +762,8 @@ void sign_send_cert_block(void)
 
 		free(sig_b64);
 
-		/* Log the certificate block */
-		flog(LOG_SYSLOG | LOG_INFO,
-		     "RFC5848 certificate block INDEX=%d FLEN=%zu", index, frag_len);
+		/* Emit the [ssign-cert] block as an RFC5424 message */
+		sign_emit_block("CERT", sd);
 
 		frag_offset += frag_len;
 		index++;
