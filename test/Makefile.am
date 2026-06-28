@@ -4,6 +4,7 @@ EXTRA_DIST      += api.sh local.sh unicode.sh remote.sh fwd.sh mark.sh      \
 		   logger.sh listen.sh sighup.sh tag.sh hostname.sh	    \
 		   property.sh raw.sh regression.sh multicast.sh	    \
 		   mcast-fwd.sh mcast-iface.sh parens.sh fwd-hostname.sh fwd-sd.sh
+EXTRA_DIST      += pri.sh
 CLEANFILES       = *~ *.trs *.log
 TEST_EXTENSIONS  = .sh
 TESTS_ENVIRONMENT= unshare -mrun --map-auto
@@ -40,5 +41,6 @@ TESTS           += regression.sh
 TESTS           += multicast.sh
 TESTS           += mcast-fwd.sh
 TESTS           += mcast-iface.sh
+TESTS           += pri.sh
 
 programs: $(check_PROGRAMS)
