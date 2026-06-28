@@ -4452,11 +4452,12 @@ static void cfopts(char *ptr, struct filed *f)
  * Compile property-based filter.
  */
 static struct prop_filter *
-prop_filter_compile(char *filter)
+prop_filter_compile(const char *filter_in)
 {
 	char **ap, *argv[2] = { NULL, NULL };
 	struct prop_filter *pfilter;
 	char *filter_endpos, *p;
+	char *filter, *filter_base = NULL;
 	int re_flags = REG_NOSUB;
 	int escaped;
 
@@ -4472,9 +4473,21 @@ prop_filter_compile(char *filter)
 		return NULL;
 	}
 
-	if (*filter == '*') {
+	if (*filter_in == '*') {
 		pfilter->prop_type = PROP_TYPE_NOOP;
 		return pfilter;
+	}
+
+	/*
+	 * strsep() and the value de-escaping below modify the string in
+	 * place, so work on a copy -- the caller reuses this buffer for
+	 * the remaining rules in the block.
+	 */
+	filter_base = filter = strdup(filter_in);
+	if (!filter) {
+		ERR("failed allocating property filter");
+		free(pfilter);
+		return NULL;
 	}
 
 	/*
@@ -4606,8 +4619,10 @@ prop_filter_compile(char *filter)
 		}
 	}
 
+	free(filter_base);
 	return pfilter;
 error:
+	free(filter_base);
 	if (pfilter->pflt_re)
 		free(pfilter->pflt_re);
 	free(pfilter);
