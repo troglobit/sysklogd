@@ -23,10 +23,35 @@ jobs:
         run: |
           sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0
       - name: Build release ...
+        # DEBUG=1 keeps per-test dirs from being wiped on exit and folds
+        # the syslogd -d trace into each test/<name>.log, so a test failure
+        # during distcheck is traceable instead of a bare non-zero exit.
+        env:
+          DEBUG: 1
         run: |
-          make release
+          make release || {
+            echo "::group::test-suite.log"
+            find . -name test-suite.log | sort | xargs -r tail -n +1
+            echo "::endgroup::"
+            echo "::group::per-test step logs"
+            find . -path '*/test/*.log' | sort | xargs -r tail -n +1
+            echo "::endgroup::"
+            echo "::group::syslogd debug logs"
+            find /tmp/sysklogd -name '*.log' | sort | xargs -r tail -n +1
+            echo "::endgroup::"
+            false
+          }
           mkdir -p artifacts/
           mv ../*.tar.* artifacts/
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: release-test-logs
+          path: |
+            **/test/*.log
+            **/test-suite.log
+            /tmp/sysklogd/**/*.log
+          if-no-files-found: ignore
       - name: Extract ChangeLog entry ...
         run: |
           awk '/-----*/{if (x == 1) exit; x=1;next}x' ChangeLog.md \
