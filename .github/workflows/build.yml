@@ -11,8 +11,12 @@ on:
     branches:
       - '**'
 
+# A push to a branch that also has an open PR fires both a 'push' and a
+# 'pull_request' event.  Key the group on the branch name -- which both
+# events resolve to -- so the second cancels the first instead of running
+# the same tree twice.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
