@@ -34,7 +34,7 @@ verify_log()
     msg="$*"
 
     logger -i -t "$tag" "$msg"
-    grep "$msg" "$log"
+    tenacious 5 grep "$msg" "$log"
 }
 
 check_log()
@@ -56,6 +56,6 @@ run_step "Verify generic msg got to syslog"        verify_log "CRON" "$SYSLOG" "
 run_step "Verify generic msg not in msessages"     check_not         "$MSGLOG" "$MSG3"
 
 run_step "Verify auth. error go to auth-err.log"   verify_log "sshd" "$ERRLOG" "$MSG2"
-run_step "Verify auth. error go to syslog as well" check_log         "$SYSLOG" "$MSG2"
+run_step "Verify auth. error go to syslog as well" tenacious 5 check_log "$SYSLOG" "$MSG2"
 
 run_step "Verify regex matching to ban.log"        verify_log "sshd" "$BANLOG" "$MSG1"

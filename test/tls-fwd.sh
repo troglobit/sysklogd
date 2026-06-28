@@ -57,17 +57,13 @@ setup_sender_tls_url()
 verify_msg()
 {
     logger -t fwd -p ntp.notice -m "NTP123" "${MSG}"
-    sleep 3
-
-    grep "fwd - NTP123 - ${MSG}" "${LOG2}"
+    tenacious 5 grep "fwd - NTP123 - ${MSG}" "${LOG2}"
 }
 
 verify_msg_url()
 {
     logger -t fwd -p ntp.notice -m "NTP123" "${MSG2}"
-    sleep 3
-
-    grep "fwd - NTP123 - ${MSG2}" "${LOG2}"
+    tenacious 5 grep "fwd - NTP123 - ${MSG2}" "${LOG2}"
 }
 
 run_step "Check OpenSSL availability"                          check_openssl

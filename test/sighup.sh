@@ -7,7 +7,7 @@ verify_logging()
 {
     MSG="$*"
     logger "${MSG}"
-    grep "${MSG}" "${LOG}"
+    tenacious 5 grep "${MSG}" "${LOG}"
 }
 
 rattle_cage()

@@ -37,8 +37,7 @@ setup_sender()
 verify_baseline()
 {
     logger -t tcp-queue -p ntp.notice "${MSG_BASE}"
-    sleep 2
-    grep "${MSG_BASE}" "${LOG2}"
+    tenacious 5 grep "${MSG_BASE}" "${LOG2}"
 }
 
 kill_receiver()
@@ -79,10 +78,10 @@ trigger_reconnect()
 
 verify_all_arrived()
 {
-    grep "${MSG_Q1}"      "${LOG2}"
-    grep "${MSG_Q2}"      "${LOG2}"
-    grep "${MSG_Q3}"      "${LOG2}"
-    grep "${MSG_TRIGGER}" "${LOG2}"
+    tenacious 5 grep "${MSG_Q1}"      "${LOG2}"
+    tenacious 5 grep "${MSG_Q2}"      "${LOG2}"
+    tenacious 5 grep "${MSG_Q3}"      "${LOG2}"
+    tenacious 5 grep "${MSG_TRIGGER}" "${LOG2}"
 }
 
 run_step "Set up TCP receiver"              setup_receiver_tcp

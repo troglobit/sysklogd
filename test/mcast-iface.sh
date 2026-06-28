@@ -88,7 +88,7 @@ verify_logger_send()
 
 verify_logger_recv()
 {
-    grep -H "$MSG1" "$LOG2"
+    tenacious 5 grep -H "$MSG1" "$LOG2"
 }
 
 run_step "Set up receiver syslogd"          setup_receiver
