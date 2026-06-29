@@ -526,7 +526,7 @@ output:
 			piov = iov;
 			piovcnt = iovcnt + 1;
 		}
-		(void)writev(STDERR_FILENO, piov, piovcnt + 1);
+		(void)writev(STDERR_FILENO, piov, piovcnt);
 	}
 
 	/* Don't write to system log, instead use fd in log_file */
