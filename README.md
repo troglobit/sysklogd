@@ -10,15 +10,6 @@
 ```
 [![BSD Badge][]][BSD License] [![GitHub Status][]][GitHub] [![Coverity Status][]][Coverity Scan]
 
-Table of Contents
------------------
-
-- [Introduction](#introduction)
-- [Using -lsyslog](#using--lsyslog)
-- [Build & Install](#build--install)
-- [Building from GIT](#building-from-git)
-- [Origin & References](#origin--references)
-
 > [!TIP]
 > The Gentoo project has a very nice article detailing sysklogd
 > ➤ <https://wiki.gentoo.org/wiki/Sysklogd>
@@ -32,11 +23,12 @@ derived from NetBSD and FreeBSD.  It also supports TCP ([RFC6587][]) and TLS
 encrypted transport ([RFC5425][]), as well as cryptographically signed log
 messages ([RFC5848][]).
 
-The package includes the `libsyslog.{a,so}` library with a `syslog.h` header
-replacement, the `syslogd` daemon, and a command line tool called `logger`.
-`libsyslog` and `syslog/syslog.h` are derived directly from NetBSD and expose
-`syslogp()` and other new features available only in [RFC5424][] (not yet
-available in GLIBC).
+The package includes the `libsyslog.{a,so}` library (a `syslog.h` replacement),
+the `syslogd` daemon, and a `logger` command line tool.  `syslogd` logs messages
+from the kernel, local programs, and remote hosts.  `libsyslog` is derived from
+NetBSD and exposes `syslogp()` and other [RFC5424][] features not yet in GLIBC;
+it is compatible with the standard `syslog()` API (GLIBC, musl, uClibc), but an
+application must link `libsyslog` to use `syslogp()`.
 
 Read more about each component and the APIs:
 
@@ -46,62 +38,32 @@ Read more about each component and the APIs:
 - <https://man.troglobit.com/man3/syslogp.3.html>
 - <https://netbsd.gw.com/cgi-bin/man-cgi?syslog+3+NetBSD-current>
 
-The `syslogd` daemon is an enhanced version of the standard Berkeley
-utility program, updated with DNA from FreeBSD.  It provides logging of
-messages received from the kernel, programs and facilities on the local
-host as well as messages from remote hosts.  Although fully compatible
-with standard C-library implementations of the `syslog()` API (GLIBC,
-musl libc, uClibc), `libsyslog` must be used in your application to
-unlock the new [RFC5424][] `syslogp()` API.
+The bundled `logger` sends RFC5424 (default) or RFC3164 messages to a local or
+remote `syslogd`.  Its command line follows the BSD `logger`, not the bsdutils
+one (it adds `-I PID`, cf. bsdutils `--id=PID`).
 
-The included `logger` tool is primarily made for use with sysklogd, but
-can be used stand-alone too.  It is not command line compatible with the
-"standard" Linux logger tool from the bsdutils project.  Instead it is
-compatible with the actual BSD logger tool(s) -- only major difference
-is its support for `-I PID`, similar to the bsdutils `--id=PID`.  The
-`logger` tool can be used from the command line, or script, to send both
-RFC5424 (default) and old-style (BSD) RFC3164 formatted messages using
-`libsyslog` to `syslogd` for local processing, or to a remote server.
+Main differences from the original sysklogd package:
 
-Main differences from the original sysklogd package are:
-
-- The separate `klogd` daemon is no longer part of the sysklogd project,
-  syslogd now natively supports logging kernel messages as well
-- *Major* command line changes to `syslogd`, for compatibility with *BSD
-- Supports `include /etc/syslog.d/*.conf` directive, see example .conf
-- Built-in log-rotation support, with compression by default, useful for
-  embedded systems.  No need for cron and/or a separate log rotate daemon
-- Full [RFC3164][] and [RFC5424][] support from NetBSD and FreeBSD
-- Support for sending RFC3164 style remote syslog messages, including
-  timestamp and hostname.  Defaults to send w/o for compatibility
-- Support for sending RFC5424 style remote syslog messages
-- Support for sending messages to a custom port on a remote server
-- Support for listening to a custom port
-- Support for remote peer filtering, from FreeBSD
-- Support for disabling DNS reverse lookups for each remote log message
-- Support for FreeBSD Secure Mode, remote logging enabled by default(!)
-- Support for FreeBSD style property based filtering.  Filter messages
-  using host or program name, regexp, substring match, and more!
-- Support for OpenBSD style stop-processing block prefixes (`!!prog`,
-  `++host`, `::filter`) to capture a message exclusively, preventing it
-  from also matching later rules
-- Support for remote logging to a multicast group, as well as acting as
-  a multicast group receiver of syslog messages, both IPv4 and IPv6
-- Includes a fit for purpose `logger` tool, compatible with `syslogd`,
-  leveraging the full RFC5424 capabilities (`msgid` etc.), with UDP, TCP,
-  and TLS transport and a verbose (`-V`) mode for verifying remote setups
-- Includes a syslog library and system header replacement for logging
-- FreeBSD socket receive buffer size patch
-- Avoid blocking `syslogd` if console is backed up
-- Touch PID file on `SIGHUP`, for integration with [Finit][]
-- GNU configure & build system to ease porting/cross-compiling
-- Support for configuring remote syslog timeout
-- Support for [RFC6587][] TCP syslog transport, for sender and receiver
-- Per-destination in-memory send queue for TCP forwarding: messages accumulate
-  during outages and are flushed automatically on reconnect, with configurable
-  suspension time (`tcp_suspend_time` in `syslog.conf`)
-- Support for [RFC5425][] TLS encrypted syslog transport (only if built with OpenSSL support)
-- Support for [RFC5848][] cryptographically signed log messages (only if built with OpenSSL support)
+- Transports and remote logging: UDP, TCP ([RFC6587][]), and TLS
+  ([RFC5425][], with OpenSSL), for both sending and receiving, on a
+  configurable port; RFC3164 or RFC5424 framing (RFC3164 sent without
+  timestamp/hostname by default, for compatibility); multicast groups, IPv4
+  and IPv6; cryptographically signed messages ([RFC5848][], with OpenSSL); a
+  per-destination in-memory TCP send queue that buffers during an outage and
+  flushes on reconnect (`tcp_suspend_time`); a configurable remote timeout;
+  FreeBSD-style remote peer filtering; and FreeBSD Secure Mode.
+- Filtering and configuration: FreeBSD-style property-based filtering, by
+  host, program, regexp, or substring; OpenBSD-style stop-processing prefixes
+  (`!!prog`, `++host`, `::filter`) that capture a message exclusively;
+  `include /etc/syslog.d/*.conf`; and per-message DNS reverse-lookup control.
+- Operation: native kernel logging, no separate `klogd`; built-in log
+  rotation with compression; non-blocking when the console is backed up; the
+  FreeBSD socket-receive-buffer patch; and a PID file touched on `SIGHUP`, for
+  [Finit][] integration.
+- Compatibility and build: a major, *BSD-compatible `syslogd` command line;
+  the bundled `logger` (RFC5424 `msgid`, UDP/TCP/TLS, and a `-V` verify mode);
+  the `libsyslog` library and `syslog.h` replacement; and a GNU configure/build
+  system for porting and cross-compiling.
 
 Please file bug reports, or send pull requests for bug fixes and/or
 proposed extensions at [GitHub][Home].
@@ -116,7 +78,7 @@ libsyslog is by default installed as a library with a header file:
 #include <syslog/syslog.h>
 ```
 
-The output from the `pkg-config` tool holds no surprises:
+Query the build flags with `pkg-config`:
 
 ```sh
 $ pkg-config --libs --static --cflags libsyslog
@@ -167,6 +129,10 @@ non-distro binaries in `/usr/local` or `/opt`.
 >           that is cleaned at reboot.  syslogd relies on this for
 >           its `syslogd.cache` file, which keeps track of the last
 >           read kernel log message from `/dev/kmsg`.
+
+After editing the configuration, reload `syslogd` to apply it:
+`kill -HUP $(cat /run/syslogd.pid)`, or `systemctl reload syslogd`.  See
+`syslog.conf(5)` for the file format.
 
 
 Building from GIT
