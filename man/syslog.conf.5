@@ -88,8 +88,8 @@ PREFIX   := [PREFIX]
          |= icase_
 RULE     := SELECTOR  ACTION  [;OPTION]
 SELECTOR := [SELECTOR;]facility[,facility].[!=]severity
-ACTION   := /path/to/file
-         |= |/path/to/named/pipe
+ACTION   := [+][-]/path/to/file
+         |= [+]|/path/to/named/pipe
 	 |= @remote[.host.tld][:PORT]
 	 |= @@remote[.host.tld][:PORT]
 	 |= @@@remote[.host.tld][:PORT]
@@ -744,21 +744,16 @@ give you back some performance, especially if you run programs that use
 logging in a very verbose manner.
 .Pp
 To keep RFC 5848 signature verification possible for a file destination,
-log it in a format that preserves the priority and version fields, using
-the
-.Ql ;RFC5424
-or
+log it in a format that preserves the priority, by prefixing the path
+with
+.Ql + ,
+matching NetBSD.  This is equivalent to the
 .Ql ;pri
-option.  NetBSD
-.Nm
-instead prefixes the path with
-.Ql +
-(and
+option, and may be combined with the no-sync prefix as
 .Ql +-
-for signing-preservation plus no-sync); sysklogd uses the per-action
-options for this, while the
-.Ql -
-no-sync prefix is the same.
+(in that order).  To also keep the RFC5424 version field, use the
+.Ql ;RFC5424
+format.
 .Ss Named Pipes
 This version of
 .Xr syslogd 8
