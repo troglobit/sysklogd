@@ -460,9 +460,20 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 		strlcat(fmt_cat, "-", FMT_LEN);
 
 output:
-	if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG))
-		msgsdlen = strlen(fmt_cat) + 1;
-	else
+	if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG)) {
+		va_list ap2;
+		int pfxlen;
+
+		/*
+		 * Length of the "MSGID SD " prefix the PERROR/CONS echo skips.
+		 * Measure the expanded prefix, not the format string, since the
+		 * SD may contain conversions; +1 for the space before the msg.
+		 */
+		va_copy(ap2, ap);
+		pfxlen = vsnprintf(NULL, 0, fmt_cat, ap2);
+		va_end(ap2);
+		msgsdlen = (pfxlen < 0 ? strlen(fmt_cat) : (size_t)pfxlen) + 1;
+	} else
 		msgsdlen = 0;	/* XXX: GCC */
 
 	if (msgfmt != NULL && *msgfmt != '\0') {
