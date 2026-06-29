@@ -85,8 +85,8 @@ PREFIX   := [PREFIX]
          |= icase_
 RULE     := SELECTOR  ACTION  [;OPTION]
 SELECTOR := [SELECTOR;]facility[,facility].[!=]severity
-ACTION   := /path/to/file
-         |= |/path/to/named/pipe
+ACTION   := [+][-]/path/to/file
+         |= [+]|/path/to/named/pipe
 	 |= @remote[.host.tld][:PORT]
 OPTION   := [OPTION,]
 	 |= RFC3164
@@ -539,6 +539,13 @@ file after each log message.  Note that you might lose information if
 the system crashes right after a write attempt.  Nevertheless this might
 give you back some performance, especially if you run programs that use
 logging in a very verbose manner.
+.Pp
+To always print the priority in the header, prefix the path with
+.Ql + ,
+matching NetBSD.  This is equivalent to the
+.Ql ;pri
+option, and may be combined with the no-sync prefix as
+.Ql +- .
 .Ss Named Pipes
 This version of
 .Xr syslogd 8

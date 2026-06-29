@@ -3939,11 +3939,19 @@ static struct filed *cfline(char *line, const char *prog, const char *host, char
 	while (*p == '\t' || *p == ' ')
 		p++;
 
-	if (*p == '-') {
-		syncfile = 0;
+	/*
+	 * Optional destination prefixes, any order, matching NetBSD:
+	 *   -  do not fsync the file after each line
+	 *   +  preserve the priority in the output (like the ;pri option)
+	 */
+	syncfile = 1;
+	while (*p == '-' || *p == '+') {
+		if (*p == '-')
+			syncfile = 0;
+		else
+			f->f_flags |= PRI;
 		p++;
-	} else
-		syncfile = 1;
+	}
 
 	logit("leading char in action: %c\n", *p);
 	switch (*p) {

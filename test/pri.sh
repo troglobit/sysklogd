@@ -1,13 +1,16 @@
 #!/bin/sh
-# Verify the ;pri action option, which makes syslogd print the message
-# priority code in the log line, in the format in use (RFC3164/RFC5424).
-# A user.notice message has priority <13> (facility 1 * 8 + severity 5).
+# Verify the ;pri action option and the equivalent NetBSD-style '+' (and
+# '+-') destination prefix, which make syslogd print the message priority
+# code in the log line.  A user.notice message has priority <13>
+# (facility 1 * 8 + severity 5).
 #
 . "${srcdir:-.}/lib.sh"
 
 LOGDIR="$DIR/log"
 PRILOG="${LOGDIR}/pri.log"
 PLAINLOG="${LOGDIR}/plain.log"
+PLUSLOG="${LOGDIR}/plus.log"
+PMLOG="${LOGDIR}/plusminus.log"
 MSG="priority printing test $$"
 
 setup_syslogd()
@@ -16,6 +19,8 @@ setup_syslogd()
     cat <<-EOF >"${CONF}"
 	*.*		-${PRILOG}	;pri
 	*.*		-${PLAINLOG}
+	*.*		+${PLUSLOG}
+	*.*		+-${PMLOG}
 	EOF
     setup -m0
 }
@@ -40,7 +45,21 @@ verify_plain_no_pri()
     return 0
 }
 
-run_step "Set up syslogd with a ;pri action"  setup_syslogd
-run_step "Verify priority printed with ;pri"  verify_pri
-run_step "Verify message reached plain log"   verify_plain
-run_step "Verify no priority without ;pri"    verify_plain_no_pri
+# The '+' prefix preserves the priority, like ;pri
+verify_plus()
+{
+    tenacious 5 grep "<13>.*prit: ${MSG}" "${PLUSLOG}"
+}
+
+# The combined '+-' prefix (preserve priority, no sync) does too
+verify_plusminus()
+{
+    tenacious 5 grep "<13>.*prit: ${MSG}" "${PMLOG}"
+}
+
+run_step "Set up syslogd with ;pri and +/+- actions"  setup_syslogd
+run_step "Verify priority printed with ;pri"          verify_pri
+run_step "Verify message reached plain log"           verify_plain
+run_step "Verify no priority without ;pri"            verify_plain_no_pri
+run_step "Verify '+' prefix preserves priority"       verify_plus
+run_step "Verify '+-' prefix preserves priority"      verify_plusminus
