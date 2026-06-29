@@ -537,14 +537,18 @@ output:
 			piov = iov;
 			piovcnt = iovcnt + 1;
 		}
-		(void)writev(STDERR_FILENO, piov, piovcnt);
+		if (writev(STDERR_FILENO, piov, piovcnt) < 0) {
+			/* best effort echo to stderr */
+		}
 	}
 
 	/* Don't write to system log, instead use fd in log_file */
 	if (data->log_stat & LOG_NLOG) {
 		iov[iovcnt].iov_base = __UNCONST(CRLF + 1);
 		iov[iovcnt].iov_len = 1;
-		(void)writev(data->log_file, iov, iovcnt + 1);
+		if (writev(data->log_file, iov, iovcnt + 1) < 0) {
+			/* best effort */
+		}
 		goto done;
 	}
 
@@ -559,7 +563,9 @@ output:
 	/* Log to stdout, usually for debugging syslogp() API */
 	if (data->log_stat & LOG_STDOUT) {
 		strlcat(tbuf, "\n", sizeof(tbuf));
-		write(data->log_file, tbuf, strlen(tbuf));
+		if (write(data->log_file, tbuf, strlen(tbuf)) < 0) {
+			/* best effort */
+		}
 		goto done;
 	}
 
@@ -601,7 +607,9 @@ output:
 		O_WRONLY | O_NONBLOCK | O_CLOEXEC, 0)) >= 0) {
 		iov[iovcnt].iov_base = __UNCONST(CRLF);
 		iov[iovcnt].iov_len = 2;
-		(void)writev(fd, iov, iovcnt + 1);
+		if (writev(fd, iov, iovcnt + 1) < 0) {
+			/* best effort console fallback */
+		}
 		(void)close(fd);
 	}
 

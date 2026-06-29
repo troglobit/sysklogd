@@ -2645,7 +2645,10 @@ static void rotate_file(struct filed *f, struct stat *stp_or_null)
 				char cmd[clen];
 
 				snprintf(cmd, clen, "%s %s", gzip, newFile);
-				system(cmd);
+				if (system(cmd)) {
+					/* best effort; WARN here would re-enter
+					   logrotate before truncation, recursing */
+				}
 			}
 		}
 
@@ -2673,7 +2676,9 @@ static void rotate_file(struct filed *f, struct stat *stp_or_null)
 		if (!TAILQ_EMPTY(&nothead))
 			notifier_invoke(f->f_un.f_fname);
 	}
-	ftruncate(f->f_file, 0);
+	if (ftruncate(f->f_file, 0)) {
+		/* best effort */
+	}
 }
 
 static void rotate_all_files(void)
@@ -3350,8 +3355,10 @@ void wallmsg(struct filed *f, struct iovec *iov, int iovcnt)
 					int rc;
 
 					rc = fstat(ttyf, &st);
-					if (rc == 0 && (st.st_mode & S_IWRITE))
-						(void)writev(ttyf, &iov[1], iovcnt - 1);
+					if (rc == 0 && (st.st_mode & S_IWRITE) &&
+					    writev(ttyf, &iov[1], iovcnt - 1) < 0) {
+						/* best effort */
+					}
 					close(ttyf);
 				}
 			}
@@ -3969,7 +3976,9 @@ static int waitdaemon(int maxwait)
 	if (setsid() == -1)
 		return -1;
 
-	(void)chdir("/");
+	if (chdir("/")) {
+		/* best effort */
+	}
 	fd = open(_PATH_DEVNULL, O_RDWR, 0);
 	if (fd != -1) {
 		(void)dup2(fd, STDIN_FILENO);

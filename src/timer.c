@@ -130,7 +130,9 @@ static void timer_cb(int sd, void *arg)
 	struct timer *tmr;
 	char dummy;
 
-	(void)read(sd, &dummy, 1);
+	if (read(sd, &dummy, 1) < 0) {
+		/* best effort, drain the self-pipe */
+	}
 
 	timer_update();
 
@@ -152,7 +154,9 @@ static void timer_cb(int sd, void *arg)
 static void sigalarm_handler(int signo)
 {
 	(void)signo;
-	(void)write(timer_fd[1], "!", 1);
+	if (write(timer_fd[1], "!", 1) < 0) {
+		/* best effort, the read side just wakes on any byte */
+	}
 }
 
 /*

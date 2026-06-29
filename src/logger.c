@@ -103,15 +103,18 @@ static int logrotate(char *file, int num, off_t sz)
 					char cmd[len];
 
 					snprintf(cmd, len, "gzip %s", nfile);
-					system(cmd);
+					if (system(cmd)) {
+						/* best effort compression */
+					}
 
 					remove(nfile);
 				}
 			}
 
-			if (rename(file, nfile))
-				(void)truncate(file, 0);
-			else
+			if (rename(file, nfile)) {
+				if (truncate(file, 0))
+					syslog(LOG_ERR | LOG_PERROR, "Failed truncating %s during logrotate: %s", file, strerror(errno));
+			} else
 				create(file, st.st_mode, st.st_uid, st.st_gid);
 		} else {
 			if (truncate(file, 0))
