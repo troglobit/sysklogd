@@ -551,6 +551,36 @@ openssl req -new -x509 -key /etc/syslog.d/syslog.key \\
 chmod 600 /etc/syslog.d/syslog.key
 .Ed
 .Pp
+.Sy Verifying signatures.
+The blocks let a downstream consumer detect tampering: recompute the
+SHA-256 hash of each received message, check it against the
+.Ql HB
+list, and verify
+.Ql SIGN
+against the public key from the certificate block.  An altered message
+fails the hash check; a dropped, inserted, or reordered message leaves a
+gap in the
+.Ql CNT ,
+.Ql FMN ,
+and
+.Ql GBC
+counters.
+.Pp
+.Sy Note:
+.Nm syslogd
+only produces signatures.  It ships no verifier, and acting as a
+verifying sink for signed messages is not yet implemented.  This matches
+the *BSD lineage the feature comes from (NetBSD), where signing is
+producer-side and verification is left to separate RFC 5848-aware
+tooling.
+.Pp
+Signing is independent of transport.  It works with remote forwarding
+(the signature and certificate blocks are sent to every destination,
+local and remote), and is orthogonal to TLS: signing gives end-to-end,
+at-rest tamper evidence that survives relaying and storage, while TLS
+only encrypts and authenticates a single hop in transit.  Use both for
+confidentiality together with tamper evidence.
+.Pp
 Note that if you use spaces as separators, your
 .Nm
 might be incompatible with other Unices or Unix-like systems.
@@ -712,6 +742,23 @@ file after each log message.  Note that you might lose information if
 the system crashes right after a write attempt.  Nevertheless this might
 give you back some performance, especially if you run programs that use
 logging in a very verbose manner.
+.Pp
+To keep RFC 5848 signature verification possible for a file destination,
+log it in a format that preserves the priority and version fields, using
+the
+.Ql ;RFC5424
+or
+.Ql ;pri
+option.  NetBSD
+.Nm
+instead prefixes the path with
+.Ql +
+(and
+.Ql +-
+for signing-preservation plus no-sync); sysklogd uses the per-action
+options for this, while the
+.Ql -
+no-sync prefix is the same.
 .Ss Named Pipes
 This version of
 .Xr syslogd 8
@@ -819,6 +866,64 @@ BSD style, without timestamp or hostname.  As of
 v2.0 the default includes timestamp and hostname.  It is also possible to
 enable the new RFC5424 style formatting, append ';RFC5424' after the
 hostname.
+.Ss TLS Certificates and Trust
+TLS authenticates the server (receiver) to the forwarding client, and
+optionally the client to the server (mutual TLS).  Keys are private,
+certificates are public: a
+.Ql .key
+file is secret, never distributed (chmod 600), while a
+.Ql .crt
+or
+.Ql .cert
+file is public and may be distributed freely.
+.Pp
+The receiver presents its identity with the global
+.Ql tls_keyfile
+(private) and
+.Ql tls_certfile
+(public), and listens with
+.Ql listen tls://addr:port .
+A forwarding client trusts that certificate by trusting the CA that
+signed it: set the global
+.Ql tls_cafile
+to the CA's public certificate and
+.Ql verify=required
+(or
+.Ql verify=hostname )
+on the action.  With no CA, pin the exact certificate instead with
+.Ql fingerprint=SHA256:... .
+For mutual TLS the client adds the per-action
+.Ql tls_keyfile=
+and
+.Ql tls_certfile= ,
+and the receiver demands them with
+.Ql tls_cafile
+and
+.Ql tls_verify required .
+.Pp
+To create your own certificates, for example a private CA that signs a
+receiver certificate:
+.Bd -literal -offset indent
+# A CA: distribute ca.crt to every forwarder, keep ca.key secret.
+openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \\
+    -keyout ca.key -out ca.crt -subj "/CN=My Syslog CA"
+
+# A receiver certificate with CN set to the receiver's hostname,
+# signed by the CA.
+openssl req -newkey rsa:2048 -nodes \\
+    -keyout server.key -out server.csr -subj "/CN=loghost.example"
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \\
+    -CAcreateserial -out server.crt -days 825
+.Ed
+.Pp
+Install
+.Pa server.key
+and
+.Pa server.crt
+on the receiver, and copy the public
+.Pa ca.crt
+to each forwarder for its
+.Ql tls_cafile .
 .Ss List of Users
 Usually critical messages are also directed to
 .Ql root
@@ -1277,6 +1382,12 @@ messages will egress
 *.*                @225.1.2.3      ;RFC3164,ttl=10
 *.*                @225.1.2.4      ;RFC5424,iface=eth2,ttl=3
 .Ed
+.Pp
+.Sy Note:
+some may prefer a 224.0.0.0/4 interface route to direct all outbound
+multicast via a given interface, but the
+.Ql iface=
+option above does this per log target, which is less intrusive.
 .Ss Logging to Remote Syslog Server via TCP
 TCP forwarding can be configured using either the
 .Ql @@
@@ -1297,43 +1408,49 @@ in the configuration.
 listen tcp://[::]:1514
 .Ed
 .Ss Logging to Remote Syslog Server via TLS
-TLS forwarding per RFC 5425 can be configured using either the
+TLS forwarding per RFC 5425 uses the
 .Ql @@@
 prefix or the
 .Ql tls://
-URL syntax.  The default port is 6514.  TLS requires OpenSSL support
-to be compiled in.
+URL syntax; the default port is 6514 and OpenSSL support must be compiled
+in.  A TLS setup has two sides, configured on different machines; see
+.Sx TLS Certificates and Trust
+for which file is private, which is public, and where each belongs.
+.Pp
+On the forwarding host (the client) the action selects the transport and
+how to verify the server it connects to:
 .Bd -literal -offset indent
-# Forward to remote host via TLS (skip verification for testing)
-*.*                @@@loghost        ;RFC5424,verify=off
+# No verification (testing only)
+*.*    @@@loghost              ;RFC5424,verify=off
 
-# Same using tls:// URL syntax with custom port
-*.*                tls://loghost:6514  ;RFC5424,verify=off
+# Verify the collector against a CA (tls_cafile, below) ...
+*.*    tls://loghost:6514      ;RFC5424,verify=required
+# ... or also require its name to match the certificate ...
+*.*    tls://loghost:6514      ;RFC5424,verify=hostname
+# ... or pin its certificate directly, no CA needed
+*.*    tls://loghost:6514      ;RFC5424,fingerprint=SHA256:abc123...
 
-# Verify server by fingerprint (no CA needed)
-*.*                tls://loghost:6514  ;RFC5424,fingerprint=SHA256:abc123...
+# Mutual TLS: also present our own client certificate
+*.*    tls://loghost:6514      ;RFC5424,verify=required,tls_keyfile=/etc/client.key,tls_certfile=/etc/client.cert
 
-# Verify server hostname matches certificate
-*.*                tls://loghost:6514  ;RFC5424,verify=hostname
-
-# Mutual TLS with client certificate
-*.*                tls://loghost:6514  ;RFC5424,tls_keyfile=/etc/client.key,tls_certfile=/etc/client.cert
-
-# TLS listener configuration (server-side)
-tls_keyfile   /etc/syslog.d/server.key
-tls_certfile  /etc/syslog.d/server.cert
-tls_cafile    /etc/syslog.d/ca.pem
-tls_verify    optional
-
-# Listen for incoming TLS syslog connections
-listen tls://[::]:6514
+# The CA that signed the collector's certificate (and our client cert)
+tls_cafile  /etc/syslog.d/ca.crt
 .Ed
 .Pp
-.Sy Note:
-some may prefer a 224.0.0.0/4 interface route to direct outbound
-multicast, but
-.Nm sysklogd
-support this, less intrusive, option.
+On the collecting host (the server) configure the identity it presents
+and listen for connections:
+.Bd -literal -offset indent
+# The collector's own key (private) and certificate (public)
+tls_keyfile   /etc/syslog.d/server.key
+tls_certfile  /etc/syslog.d/server.cert
+
+# To also authenticate clients (mutual TLS): trust their CA and require
+# a client certificate from every forwarder
+tls_cafile    /etc/syslog.d/ca.crt
+tls_verify    required
+
+listen tls://[::]:6514
+.Ed
 .Sh SEE ALSO
 .Xr syslog 3 ,
 .Xr syslogd 8
