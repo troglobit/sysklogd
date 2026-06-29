@@ -103,10 +103,6 @@ proggy_CFLAGS = $(syslog_CFLAGS)
 proggy_LDADD  = $(syslog_LIBS)
 ```
 
-The distribution comes with an [example][] program that utilizes the
-NetBSD API and links against libsyslog.
-
-
 Build & Install
 ---------------
 
@@ -195,7 +191,6 @@ now [3-clause BSD][BSD License] licensed.
 [Joachim Wiberg]:   https://troglobit.com
 [Finit]:            https://github.com/troglobit/finit
 [Home]:             https://github.com/troglobit/sysklogd
-[example]:          https://github.com/troglobit/sysklogd/tree/master/example
 [buildsystem]:      https://airs.com/ian/configure/
 [BSD License]:      https://en.wikipedia.org/wiki/BSD_licenses
 [BSD Badge]:        https://img.shields.io/badge/License-BSD%203--Clause-blue.svg

@@ -56,11 +56,11 @@ jobs:
           ldd /tmp/sbin/syslogd
           size /tmp/sbin/syslogd
           /tmp/sbin/syslogd -?
-      - name: Build Example
+      - name: Build Examples
         run: |
-          mkdir -p /tmp/example
-          cp -a example/example.* /tmp/example/
-          pushd /tmp/example/
+          mkdir -p /tmp/examples
+          cp -a examples/*.c examples/example.mk /tmp/examples/
+          pushd /tmp/examples/
           PKG_CONFIG_LIBDIR=/tmp/lib/pkgconfig make -f example.mk
           popd
       - name: Enable unprivileged userns (unshare)

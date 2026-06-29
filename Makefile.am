@@ -25,7 +25,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-SUBDIRS        = example man src test
+SUBDIRS        = examples man src test
 doc_DATA       = README.md LICENSE ChangeLog.md syslog.conf
 EXTRA_DIST     = README.md LICENSE ChangeLog.md
 DISTCLEANFILES = syslog.conf
