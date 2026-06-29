@@ -33,3 +33,7 @@ dist_man8_MANS	= syslogd.8
 if ENABLE_LOGGER
 dist_man1_MANS += logger.1
 endif
+
+if ENABLE_LOGREAD
+dist_man1_MANS += logread.1
+endif

@@ -318,7 +318,7 @@ int socket_poll(struct timeval *timeout)
 {
 	int num;
 	fd_set fds;
-	struct sock *entry;
+	struct sock *entry, *tmp;
 
 	FD_ZERO(&fds);
 	LIST_FOREACH(entry, &sl, link)
@@ -333,7 +333,11 @@ int socket_poll(struct timeval *timeout)
 		return num;
 	}
 
-	LIST_FOREACH(entry, &sl, link) {
+	/*
+	 * Use LIST_FOREACH_SAFE because callbacks may close sockets,
+	 * which removes and frees entries from the list.
+	 */
+	LIST_FOREACH_SAFE(entry, &sl, link, tmp) {
 		if (!FD_ISSET(entry->sd, &fds))
 			continue;
 

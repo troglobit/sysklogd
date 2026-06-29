@@ -93,8 +93,11 @@ static char sccsid[] __attribute__((unused)) =
 #define SYSLOG_NAMES
 #include "syslogd.h"
 #include "socket.h"
+#include "membuf.h"
 #include "timer.h"
 #include "compat.h"
+#include "sign.h"
+#include "tls.h"
 
 #ifndef MIN
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
@@ -124,8 +127,14 @@ static int repeatinterval[] = { 30, 120, 600 };	/* # of secs before flush */
 static char *TypeNames[] = {
 	"UNUSED",        "FILE",  "TTY",  "CONSOLE",
 	"FORW",          "USERS", "WALL", "FORW(SUSPENDED)",
-	"FORW(UNKNOWN)", "PIPE"
+	"FORW(UNKNOWN)", "PIPE",
+	"FORW_TCP",      "FORW_TCP(SUSPENDED)", "FORW_TCP(UNKNOWN)",
+	"FORW_TLS",      "FORW_TLS(SUSPENDED)", "FORW_TLS(UNKNOWN)",
+	"MEMBUF"
 };
+
+/* TCP client connections list (struct tcp_conn is in syslogd.h) */
+static LIST_HEAD(, tcp_conn) tcp_clients = LIST_HEAD_INITIALIZER(tcp_clients);
 
 static SIMPLEQ_HEAD(files, filed) fhead = SIMPLEQ_HEAD_INITIALIZER(fhead);
 struct filed consfile;
@@ -187,10 +196,24 @@ static SIMPLEQ_HEAD(allowed, allowedpeer) aphead = SIMPLEQ_HEAD_INITIALIZER(aphe
  * address for their values as strings.  If there is no value ptr, the
  * parser moves the argument to the beginning of the parsed line.
  */
-static char *udpsz_str;			  /* string value of udp_size     */
-static char *secure_str;		  /* string value of secure_mode  */
-static char *rotate_sz_str;		  /* string value of RotateSz     */
-static char *rotate_cnt_str;		  /* string value of RotateCnt    */
+static char *udpsz_str;			  /* string value of udp_size        */
+static char *secure_str;		  /* string value of secure_mode     */
+static char *rotate_sz_str;		  /* string value of RotateSz        */
+static char *rotate_cnt_str;		  /* string value of RotateCnt       */
+static char *tcp_suspend_str;		  /* string value of tcp_suspend_time */
+static int   TcpSuspendTime = INET_SUSPEND_TIME; /* TCP backoff period (seconds) */
+
+#ifdef HAVE_OPENSSL
+static char *sign_sg_str;		  /* RFC 5848 signature group mode */
+static char *sign_delim_str;		  /* RFC 5848 SG=2 priority delims */
+static char *sign_keyfile_str;		  /* RFC 5848 private key file     */
+static char *sign_certfile_str;		  /* RFC 5848 certificate file     */
+static char *tls_keyfile_str;		  /* RFC 5425 server private key   */
+static char *tls_certfile_str;		  /* RFC 5425 server certificate   */
+static char *tls_cafile_str;		  /* RFC 5425 CA certificate file  */
+static char *tls_capath_str;		  /* RFC 5425 CA certificate dir   */
+static char *tls_verify_str;		  /* RFC 5425 verification mode    */
+#endif
 
 /* Function prototypes. */
 static int  allowaddr(char *s);
@@ -232,6 +255,19 @@ static void signal_rotate(int sig);
 static int  validate(struct sockaddr *sa, const char *hname);
 static int  waitdaemon(int);
 static void timedout(int);
+static int  nslookup(const char *host, const char *service, int socktype, int af, struct addrinfo **ai);
+static void tcp_connect(struct filed *f);
+static size_t tcp_build_frame(const struct iovec *iov, int iovcnt, char *out, size_t outsz);
+static void forw_queue_enqueue(struct filed *f, const char *data, size_t len);
+static size_t forw_queue_flush(struct filed *f);
+static void forw_queue_clear(struct filed *f);
+static void tcp_accept_cb(int sd, void *arg);
+static void tcp_read_cb(int sd, void *arg);
+static void tcp_conn_close(struct tcp_conn *tc);
+static void tcp_close_all(void);
+static int  create_inet_tcp_socket(struct peer *pe);
+static int  create_inet_tls_socket(struct peer *pe);
+static void tls_connect_forw(struct filed *f);
 
 /*
  * Configuration file keywords, variables, and optional callbacks
@@ -247,7 +283,20 @@ const struct cfkey {
 	{ "udp_size",     &udpsz_str,      NULL, NULL             },
 	{ "rotate_size",  &rotate_sz_str,  NULL, NULL             },
 	{ "rotate_count", &rotate_cnt_str, NULL, NULL             },
-	{ "secure_mode",  &secure_str,     NULL, NULL             },
+	{ "secure_mode",      &secure_str,      NULL, NULL         },
+	{ "tcp_suspend_time", &tcp_suspend_str, NULL, NULL         },
+	{ "membuf",           NULL,             membuf_config, NULL },
+#ifdef HAVE_OPENSSL
+	{ "sign_sg",        &sign_sg_str,       NULL, NULL        },
+	{ "sign_delim_sg2", &sign_delim_str,    NULL, NULL        },
+	{ "sign_keyfile",   &sign_keyfile_str,  NULL, NULL        },
+	{ "sign_certfile",  &sign_certfile_str, NULL, NULL        },
+	{ "tls_keyfile",    &tls_keyfile_str,   NULL, NULL        },
+	{ "tls_certfile",   &tls_certfile_str,  NULL, NULL        },
+	{ "tls_cafile",     &tls_cafile_str,    NULL, NULL        },
+	{ "tls_capath",     &tls_capath_str,    NULL, NULL        },
+	{ "tls_verify",     &tls_verify_str,    NULL, NULL        },
+#endif
 };
 
 /*
@@ -294,7 +343,8 @@ static int addpeer(struct peer *pe0)
 		    ((pe->pe_serv == NULL && pe0->pe_serv == NULL) ||
 		     (pe->pe_serv != NULL && pe0->pe_serv != NULL && strcmp(pe->pe_serv, pe0->pe_serv) == 0)) &&
 		    ((pe->pe_iface == NULL && pe0->pe_iface == NULL) ||
-		     (pe->pe_iface != NULL && pe0->pe_iface != NULL && strcmp(pe->pe_iface, pe0->pe_iface) == 0))) {
+		     (pe->pe_iface != NULL && pe0->pe_iface != NULL && strcmp(pe->pe_iface, pe0->pe_iface) == 0)) &&
+		    pe->pe_tcp == pe0->pe_tcp && pe->pe_tls == pe0->pe_tls) {
 			/* do not overwrite command line options */
 			if (pe->pe_mark == -1)
 				return -1;
@@ -912,11 +962,334 @@ static void inet_cb(int sd, void *arg)
 }
 
 /*
+ * TCP receive side -- RFC 6587 framing
+ */
+static void tcp_parse_messages(struct tcp_conn *tc)
+{
+	while (tc->tc_len > 0) {
+		char *buf = tc->tc_buf;
+		size_t msglen;
+		char msg[MAXLINE + 1];
+
+		if (isdigit((unsigned char)buf[0])) {
+			/* Octet counting: "LEN SP MSG" */
+			char *sp;
+			long octets;
+
+			octets = strtol(buf, &sp, 10);
+			if (sp == buf || *sp != ' ')
+				return; /* incomplete length prefix */
+			sp++; /* skip space */
+
+			if (octets <= 0 || octets > MAXLINE)
+				octets = MAXLINE;
+
+			msglen = sp - buf + octets;
+			if (tc->tc_len < msglen)
+				return; /* incomplete message */
+
+			memcpy(msg, sp, MIN((size_t)octets, sizeof(msg) - 1));
+			msg[MIN((size_t)octets, sizeof(msg) - 1)] = '\0';
+		} else {
+			/* Non-transparent framing: LF-delimited */
+			char *lf = memchr(buf, '\n', tc->tc_len);
+
+			if (!lf)
+				return; /* incomplete line */
+
+			msglen = lf - buf + 1;
+			size_t copylen = lf - buf;
+
+			/* Strip trailing CR */
+			if (copylen > 0 && buf[copylen - 1] == '\r')
+				copylen--;
+
+			memcpy(msg, buf, MIN(copylen, sizeof(msg) - 1));
+			msg[MIN(copylen, sizeof(msg) - 1)] = '\0';
+		}
+
+		parsemsg(tc->tc_hname, tc->tc_hname_len, msg);
+
+		/* Shift consumed bytes */
+		tc->tc_len -= msglen;
+		if (tc->tc_len > 0)
+			memmove(tc->tc_buf, tc->tc_buf + msglen, tc->tc_len);
+	}
+}
+
+static void tcp_conn_close(struct tcp_conn *tc)
+{
+	logit("TCP client %s disconnected (fd %d)\n", tc->tc_hname, tc->tc_sd);
+#ifdef HAVE_OPENSSL
+	if (tc->tc_ssl)
+		tls_conn_close(tc);
+#endif
+	socket_close(tc->tc_sd);
+	LIST_REMOVE(tc, tc_link);
+	free(tc);
+}
+
+static void tcp_read_cb(int sd, void *arg)
+{
+	struct tcp_conn *tc = (struct tcp_conn *)arg;
+	ssize_t len;
+
+#ifdef HAVE_OPENSSL
+	if (tc->tc_ssl)
+		len = tls_read(tc, tc->tc_buf + tc->tc_len, sizeof(tc->tc_buf) - tc->tc_len);
+	else
+#endif
+		len = read(sd, tc->tc_buf + tc->tc_len, sizeof(tc->tc_buf) - tc->tc_len);
+	if (len <= 0) {
+		if (len < 0 && (errno == EINTR || errno == EAGAIN))
+			return;
+		tcp_conn_close(tc);
+		return;
+	}
+
+	tc->tc_len += len;
+	tcp_parse_messages(tc);
+}
+
+static void tcp_accept_cb(int sd, void *arg)
+{
+	struct sockaddr_storage ss;
+	socklen_t sslen = sizeof(ss);
+	struct tcp_conn *tc;
+	char *hname;
+	size_t hname_len;
+	int csd;
+	int is_tls = (arg != NULL);  /* arg non-NULL indicates TLS listener */
+
+	csd = accept4(sd, (struct sockaddr *)&ss, &sslen, SOCK_CLOEXEC | SOCK_NONBLOCK);
+	if (csd < 0) {
+		if (errno != EINTR && errno != EAGAIN)
+			ERR("%s accept()", is_tls ? "TLS" : "TCP");
+		return;
+	}
+
+	hname = cvthname((struct sockaddr *)&ss, sslen, &hname_len);
+	unmapped((struct sockaddr *)&ss);
+	if (!validate((struct sockaddr *)&ss, hname)) {
+		logit("%s connection from %s was rejected.\n", is_tls ? "TLS" : "TCP", hname);
+		close(csd);
+		return;
+	}
+
+	tc = calloc(1, sizeof(*tc));
+	if (!tc) {
+		ERR("Failed allocating %s client state", is_tls ? "TLS" : "TCP");
+		close(csd);
+		return;
+	}
+
+	tc->tc_sd = csd;
+	strlcpy(tc->tc_hname, hname, sizeof(tc->tc_hname));
+	tc->tc_hname_len = hname_len;
+	LIST_INSERT_HEAD(&tcp_clients, tc, tc_link);
+
+#ifdef HAVE_OPENSSL
+	/* Initiate TLS handshake for TLS listeners */
+	if (is_tls) {
+		int rc = tls_accept(tc);
+		if (rc < 0) {
+			ERRX("TLS handshake failed for %s", hname);
+			LIST_REMOVE(tc, tc_link);
+			close(csd);
+			free(tc);
+			return;
+		}
+		/* rc == 1 means handshake in progress, will continue in tcp_read_cb */
+	}
+#endif
+
+	if (socket_register(csd, NULL, tcp_read_cb, tc) < 0) {
+		ERR("Failed registering %s client socket", is_tls ? "TLS" : "TCP");
+#ifdef HAVE_OPENSSL
+		if (tc->tc_ssl)
+			tls_conn_close(tc);
+#endif
+		LIST_REMOVE(tc, tc_link);
+		close(csd);
+		free(tc);
+		return;
+	}
+
+	logit("%s client %s connected (fd %d)\n", is_tls ? "TLS" : "TCP", hname, csd);
+}
+
+static void tcp_close_all(void)
+{
+	struct tcp_conn *tc, *next;
+
+	LIST_FOREACH_SAFE(tc, &tcp_clients, tc_link, next)
+		tcp_conn_close(tc);
+}
+
+static int create_inet_tcp_socket(struct peer *pe)
+{
+	struct addrinfo *ai, *res;
+	int err, rc = 0;
+
+	if (pe->pe_socknum)
+		return 0;	/* Already set up */
+
+	err = nslookup(pe->pe_name, pe->pe_serv, SOCK_STREAM, AF_UNSPEC, &res);
+	if (err) {
+		ERRX("%s:%s/tcp service unknown: %s", pe->pe_name ?: "*",
+		     pe->pe_serv ?: "514", gai_strerror(err));
+		return 1;
+	}
+
+	for (ai = res; ai; ai = ai->ai_next) {
+		int sd, on = 1;
+
+		if (pe->pe_socknum + 1 >= NELEMS(pe->pe_sock)) {
+			WARN("Only %zd IP addresses per socket supported.", NELEMS(pe->pe_sock));
+			break;
+		}
+
+		sd = socket(ai->ai_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
+		if (sd < 0)
+			continue;
+
+		if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+			close(sd);
+			continue;
+		}
+
+		if (ai->ai_family == AF_INET6) {
+			if (setsockopt(sd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) < 0) {
+				close(sd);
+				continue;
+			}
+		}
+
+		if (bind(sd, ai->ai_addr, ai->ai_addrlen) < 0) {
+			WARN("Failed binding TCP socket %s:%s: %s",
+			     pe->pe_name ?: "*", pe->pe_serv ?: "514", strerror(errno));
+			close(sd);
+			rc = 1;
+			continue;
+		}
+
+		if (listen(sd, 16) < 0) {
+			WARN("Failed listening on TCP socket %s:%s: %s",
+			     pe->pe_name ?: "*", pe->pe_serv ?: "514", strerror(errno));
+			close(sd);
+			rc = 1;
+			continue;
+		}
+
+		if (socket_register(sd, ai, tcp_accept_cb, NULL) < 0) {
+			close(sd);
+			rc = 1;
+			continue;
+		}
+
+		pe->pe_mode |= 01000;
+		NOTE("Opened TCP inet socket %s:%s", pe->pe_name ?: "*", pe->pe_serv ?: "514");
+		pe->pe_sock[pe->pe_socknum++] = sd;
+	}
+
+	freeaddrinfo(res);
+	if (rc && pe->pe_socknum == 0)
+		return rc;
+
+	return 0;
+}
+
+static int create_inet_tls_socket(struct peer *pe)
+{
+#ifdef HAVE_OPENSSL
+	struct addrinfo *ai, *res;
+	int err, rc = 0;
+
+	if (!tls_enabled()) {
+		ERRX("TLS not configured, cannot create TLS listener %s:%s",
+		     pe->pe_name ?: "*", pe->pe_serv ?: "6514");
+		return 1;
+	}
+
+	if (pe->pe_socknum)
+		return 0;	/* Already set up */
+
+	err = nslookup(pe->pe_name, pe->pe_serv, SOCK_STREAM, AF_UNSPEC, &res);
+	if (err) {
+		ERRX("%s:%s/tls service unknown: %s", pe->pe_name ?: "*",
+		     pe->pe_serv ?: "6514", gai_strerror(err));
+		return 1;
+	}
+
+	for (ai = res; ai; ai = ai->ai_next) {
+		int sd, on = 1;
+
+		if (pe->pe_socknum + 1 >= NELEMS(pe->pe_sock)) {
+			WARN("Only %zd IP addresses per socket supported.", NELEMS(pe->pe_sock));
+			break;
+		}
+
+		sd = socket(ai->ai_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
+		if (sd < 0)
+			continue;
+
+		if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+			close(sd);
+			continue;
+		}
+
+		if (ai->ai_family == AF_INET6) {
+			if (setsockopt(sd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) < 0) {
+				close(sd);
+				continue;
+			}
+		}
+
+		if (bind(sd, ai->ai_addr, ai->ai_addrlen) < 0) {
+			WARN("Failed binding TLS socket %s:%s: %s",
+			     pe->pe_name ?: "*", pe->pe_serv ?: "6514", strerror(errno));
+			close(sd);
+			rc = 1;
+			continue;
+		}
+
+		if (listen(sd, 16) < 0) {
+			WARN("Failed listening on TLS socket %s:%s: %s",
+			     pe->pe_name ?: "*", pe->pe_serv ?: "6514", strerror(errno));
+			close(sd);
+			rc = 1;
+			continue;
+		}
+
+		/* Pass non-NULL arg to indicate TLS listener */
+		if (socket_register(sd, ai, tcp_accept_cb, (void *)1) < 0) {
+			close(sd);
+			rc = 1;
+			continue;
+		}
+
+		pe->pe_mode |= 01000;
+		NOTE("Opened TLS inet socket %s:%s", pe->pe_name ?: "*", pe->pe_serv ?: "6514");
+		pe->pe_sock[pe->pe_socknum++] = sd;
+	}
+
+	freeaddrinfo(res);
+	if (rc && pe->pe_socknum == 0)
+		return rc;
+
+	return 0;
+#else
+	ERRX("TLS support not compiled in");
+	return 1;
+#endif
+}
+
+/*
  * Depending on the setup of /etc/resolv.conf, and the system resolver,
  * a call to this function may be blocked for 10 seconds, or even more,
  * waiting for a response.  See https://serverfault.com/a/562108/122484
  */
-static int nslookup(const char *host, const char *service, struct addrinfo **ai)
+static int nslookup(const char *host, const char *service, int socktype, int af, struct addrinfo **ai)
 {
 	struct addrinfo hints;
 	const char *node = host;
@@ -936,8 +1309,8 @@ static int nslookup(const char *host, const char *service, struct addrinfo **ai)
 	logit("nslookup '%s:%s'\n", node ?: "*", service ?: "514");
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_flags    = !node ? AI_PASSIVE : 0;
-	hints.ai_family   = family;
-	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_family   = (af != AF_UNSPEC) ? af : family;
+	hints.ai_socktype = socktype;
 
 	return getaddrinfo(node, service, &hints, ai);
 }
@@ -950,7 +1323,7 @@ static int create_inet_socket(struct peer *pe)
 	if (pe->pe_socknum)
 		return 0;	/* Already set up */
 
-	err = nslookup(pe->pe_name, pe->pe_serv, &res);
+	err = nslookup(pe->pe_name, pe->pe_serv, SOCK_DGRAM, AF_UNSPEC, &res);
 	if (err) {
 		ERRX("%s:%s/udp service unknown: %s", pe->pe_name ?: "*",
 		     pe->pe_serv ?: "514", gai_strerror(err));
@@ -1999,6 +2372,37 @@ prop_filter_skip(const struct prop_filter *filter, const char *value)
  * priority.  Log messages are formatted according to RFC3164 or RFC5424
  * in subsequent fprintlog_*() functions.
  */
+#ifdef HAVE_OPENSSL
+/*
+ * Set while emitting an RFC 5848 block, so the injected block message is
+ * not itself hashed/counted by the sign hooks below (which would recurse).
+ * Relies on emission being synchronous and syslogd single-threaded.
+ */
+static int sign_emitting;
+
+void sign_emit_block(const char *msgid, const char *sd)
+{
+	char emptymsg[] = "";
+	struct buf_msg buffer;
+	char proc_id[16];
+
+	(void)snprintf(proc_id, sizeof(proc_id), "%d", getpid());
+	memset(&buffer, 0, sizeof(buffer));
+	buffer.hostname = LocalHostName;
+	buffer.app_name = "syslogd";
+	buffer.proc_id  = proc_id;
+	buffer.pri      = LOG_SYSLOG | LOG_INFO;
+	buffer.msgid    = (char *)msgid;
+	buffer.sd       = (char *)sd;
+	buffer.msg      = emptymsg;
+	buffer.flags    = RFC5424;
+
+	sign_emitting = 1;
+	logmsg(&buffer);
+	sign_emitting = 0;
+}
+#endif
+
 static void logmsg(struct buf_msg *buffer)
 {
 	struct filed *f;
@@ -2066,6 +2470,12 @@ static void logmsg(struct buf_msg *buffer)
 			    buffer->msgid == NULL ? "-" : buffer->msgid,
 			    buffer->sd == NULL ? "-" : buffer->sd, buffer->msg);
 
+#ifdef HAVE_OPENSSL
+	/* RFC 5848: advance the message counter once, before distribution */
+	if (sign_enabled() && !sign_emitting)
+		sign_msg_begin();
+#endif
+
 	SIMPLEQ_FOREACH(f, &fhead, f_link) {
 		/* skip messages that are incorrect priority */
 		if ((f->f_pmask[fac] == INTERNAL_INVPRI) ||
@@ -2123,9 +2533,10 @@ static void logmsg(struct buf_msg *buffer)
 		}
 
 		/*
-		 * suppress duplicate lines to this file
+		 * suppress duplicate lines to this file (but capture every
+		 * message verbatim in the memory buffer, for logread)
 		 */
-		if (no_compress - (f->f_type != F_PIPE) < 1 &&
+		if (f->f_type != F_MEMBUF && no_compress - (f->f_type != F_PIPE) < 1 &&
 		    (buffer->flags & MARK) == 0 && savedlen == f->f_prevlen &&
 		    !strcmp(saved, f->f_prevline)) {
 			f->f_lasttime = buffer->timestamp;
@@ -2155,9 +2566,24 @@ static void logmsg(struct buf_msg *buffer)
 			strlcpy(f->f_prevhost, buffer->hostname, sizeof(f->f_prevhost));
 			strlcpy(f->f_prevline, saved, sizeof(f->f_prevline));
 			f->f_prevlen = savedlen;
+
+#ifdef HAVE_OPENSSL
+			/* RFC 5848: compute and store hash for signing */
+			if (sign_enabled() && !sign_emitting)
+				sign_msg_hash(buffer, f);
+#endif
 			fprintlog_first(f, buffer);
 		}
+
+		if (f->f_flags & STOP_FLAG)
+			break;
 	}
+
+#ifdef HAVE_OPENSSL
+	/* RFC 5848: emit any signature block that filled while hashing */
+	if (sign_enabled() && !sign_emitting)
+		sign_flush_blocks();
+#endif
 
 	sigprocmask(SIG_UNBLOCK, &mask, NULL);
 }
@@ -2219,7 +2645,10 @@ static void rotate_file(struct filed *f, struct stat *stp_or_null)
 				char cmd[clen];
 
 				snprintf(cmd, clen, "%s %s", gzip, newFile);
-				system(cmd);
+				if (system(cmd)) {
+					/* best effort; WARN here would re-enter
+					   logrotate before truncation, recursing */
+				}
 			}
 		}
 
@@ -2247,7 +2676,9 @@ static void rotate_file(struct filed *f, struct stat *stp_or_null)
 		if (!TAILQ_EMPTY(&nothead))
 			notifier_invoke(f->f_un.f_fname);
 	}
-	ftruncate(f->f_file, 0);
+	if (ftruncate(f->f_file, 0)) {
+		/* best effort */
+	}
 }
 
 static void rotate_all_files(void)
@@ -2422,6 +2853,155 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 		}
 		break;
 
+	case F_FORW_TCP_SUSP:
+		fwd_suspend = timer_now() - f->f_time;
+		if (fwd_suspend >= TcpSuspendTime) {
+			logit("\nTCP forwarding suspension over, retrying ");
+			/*
+			 * Go directly to tcp_connect rather than through the
+			 * UNKN/forw_lookup path: forw_lookup() has a 60-second
+			 * DNS-delay guard (INET_DNS_DELAY) that would prevent
+			 * reconnection when TcpSuspendTime < 60.  The address
+			 * stored in f_addr is still valid from the last lookup.
+			 */
+			f->f_type = F_FORW_TCP;
+			goto f_forw_tcp;
+		} else {
+			char sendbuf[32 + MAXLINE * 2];
+			size_t total;
+
+			logit(" %s:%s/tcp\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+			logit("TCP forwarding suspension not over, time left: %d.\n",
+			      (int)(TcpSuspendTime - fwd_suspend));
+			total = tcp_build_frame(iov, iovcnt, sendbuf, sizeof(sendbuf));
+			forw_queue_enqueue(f, sendbuf, total);
+		}
+		break;
+
+	case F_FORW_TCP_UNKN:
+		logit("\n");
+		forw_lookup(f);
+		if (f->f_type == F_FORW_TCP)
+			goto f_forw_tcp;
+		{
+			/* DNS still unresolved -- queue for later delivery */
+			char sendbuf[32 + MAXLINE * 2];
+			size_t total = tcp_build_frame(iov, iovcnt, sendbuf, sizeof(sendbuf));
+			forw_queue_enqueue(f, sendbuf, total);
+		}
+		break;
+
+	case F_FORW_TCP:
+	f_forw_tcp:
+		logit(" %s:%s/tcp\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+		f->f_time = timer_now();
+		{
+			char sendbuf[32 + MAXLINE * 2];
+			size_t total = tcp_build_frame(iov, iovcnt, sendbuf, sizeof(sendbuf));
+
+			if (f->f_un.f_forw.f_tcp_sd < 0) {
+				tcp_connect(f);
+				if (f->f_un.f_forw.f_tcp_sd < 0) {
+					/* connect failed -> tcp_connect() set SUSP; enqueue */
+					forw_queue_enqueue(f, sendbuf, total);
+					break;
+				}
+				forw_queue_flush(f); /* drain backlog before sending current */
+			}
+
+			if (send(f->f_un.f_forw.f_tcp_sd, sendbuf, total, MSG_NOSIGNAL) <= 0) {
+				ERR("TCP send(%s:%s)", f->f_un.f_forw.f_hname,
+				    f->f_un.f_forw.f_serv);
+				close(f->f_un.f_forw.f_tcp_sd);
+				f->f_un.f_forw.f_tcp_sd = -1;
+				f->f_type = F_FORW_TCP_SUSP;
+				f->f_time = timer_now();
+				forw_queue_enqueue(f, sendbuf, total);
+			} else {
+				logit("Sent %zu bytes via TCP to %s:%s\n",
+				      total, f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+				if (f->f_qlen > 0)
+					forw_queue_flush(f);
+			}
+		}
+		break;
+
+	case F_FORW_TLS_SUSP:
+		fwd_suspend = timer_now() - f->f_time;
+		if (fwd_suspend >= INET_SUSPEND_TIME) {
+			logit("\nTLS forwarding suspension over, retrying ");
+			f->f_type = F_FORW_TLS_UNKN;
+			goto f_forw_tls_unkn;
+		} else {
+			logit(" %s:%s/tls\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+			logit("TLS forwarding suspension not over, time left: %d.\n",
+			      (int)(INET_SUSPEND_TIME - fwd_suspend));
+		}
+		break;
+
+	case F_FORW_TLS_UNKN:
+		logit("\n");
+	f_forw_tls_unkn:
+		forw_lookup(f);
+		if (f->f_type == F_FORW_TLS)
+			goto f_forw_tls;
+		break;
+
+	case F_FORW_TLS:
+	f_forw_tls:
+		logit(" %s:%s/tls\n", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+		f->f_time = timer_now();
+
+#ifdef HAVE_OPENSSL
+		/* Reconnect if needed */
+		if (f->f_un.f_forw.f_tcp_sd < 0 || !f->f_un.f_forw.f_ssl) {
+			tls_connect_forw(f);
+			if (f->f_un.f_forw.f_tcp_sd < 0 || !f->f_un.f_forw.f_ssl)
+				break;
+		}
+
+		/* Flatten iov into buffer, no UDP truncation for TLS */
+		len = 0;
+		for (int i = 0; i < iovcnt; i++)
+			len += iov[i].iov_len;
+
+		{
+			char frame[32];
+			char buf[MAXLINE * 2];
+			ssize_t pos = 0, rc;
+			int flen;
+
+			/* Build message into buffer */
+			for (int i = 0; i < iovcnt && pos < (ssize_t)sizeof(buf); i++) {
+				size_t chunk = MIN(iov[i].iov_len, sizeof(buf) - pos);
+				memcpy(buf + pos, iov[i].iov_base, chunk);
+				pos += chunk;
+			}
+
+			/* RFC 6587 octet counting: "LEN SP MSG" */
+			flen = snprintf(frame, sizeof(frame), "%zd ", pos);
+
+			/* Send frame header + message via TLS */
+			rc = tls_write(f, frame, flen);
+			if (rc > 0)
+				rc = tls_write(f, buf, pos);
+
+			if (rc <= 0) {
+				ERR("TLS send(%s:%s)", f->f_un.f_forw.f_hname,
+				    f->f_un.f_forw.f_serv);
+				tls_forw_close(f);
+				close(f->f_un.f_forw.f_tcp_sd);
+				f->f_un.f_forw.f_tcp_sd = -1;
+				f->f_type = F_FORW_TLS_SUSP;
+				f->f_time = timer_now();
+			} else {
+				logit("Sent %zd bytes via TLS to %s:%s\n",
+				      pos, f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+			}
+		}
+#endif
+		break;
+
 	case F_CONSOLE:
 		f->f_time = timer_now();
 		if (flags & IGN_CONS) {
@@ -2506,6 +3086,26 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 		pushiov(iov, iovcnt, "\r\n");
 		wallmsg(f, iov, iovcnt);
 		break;
+
+	case F_MEMBUF: {
+		char line[MAXLINE + 1];
+		size_t off = 0;
+
+		f->f_time = timer_now();
+
+		/* Flatten the iov into one line; skip <PRI> like a log file. */
+		start = ((f->f_flags & PRI) == 0);
+		for (int i = start; i < iovcnt && off < sizeof(line) - 1; i++) {
+			size_t l = iov[i].iov_len;
+
+			if (l > sizeof(line) - 1 - off)
+				l = sizeof(line) - 1 - off;
+			memcpy(&line[off], iov[i].iov_base, l);
+			off += l;
+		}
+		membuf_add(line, off);
+		break;
+	}
 	} /* switch */
 
 	if (f->f_type != F_FORW_UNKN)
@@ -2622,7 +3222,9 @@ static void fprintlog_first(struct filed *f, struct buf_msg *buffer)
 
 	logit("Called fprintlog_first(), ");
 
-	if (f->f_type != F_FORW_SUSP && f->f_type != F_FORW_UNKN) {
+	if (f->f_type != F_FORW_SUSP     && f->f_type != F_FORW_UNKN     &&
+	    f->f_type != F_FORW_TCP_SUSP  && f->f_type != F_FORW_TCP_UNKN  &&
+	    f->f_type != F_FORW_TLS_SUSP  && f->f_type != F_FORW_TLS_UNKN) {
 		f->f_time = timer_now();
 		f->f_prevcount = 0;
 	}
@@ -2753,8 +3355,10 @@ void wallmsg(struct filed *f, struct iovec *iov, int iovcnt)
 					int rc;
 
 					rc = fstat(ttyf, &st);
-					if (rc == 0 && (st.st_mode & S_IWRITE))
-						(void)writev(ttyf, &iov[1], iovcnt - 1);
+					if (rc == 0 && (st.st_mode & S_IWRITE) &&
+					    writev(ttyf, &iov[1], iovcnt - 1) < 0) {
+						/* best effort */
+					}
 					close(ttyf);
 				}
 			}
@@ -2890,6 +3494,10 @@ static void forw_lookup(struct filed *f)
 {
 	char *host = f->f_un.f_forw.f_hname;
 	char *serv = f->f_un.f_forw.f_serv;
+	int is_tcp = f->f_un.f_forw.f_tcp;
+	int is_tls = f->f_un.f_forw.f_tls;
+	int socktype = (is_tcp || is_tls) ? SOCK_STREAM : SOCK_DGRAM;
+	int af = f->f_un.f_forw.f_family;
 	struct addrinfo *ai;
 	time_t now, diff;
 	int err, first;
@@ -2898,7 +3506,12 @@ static void forw_lookup(struct filed *f)
 		if (f->f_un.f_forw.f_addr)
 			freeaddrinfo(f->f_un.f_forw.f_addr);
 		f->f_un.f_forw.f_addr = NULL;
-		f->f_type = F_FORW_UNKN;
+		if (is_tls)
+			f->f_type = F_FORW_TLS_UNKN;
+		else if (is_tcp)
+			f->f_type = F_FORW_TCP_UNKN;
+		else
+			f->f_type = F_FORW_UNKN;
 		return;
 	}
 
@@ -2917,21 +3530,222 @@ static void forw_lookup(struct filed *f)
 	if (!first && diff < INET_DNS_DELAY)
 		return;
 
-	err = nslookup(host, serv, &ai);
+	err = nslookup(host, serv, socktype, af, &ai);
 	if (err) {
-		f->f_type = F_FORW_UNKN;
+		if (is_tls)
+			f->f_type = F_FORW_TLS_UNKN;
+		else if (is_tcp)
+			f->f_type = F_FORW_TCP_UNKN;
+		else
+			f->f_type = F_FORW_UNKN;
 		f->f_time = now;
 		if (!first)
 			WARN("Failed resolving '%s:%s': %s", host, serv, gai_strerror(err));
 		return;
 	}
 
-	f->f_type = F_FORW;
 	f->f_un.f_forw.f_addr = ai;
 	f->f_prevcount = 0;
 
+	if (is_tls) {
+		f->f_type = F_FORW_TLS;
+		tls_connect_forw(f);
+	} else if (is_tcp) {
+		f->f_type = F_FORW_TCP;
+		tcp_connect(f);
+	} else {
+		f->f_type = F_FORW;
+	}
+
 	if (!first)
 		NOTE("Successfully resolved '%s:%s', initiating forwarding.", host, serv);
+}
+
+static void tcp_connect(struct filed *f)
+{
+	struct addrinfo *ai;
+	int sd, on = 1;
+
+	if (f->f_un.f_forw.f_tcp_sd >= 0) {
+		close(f->f_un.f_forw.f_tcp_sd);
+		f->f_un.f_forw.f_tcp_sd = -1;
+	}
+
+	for (ai = f->f_un.f_forw.f_addr; ai; ai = ai->ai_next) {
+		sd = socket(ai->ai_family, SOCK_STREAM | SOCK_CLOEXEC, 0);
+		if (sd < 0)
+			continue;
+
+		if (connect(sd, ai->ai_addr, ai->ai_addrlen) == 0) {
+			setsockopt(sd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
+			f->f_un.f_forw.f_tcp_sd = sd;
+			logit("TCP connected to %s:%s on fd %d\n",
+			      f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv, sd);
+			return;
+		}
+		close(sd);
+	}
+
+	/* All addresses failed */
+	logit("TCP connect to %s:%s failed\n",
+	      f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+	f->f_type = F_FORW_TCP_SUSP;
+	f->f_time = timer_now();
+}
+
+/*
+ * Flatten iovec into a single RFC 6587 octet-counted frame: "LEN SP MSG"
+ * Returns the total frame length written to 'out'.
+ */
+static size_t tcp_build_frame(const struct iovec *iov, int iovcnt,
+			      char *out, size_t outsz)
+{
+	char hdr[32];
+	size_t pos = 0;
+	int hlen;
+
+	/* Leave 32 bytes at front for the length header */
+	for (int i = 0; i < iovcnt && pos < outsz - 32; i++) {
+		size_t chunk = MIN(iov[i].iov_len, outsz - 32 - pos);
+		memcpy(out + 32 + pos, iov[i].iov_base, chunk);
+		pos += chunk;
+	}
+	hlen = snprintf(hdr, sizeof(hdr), "%zu ", pos);
+	memmove(out + hlen, out + 32, pos);
+	memcpy(out, hdr, hlen);
+	return hlen + pos;
+}
+
+/*
+ * Add a framed message to a destination's send queue.  Evicts oldest entries
+ * when either the count or byte limit is exceeded.
+ */
+static void forw_queue_enqueue(struct filed *f, const char *data, size_t len)
+{
+	struct fwd_qentry *qe;
+
+	while (f->f_qlen >= FORW_QUEUE_MAX_LEN ||
+	       (f->f_qsize + len > FORW_QUEUE_MAX_SIZE && f->f_qlen > 0)) {
+		qe = SIMPLEQ_FIRST(&f->f_queue);
+		SIMPLEQ_REMOVE_HEAD(&f->f_queue, fq_link);
+		f->f_qsize -= qe->fq_len;
+		f->f_qlen--;
+		free(qe->fq_data);
+		free(qe);
+		if (!f->f_qoverflow) {
+			NOTE("TCP queue overflow for %s:%s, dropping oldest",
+			     f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+			f->f_qoverflow = 1;
+		}
+	}
+
+	qe = malloc(sizeof(*qe));
+	if (!qe)
+		return;
+	qe->fq_data = malloc(len);
+	if (!qe->fq_data) { free(qe); return; }
+	memcpy(qe->fq_data, data, len);
+	qe->fq_len = len;
+	SIMPLEQ_INSERT_TAIL(&f->f_queue, qe, fq_link);
+	f->f_qlen++;
+	f->f_qsize += len;
+}
+
+/*
+ * Drain the send queue over the destination's live TCP socket.  Stops on the
+ * first failed send; remaining entries stay queued.  Returns number of messages
+ * sent.
+ */
+static size_t forw_queue_flush(struct filed *f)
+{
+	struct fwd_qentry *qe, *next;
+	size_t sent = 0;
+
+	SIMPLEQ_FOREACH_SAFE(qe, &f->f_queue, fq_link, next) {
+		if (send(f->f_un.f_forw.f_tcp_sd, qe->fq_data, qe->fq_len,
+			 MSG_NOSIGNAL) <= 0)
+			break;
+		SIMPLEQ_REMOVE_HEAD(&f->f_queue, fq_link);
+		f->f_qsize -= qe->fq_len;
+		f->f_qlen--;
+		free(qe->fq_data);
+		free(qe);
+		sent++;
+	}
+	if (sent > 0) {
+		logit("Flushed %zu queued messages to %s:%s/tcp\n",
+		      sent, f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+		f->f_qoverflow = 0;
+	}
+	return sent;
+}
+
+/*
+ * Discard all queued messages for a destination (SIGHUP / shutdown).
+ */
+static void forw_queue_clear(struct filed *f)
+{
+	struct fwd_qentry *qe, *next;
+
+	SIMPLEQ_FOREACH_SAFE(qe, &f->f_queue, fq_link, next) {
+		free(qe->fq_data);
+		free(qe);
+	}
+	SIMPLEQ_INIT(&f->f_queue);
+	f->f_qlen  = 0;
+	f->f_qsize = 0;
+	f->f_qoverflow = 0;
+}
+
+static void tls_connect_forw(struct filed *f)
+{
+#ifdef HAVE_OPENSSL
+	struct addrinfo *ai;
+	int sd, on = 1, rc;
+
+	/* Wait for TLS to be initialized (happens after cfparse) */
+	if (!tls_enabled())
+		return;
+
+	/* Close any existing TLS connection */
+	if (f->f_un.f_forw.f_ssl)
+		tls_forw_close(f);
+
+	if (f->f_un.f_forw.f_tcp_sd >= 0) {
+		close(f->f_un.f_forw.f_tcp_sd);
+		f->f_un.f_forw.f_tcp_sd = -1;
+	}
+
+	for (ai = f->f_un.f_forw.f_addr; ai; ai = ai->ai_next) {
+		sd = socket(ai->ai_family, SOCK_STREAM | SOCK_CLOEXEC, 0);
+		if (sd < 0)
+			continue;
+
+		if (connect(sd, ai->ai_addr, ai->ai_addrlen) == 0) {
+			setsockopt(sd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
+			f->f_un.f_forw.f_tcp_sd = sd;
+
+			/* Initiate TLS handshake */
+			rc = tls_connect(f);
+			if (rc < 0) {
+				close(sd);
+				f->f_un.f_forw.f_tcp_sd = -1;
+				continue;
+			}
+
+			logit("TLS connected to %s:%s on fd %d\n",
+			      f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv, sd);
+			return;
+		}
+		close(sd);
+	}
+
+	/* All addresses failed */
+	logit("TLS connect to %s:%s failed\n",
+	      f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+	f->f_type = F_FORW_TLS_SUSP;
+	f->f_time = timer_now();
+#endif
 }
 
 void domark(void *arg)
@@ -2947,6 +3761,16 @@ void doflush(void *arg)
 		if (f->f_type == F_FORW_UNKN) {
 			forw_lookup(f);
 			if (f->f_type != F_FORW)
+				continue;
+		}
+		if (f->f_type == F_FORW_TCP_UNKN) {
+			forw_lookup(f);
+			if (f->f_type != F_FORW_TCP)
+				continue;
+		}
+		if (f->f_type == F_FORW_TLS_UNKN) {
+			forw_lookup(f);
+			if (f->f_type != F_FORW_TLS)
 				continue;
 		}
 
@@ -2993,6 +3817,39 @@ static void close_open_log_files(void)
 				f->f_un.f_forw.f_addr = NULL;
 			}
 			break;
+
+		case F_FORW_TCP:
+		case F_FORW_TCP_SUSP:
+		case F_FORW_TCP_UNKN:
+			if (f->f_un.f_forw.f_tcp_sd >= 0) {
+				close(f->f_un.f_forw.f_tcp_sd);
+				f->f_un.f_forw.f_tcp_sd = -1;
+			}
+			if (f->f_un.f_forw.f_addr) {
+				freeaddrinfo(f->f_un.f_forw.f_addr);
+				f->f_un.f_forw.f_addr = NULL;
+			}
+			break;
+
+		case F_FORW_TLS:
+		case F_FORW_TLS_SUSP:
+		case F_FORW_TLS_UNKN:
+#ifdef HAVE_OPENSSL
+			if (f->f_un.f_forw.f_ssl)
+				tls_forw_close(f);
+#endif
+			if (f->f_un.f_forw.f_tcp_sd >= 0) {
+				close(f->f_un.f_forw.f_tcp_sd);
+				f->f_un.f_forw.f_tcp_sd = -1;
+			}
+			if (f->f_un.f_forw.f_addr) {
+				freeaddrinfo(f->f_un.f_forw.f_addr);
+				f->f_un.f_forw.f_addr = NULL;
+			}
+			free(f->f_un.f_forw.f_tls_fingerprint);
+			free(f->f_un.f_forw.f_tls_keyfile);
+			free(f->f_un.f_forw.f_tls_certfile);
+			break;
 		}
 
 		if (f->f_iface)
@@ -3017,6 +3874,7 @@ static void close_open_log_files(void)
 			}
 			free(f->f_prop_filter);
 		}
+		forw_queue_clear(f);
 		free(f);
 	}
 }
@@ -3030,10 +3888,28 @@ void die(int signo)
 		flog(LOG_SYSLOG | LOG_INFO, "exiting on signal %d", signo);
 	}
 
+#ifdef HAVE_OPENSSL
+	/* RFC 5848: send final signature blocks and cleanup */
+	sign_exit();
+
+	/* RFC 5425: cleanup TLS */
+	tls_exit();
+#endif
+
 	/*
 	 * Stop all active timers
 	 */
 	timer_exit();
+
+	/*
+	 * Close all accepted TCP client connections
+	 */
+	tcp_close_all();
+
+	/*
+	 * Tear down the logread(1) control socket and buffer
+	 */
+	membuf_exit();
 
 	/*
 	 * Close all UNIX and inet sockets
@@ -3100,7 +3976,9 @@ static int waitdaemon(int maxwait)
 	if (setsid() == -1)
 		return -1;
 
-	(void)chdir("/");
+	if (chdir("/")) {
+		/* best effort */
+	}
 	fd = open(_PATH_DEVNULL, O_RDWR, 0);
 	if (fd != -1) {
 		(void)dup2(fd, STDIN_FILENO);
@@ -3216,8 +4094,14 @@ static void retry_init(void)
 			fail |= create_unix_socket(pe);
 		} else {
 			/* skip any marked for deletion */
-			if (SecureMode < 2)
-				fail |= create_inet_socket(pe);
+			if (SecureMode < 2) {
+				if (pe->pe_tls)
+					fail |= create_inet_tls_socket(pe);
+				else if (pe->pe_tcp)
+					fail |= create_inet_tcp_socket(pe);
+				else
+					fail |= create_inet_socket(pe);
+			}
 		}
 	}
 
@@ -3302,6 +4186,11 @@ static void init(void)
 	notifier_free_all();
 
 	/*
+	 * Forget any membuf settings so a removed directive disables it
+	 */
+	membuf_reset();
+
+	/*
 	 * Read configuration file(s)
 	 */
 	fp = fopen(ConfFile, "r");
@@ -3327,6 +4216,24 @@ static void init(void)
 	close_open_log_files();
 
 	fhead = newf;
+
+	/*
+	 * When the in-memory buffer is enabled, capture every message by
+	 * prepending a catch-all rule -- ahead of any rule that may STOP.
+	 */
+	if (membuf_enabled()) {
+		struct filed *mf = calloc(1, sizeof(*mf));
+
+		if (mf) {
+			mf->f_type = F_MEMBUF;
+			mf->f_file = -1;
+			SIMPLEQ_INIT(&mf->f_queue);
+			for (int i = 0; i <= LOG_NFACILITIES; i++)
+				mf->f_pmask[i] = INTERNAL_ALLPRI;
+			SIMPLEQ_INSERT_HEAD(&fhead, mf, f_link);
+		} else
+			ERR("Cannot allocate memory for membuf rule");
+	}
 
 	/*
 	 * Ensure a default listen *:514 exists (compat)
@@ -3362,8 +4269,25 @@ static void init(void)
 
 	Initialized = 1;
 
+#ifdef HAVE_OPENSSL
+	/* Initialize RFC 5848 message signing if configured */
+	if (sign_config(sign_sg_str, sign_delim_str, sign_keyfile_str,
+			sign_certfile_str) == 0)
+		sign_init();
+
+	/* Initialize RFC 5425 TLS transport if configured */
+	if (tls_config(tls_keyfile_str, tls_certfile_str,
+		       tls_cafile_str, tls_capath_str, tls_verify_str) == 0)
+		tls_init();
+#endif
+
 	flog(LOG_SYSLOG | LOG_INFO, "syslogd v" VERSION ": restart.");
 	logit("syslogd: restarted.\n");
+
+	/*
+	 * Close all accepted TCP client connections before reopening sockets
+	 */
+	tcp_close_all();
 
 	/*
 	 * Open or close sockets for local and remote communication
@@ -3375,10 +4299,21 @@ static void init(void)
 		} else {
 			close_socket(pe);
 
-			if (SecureMode < 2)
-				fail |= create_inet_socket(pe);
+			if (SecureMode < 2) {
+				if (pe->pe_tls)
+					fail |= create_inet_tls_socket(pe);
+				else if (pe->pe_tcp)
+					fail |= create_inet_tcp_socket(pe);
+				else
+					fail |= create_inet_socket(pe);
+			}
 		}
 	}
+
+	/*
+	 * Bring up (or tear down) the logread(1) control socket
+	 */
+	membuf_init();
 
 	if (fail)
 		retry = &init_tv;
@@ -3426,6 +4361,22 @@ static void init(void)
 					printf(" ttl=%d", f->f_ttl);
 				break;
 
+			case F_FORW_TCP:
+			case F_FORW_TCP_SUSP:
+			case F_FORW_TCP_UNKN:
+				printf("%s:%s/tcp", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+				break;
+
+			case F_FORW_TLS:
+			case F_FORW_TLS_SUSP:
+			case F_FORW_TLS_UNKN:
+				printf("%s:%s/tls", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+				break;
+
+			case F_MEMBUF:
+				printf("(in-memory)");
+				break;
+
 			case F_USERS:
 				for (int i = 0; i < MAXUNAMES && *f->f_un.f_uname[i]; i++)
 					printf("%s%s", i > 0 ? ", " : "", f->f_un.f_uname[i]);
@@ -3433,9 +4384,9 @@ static void init(void)
 			}
 
 			if (f->f_program)
-				printf(" (%s)", f->f_program);
+				printf(" (%s%s)", (f->f_flags & STOP_FLAG) ? "!!" : "", f->f_program);
 			if (f->f_host)
-				printf(" [%s]", f->f_host);
+				printf(" [%s%s]", (f->f_flags & STOP_FLAG) ? "++" : "", f->f_host);
 
 			if (f->f_flags & RFC5424)
 				printf("\t;RFC5424");
@@ -3455,11 +4406,23 @@ static void cflisten(char *ptr, void *arg)
 	int   mark = arg ? -1 : 0;	/* command line option */
 	char *peer = ptr;
 	char *p, *port;
+	int   tcp = 0;
+	int   tls = 0;
 
 	while (*peer && isspace(*peer))
 		++peer;
 
 	logit("cflisten[%s]\n", peer);
+
+	/* Detect tcp:// prefix for TCP listeners */
+	if (!strncmp(peer, "tcp://", 6)) {
+		tcp = 1;
+		peer += 6;
+	} else if (!strncmp(peer, "tls://", 6)) {
+		tls = 1;
+		tcp = 1;  /* TLS is built on TCP */
+		peer += 6;
+	}
 
 	p = peer;
 	if (*p == '[') {
@@ -3480,7 +4443,7 @@ static void cflisten(char *ptr, void *arg)
 		*port++ = 0;
 		p = port;
 	} else
-		port = "514";
+		port = tls ? "6514" : "514";  /* RFC 5425: TLS uses port 6514 */
 
 	ptr = strchr(p, '%');	/* only relevant for multicast */
 	if (ptr)
@@ -3491,6 +4454,8 @@ static void cflisten(char *ptr, void *arg)
 			.pe_serv = port,
 			.pe_iface = ptr,
 			.pe_mark = mark,
+			.pe_tcp = tcp,
+			.pe_tls = tls,
 		});
 }
 
@@ -3567,7 +4532,30 @@ static void cfopts(char *ptr, struct filed *f)
 			f->f_flags |= PRI;
 		} else if (cfopt(&opt, "rotate="))
 			cfrot(opt, f);
-		else
+		else if (cfopt(&opt, "verify=")) {
+			/* TLS verification mode: off, optional, required, hostname */
+			if (!strcasecmp(opt, "off") || !strcasecmp(opt, "no"))
+				f->f_un.f_forw.f_tls_verify = TLS_VERIFY_OFF;
+			else if (!strcasecmp(opt, "optional"))
+				f->f_un.f_forw.f_tls_verify = TLS_VERIFY_OPTIONAL;
+			else if (!strcasecmp(opt, "required") || !strcasecmp(opt, "on") || !strcasecmp(opt, "yes"))
+				f->f_un.f_forw.f_tls_verify = TLS_VERIFY_REQUIRED;
+			else if (!strcasecmp(opt, "hostname"))
+				f->f_un.f_forw.f_tls_verify = TLS_VERIFY_HOSTNAME;
+		} else if (cfopt(&opt, "fingerprint=")) {
+			/* TLS fingerprint verification */
+			free(f->f_un.f_forw.f_tls_fingerprint);
+			f->f_un.f_forw.f_tls_fingerprint = strdup(opt);
+			f->f_un.f_forw.f_tls_verify = TLS_VERIFY_FINGERPRINT;
+		} else if (cfopt(&opt, "tls_keyfile=")) {
+			/* TLS client key for mutual authentication */
+			free(f->f_un.f_forw.f_tls_keyfile);
+			f->f_un.f_forw.f_tls_keyfile = strdup(opt);
+		} else if (cfopt(&opt, "tls_certfile=")) {
+			/* TLS client certificate for mutual authentication */
+			free(f->f_un.f_forw.f_tls_certfile);
+			f->f_un.f_forw.f_tls_certfile = strdup(opt);
+		} else
 			cfrot(ptr, f); /* Compat v1.6 syntax */
 
 		opt = strtok(NULL, ";,");
@@ -3578,11 +4566,12 @@ static void cfopts(char *ptr, struct filed *f)
  * Compile property-based filter.
  */
 static struct prop_filter *
-prop_filter_compile(char *filter)
+prop_filter_compile(const char *filter_in)
 {
 	char **ap, *argv[2] = { NULL, NULL };
 	struct prop_filter *pfilter;
 	char *filter_endpos, *p;
+	char *filter, *filter_base = NULL;
 	int re_flags = REG_NOSUB;
 	int escaped;
 
@@ -3598,9 +4587,21 @@ prop_filter_compile(char *filter)
 		return NULL;
 	}
 
-	if (*filter == '*') {
+	if (*filter_in == '*') {
 		pfilter->prop_type = PROP_TYPE_NOOP;
 		return pfilter;
+	}
+
+	/*
+	 * strsep() and the value de-escaping below modify the string in
+	 * place, so work on a copy -- the caller reuses this buffer for
+	 * the remaining rules in the block.
+	 */
+	filter_base = filter = strdup(filter_in);
+	if (!filter) {
+		ERR("failed allocating property filter");
+		free(pfilter);
+		return NULL;
 	}
 
 	/*
@@ -3732,8 +4733,10 @@ prop_filter_compile(char *filter)
 		}
 	}
 
+	free(filter_base);
 	return pfilter;
 error:
+	free(filter_base);
 	if (pfilter->pflt_re)
 		free(pfilter->pflt_re);
 	free(pfilter);
@@ -3763,6 +4766,7 @@ static struct filed *cfline(char *line, const char *prog, const char *host, char
 		ERR("Cannot allocate memory for log file");
 		return NULL;
 	}
+	SIMPLEQ_INIT(&f->f_queue);
 
 	/* scan through the list of selectors */
 	for (p = line; *p && *p != '\t' && *p != ' ';) {
@@ -3883,17 +4887,117 @@ static struct filed *cfline(char *line, const char *prog, const char *host, char
 	while (*p == '\t' || *p == ' ')
 		p++;
 
-	if (*p == '-') {
-		syncfile = 0;
+	/*
+	 * Optional destination prefixes, any order, matching NetBSD:
+	 *   -  do not fsync the file after each line
+	 *   +  preserve the priority in the output (like the ;pri option),
+	 *      so RFC 5848 signatures can be verified
+	 */
+	syncfile = 1;
+	while (*p == '-' || *p == '+') {
+		if (*p == '-')
+			syncfile = 0;
+		else
+			f->f_flags |= PRI;
 		p++;
-	} else
-		syncfile = 1;
+	}
 
 	logit("leading char in action: %c\n", *p);
+
+	/* Handle tcp:// prefix before the switch */
+	if (!strncmp(p, "tcp://", 6) || !strncmp(p, "tcp4://", 7) || !strncmp(p, "tcp6://", 7)) {
+		cfopts(p, f);
+		if (!strncmp(p, "tcp6://", 7)) {
+			f->f_un.f_forw.f_family = AF_INET6;
+			p += 7;
+		} else if (!strncmp(p, "tcp4://", 7)) {
+			f->f_un.f_forw.f_family = AF_INET;
+			p += 7;
+		} else
+			p += 6;
+
+		if (*p == '[') {
+			p++;
+			q = strchr(p, ']');
+			if (!q) {
+				ERR("Invalid IPv6 address in tcp:// target, missing ']'");
+				goto tcp_done;
+			}
+			*q++ = 0;
+			bp = strchr(q, ':');
+		} else
+			bp = strchr(p, ':');
+		if (bp)
+			*bp++ = 0;
+		else
+			bp = "514";
+
+		f->f_un.f_forw.f_tcp = 1;
+		f->f_un.f_forw.f_tcp_sd = -1;
+		strlcpy(f->f_un.f_forw.f_hname, p, sizeof(f->f_un.f_forw.f_hname));
+		strlcpy(f->f_un.f_forw.f_serv, bp, sizeof(f->f_un.f_forw.f_serv));
+		logit("tcp forwarding host: '%s:%s'\n", p, bp);
+		forw_lookup(f);
+		goto tcp_done;
+	}
+
+	/* Handle tls:// prefix before the switch (RFC 5425) */
+	if (!strncmp(p, "tls://", 6) || !strncmp(p, "tls4://", 7) || !strncmp(p, "tls6://", 7)) {
+		cfopts(p, f);
+		if (!strncmp(p, "tls6://", 7)) {
+			f->f_un.f_forw.f_family = AF_INET6;
+			p += 7;
+		} else if (!strncmp(p, "tls4://", 7)) {
+			f->f_un.f_forw.f_family = AF_INET;
+			p += 7;
+		} else
+			p += 6;
+
+		if (*p == '[') {
+			p++;
+			q = strchr(p, ']');
+			if (!q) {
+				ERR("Invalid IPv6 address in tls:// target, missing ']'");
+				goto tcp_done;
+			}
+			*q++ = 0;
+			bp = strchr(q, ':');
+		} else
+			bp = strchr(p, ':');
+		if (bp)
+			*bp++ = 0;
+		else
+			bp = "6514";  /* RFC 5425 default port */
+
+		f->f_un.f_forw.f_tls = 1;
+		f->f_un.f_forw.f_tcp_sd = -1;
+		strlcpy(f->f_un.f_forw.f_hname, p, sizeof(f->f_un.f_forw.f_hname));
+		strlcpy(f->f_un.f_forw.f_serv, bp, sizeof(f->f_un.f_forw.f_serv));
+		logit("tls forwarding host: '%s:%s'\n", p, bp);
+		forw_lookup(f);
+		goto tcp_done;
+	}
+
 	switch (*p) {
 	case '@':
 		cfopts(p, f);
 		p++;
+
+		/* @@ = TCP forwarding, @@@ = TLS forwarding */
+		if (*p == '@') {
+			p++;
+			if (*p == '@') {
+				/* @@@ = TLS forwarding */
+				f->f_un.f_forw.f_tls = 1;
+				f->f_un.f_forw.f_tcp_sd = -1;
+				p++;
+			} else {
+				/* @@ = TCP forwarding */
+				f->f_un.f_forw.f_tcp = 1;
+				f->f_un.f_forw.f_tcp_sd = -1;
+			}
+		}
+
 		if (*p == '[') {
 			p++;
 
@@ -3909,11 +5013,12 @@ static struct filed *cfline(char *line, const char *prog, const char *host, char
 		if (bp)
 			*bp++ = 0;
 		else
-			bp = "514"; /* default: 514/udp */
+			bp = f->f_un.f_forw.f_tls ? "6514" : "514";
 
 		strlcpy(f->f_un.f_forw.f_hname, p, sizeof(f->f_un.f_forw.f_hname));
 		strlcpy(f->f_un.f_forw.f_serv, bp, sizeof(f->f_un.f_forw.f_serv));
-		logit("forwarding host: '%s:%s'\n", p, bp);
+		logit("forwarding host: '%s:%s/%s'\n", p, bp,
+		      f->f_un.f_forw.f_tls ? "tls" : (f->f_un.f_forw.f_tcp ? "tcp" : "udp"));
 		forw_lookup(f);
 		break;
 
@@ -3964,11 +5069,16 @@ static struct filed *cfline(char *line, const char *prog, const char *host, char
 		f->f_type = F_USERS;
 		break;
 	}
+tcp_done:
 
 	/* Set default log format, unless format was already specified */
 	switch (f->f_type) {
 	case F_FORW:
 	case F_FORW_UNKN:
+	case F_FORW_TCP:
+	case F_FORW_TCP_UNKN:
+	case F_FORW_TLS:
+	case F_FORW_TLS_UNKN:
 		/* Remote syslog defaults to BSD style, i.e. no timestamp or hostname */
 		break;
 
@@ -4051,6 +5161,7 @@ static int cfparse(FILE *fp, struct files *newf)
 	char host[LINE_MAX] = "*";
 	char prog[LINE_MAX] = "*";
 	char cbuf[LINE_MAX];
+	int stop_block = 0;
 	struct filed *f;
 	char *cline;
 	char *p;
@@ -4083,11 +5194,20 @@ static int cfparse(FILE *fp, struct files *newf)
 		if (*p == '+' || *p == '-') {
 			host[i++] = *p++;
 
+			/* ++ means final block (like OpenBSD), - never final */
+			if (*p == '+') {
+				stop_block = 1;
+				p++;
+			} else {
+				stop_block = 0;
+			}
+
 			while (isblank(*p))
 				p++;
 
 			if (*p == '*') {
 				(void)strlcpy(host, "*", sizeof(host));
+				stop_block = 0;
 				continue;
 			}
 
@@ -4109,11 +5229,21 @@ static int cfparse(FILE *fp, struct files *newf)
 
 		if (*p == '!') {
 			p++;
+
+			/* !! means final block, matching OpenBSD syslogd */
+			if (*p == '!') {
+				stop_block = 1;
+				p++;
+			} else {
+				stop_block = 0;
+			}
+
 			while (isblank(*p))
 				p++;
 
 			if (*p == '\0' || *p == '*') {
 				(void)strlcpy(prog, "*", sizeof(prog));
+				stop_block = 0;
 				continue;
 			}
 
@@ -4128,10 +5258,20 @@ static int cfparse(FILE *fp, struct files *newf)
 
 		if (*p == ':') {
 			p++;
+
+			/* :: means final block, analogous to !! for programs */
+			if (*p == ':') {
+				stop_block = 1;
+				p++;
+			} else {
+				stop_block = 0;
+			}
+
 			while (isblank(*p))
 				p++;
 			if (!*p || *p == '*') {
 				strlcpy(pfilter, "*", sizeof(pfilter));
+				stop_block = 0;
 				continue;
 			}
 			strlcpy(pfilter, p, sizeof(pfilter));
@@ -4194,6 +5334,9 @@ static int cfparse(FILE *fp, struct files *newf)
 		if (!f)
 			continue;
 
+		if (stop_block)
+			f->f_flags |= STOP_FLAG;
+
 		SIMPLEQ_INSERT_TAIL(newf, f, f_link);
 	}
 
@@ -4247,6 +5390,17 @@ static int cfparse(FILE *fp, struct files *newf)
 
 		free(rotate_cnt_str);
 		rotate_cnt_str = NULL;
+	}
+
+	if (tcp_suspend_str) {
+		int val = atoi(tcp_suspend_str);
+		if (val <= 0)
+			logit("Invalid value to tcp_suspend_time = %s\n", tcp_suspend_str);
+		else
+			TcpSuspendTime = val;
+
+		free(tcp_suspend_str);
+		tcp_suspend_str = NULL;
 	}
 
 	return 0;

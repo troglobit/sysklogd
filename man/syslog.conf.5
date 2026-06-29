@@ -63,11 +63,14 @@ single backslash ('\\') character.
 .Pp
 .Bd -literal -offset indent
 PROGRAM  := !IDENT[,IDENT]
+         |= !!IDENT[,IDENT]
          |= !+IDENT[,IDENT]
 	 |= !-IDENT[,IDENT]
 HOSTNAME := +IDENT[,IDENT]
+         |= ++IDENT[,IDENT]
 	 |= -IDENT[,IDENT]
 PROPERTY := :PROP, [PREFIX]OPERATOR, "VALUE"
+         |= ::PROP, [PREFIX]OPERATOR, "VALUE"
 PROP     := hostname
 	 |= msg
          |= msgid
@@ -85,9 +88,13 @@ PREFIX   := [PREFIX]
          |= icase_
 RULE     := SELECTOR  ACTION  [;OPTION]
 SELECTOR := [SELECTOR;]facility[,facility].[!=]severity
-ACTION   := /path/to/file
-         |= |/path/to/named/pipe
+ACTION   := [+][-]/path/to/file
+         |= [+]|/path/to/named/pipe
 	 |= @remote[.host.tld][:PORT]
+	 |= @@remote[.host.tld][:PORT]
+	 |= @@@remote[.host.tld][:PORT]
+	 |= tcp[4|6]://remote[.host.tld][:PORT]
+	 |= tls[4|6]://remote[.host.tld][:PORT]
 OPTION   := [OPTION,]
 	 |= RFC3164
 	 |= RFC5424
@@ -95,6 +102,10 @@ OPTION   := [OPTION,]
 	 |= iface=IFNAME
          |= rotate=ROT
 	 |= ttl=1..255
+	 |= verify=off|optional|required|hostname
+	 |= fingerprint=SHA256:...
+	 |= tls_keyfile=PATH
+	 |= tls_certfile=PATH
 ROT      := SIZE:COUNT
          |= SIZE
 	 |= :COUNT
@@ -103,13 +114,23 @@ udp_size 480..2048
 
 secure_mode [0,1,2]
 
+tcp_suspend_time SECONDS
+
 rotate_size  SIZE
 rotate_count NUMBER
 
-listen [address:port[%iface] | :port | address[%iface]]
+tls_keyfile   /path/to/server.key
+tls_certfile  /path/to/server.cert
+tls_cafile    /path/to/ca.pem
+tls_capath    /path/to/ca.d
+tls_verify    off|optional|required
+
+listen [address:port[%iface] | :port | address[%iface] | tcp://... | tls://...]
 
 include /etc/syslog.d/*.conf
 notify  /path/to/script-on-rotate
+
+membuf  /path/to/socket SIZE [USER:GROUP]
 .Ed
 .Pp
 Each block of rules is separated from the previous block by a
@@ -163,6 +184,16 @@ You can reset the program specification at any time using the
 syntax.  The program specification is also reset for each included .conf
 file.
 .Pp
+The
+.Ql !!prog
+form works like
+.Ql !prog
+but causes evaluation to stop after a matching rule in this block fires,
+ensuring no further rules are applied to that message.
+Use
+.Ql !*
+to cancel the effect and resume normal evaluation for subsequent blocks.
+.Pp
 A
 .Em hostname filter
 specification of the form
@@ -184,6 +215,16 @@ the local hostname will be used.  Similar to program specifications,
 multiple comma-separated values may be specified for hostname
 specifications.
 .Pp
+The
+.Ql ++hostname
+form works like
+.Ql +hostname
+but causes evaluation to stop after a matching rule in this block fires,
+ensuring no further rules are applied to that message.
+Use
+.Ql +*
+to cancel the effect and resume normal evaluation for subsequent blocks.
+.Pp
 A
 .Em property-based filter
 specification is a line beginning with
@@ -191,7 +232,17 @@ specification is a line beginning with
 or
 .Ql :
 and the following blocks will be applied only when filter value matches
-given filter properties value.  See
+given filter properties value.
+The
+.Ql ::
+form works like
+.Ql :
+but causes evaluation to stop after a matching rule in this block fires,
+ensuring no further rules are applied to that message.
+Use
+.Ql :*
+to cancel the effect and resume normal evaluation for subsequent blocks.
+See
 .Sx PROPERTY-BASED FILTERS
 section for more details.  For examples, see
 .Sx EXAMPLES
@@ -318,7 +369,7 @@ secure_mode 1
 .Ed
 .Pp
 The
-.Ql listen Op Ar address:port[%iface] | address[%iface] | :port
+.Ql listen Op Ar address:port[%iface] | address[%iface] | :port | tcp://address:port
 option is the same as the
 .Nm syslogd Fl b Ar addr[:port][%iface]
 command line option.  Like its counterpart it has no effect unless the
@@ -336,6 +387,37 @@ syntax is for multicast groups, it allows joining a group on a given
 interface (by name).  If the interface is omitted the routing table is
 used, which often is not desirable for multicast.
 .Pp
+To listen for incoming TCP syslog connections, prefix the address with
+.Ql tcp:// .
+For example,
+.Ql listen tcp://[::]:1514
+listens on all interfaces, port 1514, for TCP connections.  Both
+RFC 6587 octet counting and non-transparent (LF-delimited) framing
+are supported on incoming TCP connections.
+.Pp
+The
+.Ql tcp_suspend_time Ar seconds
+option sets the number of seconds a TCP forwarding destination remains
+suspended after a connection failure before a reconnection is attempted.
+The default is 180 seconds.
+.Pp
+During the suspension window, messages destined for the failed remote host
+are held in an in-memory per-destination queue rather than dropped.  When
+.Xr syslogd 8
+successfully reconnects, the queue is flushed in order before the current
+message is sent.  The queue is bounded by compile-time limits (1000
+messages or 1 MiB of payload per destination, whichever is reached first);
+when a limit is exceeded, the oldest queued entry is evicted to make room
+for the new one, and a warning is logged once per overflow event.
+.Pp
+.Sy Note:
+the queue is discarded when
+.Xr syslogd 8
+receives
+.Dv SIGHUP
+or exits.  For persistent queueing across restarts, use an external log
+shipper.
+.Pp
 The
 .Ql notify <PATH>
 option specifies the path to an executable program which will get called
@@ -348,19 +430,201 @@ For example:
 Any number of notifiers may be installed.
 .Pp
 The
+.Ql membuf Ar PATH SIZE Op Ar USER:GROUP
+option enables an in-memory log buffer, in the style of BusyBox and
+OpenWRT, read with
+.Xr logread 1 .
+It is disabled by default.  Every message is captured in a circular
+buffer of at most
+.Ar SIZE
+bytes
+.Pq e.g. Ql 128k ,
+oldest lines evicted first, and served to
+.Xr logread 1
+over a UNIX domain control socket at
+.Ar PATH .
+The buffer lives in memory only and is lost on restart, which suits
+embedded systems where writing to flash is undesirable.
+.Pp
+Access to the buffer is governed by the ownership and permission of the
+control socket.  The optional
+.Ar USER:GROUP
+sets its owner and group; connecting requires write permission, so the
+socket is created mode
+.Ql 0660
+.Pq owner and group .
+Either part may be omitted, e.g.
+.Ql :adm .
+When
+.Ar USER:GROUP
+is not given, the socket is owned by root and the
+.Ql adm
+group if that group exists, otherwise it falls back to root only, mode
+.Ql 0600 .
+A configured user or group that cannot be resolved likewise falls back to
+root-only access rather than widening it.
+.Pp
+.Sy Note:
+place the socket in a directory writable only by root (the default
+.Ar PATH
+under
+.Pa /run
+is).  A directory writable by others lets them tamper with the socket
+node before its ownership is applied.
+.Pp
+The
 .Ql include <PATH/*.conf>
 option can be used to include all files with names ending in '.conf' and
 not beginning with a '.' contained in the directory following the
 keyword.  This keyword can only be used in the first level configuration
-file.  The included example
+file.  Included files are parsed in glob order and their rules are
+inserted into the rule list at the position of the
+.Ql include
+line.
+.Pp
+This ordering matters for stop-processing blocks
+.Pq Ql !! , ++ , ::
+\&: such a block can only suppress rules that appear
+.Em after
+it in the parsed list.  Rules already processed before the
+.Ql include
+line are unaffected.  For snippets in
+.Pa /etc/syslog.d/
+to be able to prevent messages from reaching the general catch-all rules
+in the main configuration file, the
+.Ql include
+line must appear
+.Em before
+those catch-all rules.  The shipped
 .Pa /etc/syslog.conf
-has the following at the end:
+is structured accordingly.
+.Pp
 .Bd -literal -offset indent
 #
 # Drop your subsystem .conf file in /etc/syslog.d/
 #
 include /etc/syslog.d/*.conf
 .Ed
+.Sh SIGNED SYSLOG MESSAGES
+When compiled with OpenSSL support
+.Pq Fl -with-openssl ,
+.Nm syslogd
+can generate cryptographically signed syslog messages per RFC 5848.
+This provides origin authentication, message integrity verification,
+replay resistance, and detection of missing messages.
+.Pp
+.Bl -tag -width "sign_delim_sg2" -compact
+.It Ql sign_sg Ar mode
+Enable signing with the specified signature group mode:
+.Pp
+.Bl -tag -compact -width "0" -offset indent
+.It 0
+Single signature group for all messages (default)
+.It 1
+One signature group per priority level (192 groups maximum)
+.It 2
+Signature groups for priority ranges, using delimiters
+.It 3
+One signature group per destination (NetBSD extension)
+.El
+.Pp
+.It Ql sign_delim_sg2 Ar delimiters
+Space-separated priority values (0-191, facility*8+severity) defining the
+upper bound of each signature group range for
+.Ql sign_sg=2
+mode.
+With no delimiters configured all messages fall into a single group.
+.Pp
+.It Ql sign_keyfile Ar path
+Path to PEM-encoded private key file for signing messages.
+This option is required to enable signing.
+.Pp
+.It Ql sign_certfile Ar path
+Path to PEM-encoded X.509 certificate file.
+Optional; used for certificate block transmission to receivers.
+.El
+.Pp
+Example configuration:
+.Bd -literal -offset indent
+# Sign every message (global signature group, SG=0) and log locally in
+# RFC5424 format.  The signature and certificate blocks are themselves
+# RFC5424 messages, emitted to this destination too.
+sign_sg        0
+sign_keyfile   /etc/syslog.d/syslog.key
+sign_certfile  /etc/syslog.d/syslog.cert
+
+*.*            /var/log/syslog          ;RFC5424
+.Ed
+.Pp
+Signature blocks (SD-ID:
+.Ql ssign )
+are sent periodically (every 30 seconds by default) and contain
+SHA-256 hashes of recent messages along with a digital signature.
+Certificate blocks (SD-ID:
+.Ql ssign-cert )
+are sent at startup and periodically to distribute the public key
+to receivers.
+.Pp
+The blocks are ordinary RFC5424 messages.  The certificate block carries
+the base64 X.509 public key (long base64 fields truncated below):
+.Bd -literal -offset indent
+[ssign-cert VER="0121" RSID="208672719837483" SG="0" SPRI="0" \\
+    TBPL="294" INDEX="1" FLEN="294" FRAG="MIIBIjANBgkq..." \\
+    SIGN="MEUCIQDx9c2V...g=="]
+.Ed
+.Pp
+Each signature block binds the SHA-256 hashes of the messages seen since
+the previous block:
+.Ql CNT
+is the hash count,
+.Ql HB
+the space-separated base64 hashes, and
+.Ql SIGN
+the signature over the preceding fields.
+.Bd -literal -offset indent
+[ssign VER="0121" RSID="208672719837483" SG="0" SPRI="0" GBC="1" \\
+    FMN="1" CNT="5" HB="d2hLpQ8r... 9fK1mZ0w... Qm7Xy4Tn..." \\
+    SIGN="MEQCIBxK7m2P...Jr9w=="]
+.Ed
+.Pp
+.Sy Note:
+generating keys requires OpenSSL:
+.Bd -literal -offset indent
+openssl genrsa -out /etc/syslog.d/syslog.key 2048
+openssl req -new -x509 -key /etc/syslog.d/syslog.key \\
+    -out /etc/syslog.d/syslog.cert -days 365 -subj "/CN=syslog"
+chmod 600 /etc/syslog.d/syslog.key
+.Ed
+.Pp
+.Sy Verifying signatures.
+The blocks let a downstream consumer detect tampering: recompute the
+SHA-256 hash of each received message, check it against the
+.Ql HB
+list, and verify
+.Ql SIGN
+against the public key from the certificate block.  An altered message
+fails the hash check; a dropped, inserted, or reordered message leaves a
+gap in the
+.Ql CNT ,
+.Ql FMN ,
+and
+.Ql GBC
+counters.
+.Pp
+.Sy Note:
+.Nm syslogd
+only produces signatures.  It ships no verifier, and acting as a
+verifying sink for signed messages is not yet implemented.  This matches
+the *BSD lineage the feature comes from (NetBSD), where signing is
+producer-side and verification is left to separate RFC 5848-aware
+tooling.
+.Pp
+Signing is independent of transport.  It works with remote forwarding
+(the signature and certificate blocks are sent to every destination,
+local and remote), and is orthogonal to TLS: signing gives end-to-end,
+at-rest tamper evidence that survives relaying and storage, while TLS
+only encrypts and authenticates a single hop in transit.  Use both for
+confidentiality together with tamper evidence.
 .Pp
 Note that if you use spaces as separators, your
 .Nm
@@ -523,6 +787,18 @@ file after each log message.  Note that you might lose information if
 the system crashes right after a write attempt.  Nevertheless this might
 give you back some performance, especially if you run programs that use
 logging in a very verbose manner.
+.Pp
+To keep RFC 5848 signature verification possible for a file destination,
+log it in a format that preserves the priority, by prefixing the path
+with
+.Ql + ,
+matching NetBSD.  This is equivalent to the
+.Ql ;pri
+option, and may be combined with the no-sync prefix as
+.Ql +-
+(in that order).  To also keep the RFC5424 version field, use the
+.Ql ;RFC5424
+format.
 .Ss Named Pipes
 This version of
 .Xr syslogd 8
@@ -541,11 +817,79 @@ with
 .Ss Remote Machine
 Full remote logging support is available in
 .Nm syslogd ,
-i.e. to send messages to a remote syslog server, and and to receive
-messages from remote hosts.  To forward messages to another host,
-prepend the hostname with the at sign ('@').  If a port number is added
+i.e. to send messages to a remote syslog server, and to receive
+messages from remote hosts.  To forward messages to another host
+over UDP, prepend the hostname with the at sign ('@').  For TCP
+forwarding, use a double at sign ('@@') or the
+.Ql tcp://
+URL syntax.  If a port number is added
 after a colon (':') then that port will be used as the destination port
 rather than the usual syslog port.
+.Pp
+The address family is otherwise selected automatically.  Append a
+.Ql 4
+or
+.Ql 6
+to the URL scheme to force IPv4 or IPv6, e.g.
+.Ql tcp4://remote
+or
+.Ql tls6://remote ,
+which is useful for dual-stack hosts.
+.Pp
+TCP forwarding uses RFC 6587 octet counting for framing.  On the
+receiving side, both octet counting and non-transparent (LF-delimited)
+framing are supported.  To listen for TCP connections, use
+.Ql listen tcp://address:port
+in the configuration file.
+.Pp
+When a TCP connection to a remote host fails,
+.Xr syslogd 8
+enters a suspension state for
+.Ql tcp_suspend_time
+seconds (default 180).  During this window, messages are accumulated in
+an in-memory per-destination send queue instead of being dropped.  Once
+the suspension window expires and a new message arrives,
+.Xr syslogd 8
+attempts to reconnect.  On success, any queued messages are flushed to
+the remote host in order before the triggering message is sent.
+.Pp
+TLS forwarding per RFC 5425 is also available when compiled with
+OpenSSL support.  Use a triple at sign ('@@@') or the
+.Ql tls://
+URL syntax.  The default port for TLS is 6514.  TLS provides
+encryption and optional certificate-based authentication.  To listen
+for TLS connections, use
+.Ql listen tls://address:port
+in the configuration file.  Server certificates are configured with
+.Ql tls_keyfile
+and
+.Ql tls_certfile
+global options.  Per-action TLS options include
+.Ql verify=off|optional|required|hostname ,
+.Ql fingerprint=SHA256:...
+for certificate pinning, and
+.Ql tls_keyfile=
+with
+.Ql tls_certfile=
+to present a client certificate for mutual TLS, distinct from the global
+server identity above.
+.Pp
+The
+.Ql verify=
+modes differ in strictness:
+.Ql off
+does not check the server certificate;
+.Ql optional
+validates the chain when a certificate is presented but proceeds (with a
+warning) if validation fails;
+.Ql required
+demands a certificate that chains to a trusted CA configured with
+.Ql tls_cafile
+or
+.Ql tls_capath ;
+and
+.Ql hostname
+additionally requires the certificate name to match the forwarding target.
 .Pp
 This feature makes it possible to collect all syslog messages in a
 network on a central host.  This reduces administration needs and
@@ -562,6 +906,64 @@ BSD style, without timestamp or hostname.  As of
 v2.0 the default includes timestamp and hostname.  It is also possible to
 enable the new RFC5424 style formatting, append ';RFC5424' after the
 hostname.
+.Ss TLS Certificates and Trust
+TLS authenticates the server (receiver) to the forwarding client, and
+optionally the client to the server (mutual TLS).  Keys are private,
+certificates are public: a
+.Ql .key
+file is secret, never distributed (chmod 600), while a
+.Ql .crt
+or
+.Ql .cert
+file is public and may be distributed freely.
+.Pp
+The receiver presents its identity with the global
+.Ql tls_keyfile
+(private) and
+.Ql tls_certfile
+(public), and listens with
+.Ql listen tls://addr:port .
+A forwarding client trusts that certificate by trusting the CA that
+signed it: set the global
+.Ql tls_cafile
+to the CA's public certificate and
+.Ql verify=required
+(or
+.Ql verify=hostname )
+on the action.  With no CA, pin the exact certificate instead with
+.Ql fingerprint=SHA256:... .
+For mutual TLS the client adds the per-action
+.Ql tls_keyfile=
+and
+.Ql tls_certfile= ,
+and the receiver demands them with
+.Ql tls_cafile
+and
+.Ql tls_verify required .
+.Pp
+To create your own certificates, for example a private CA that signs a
+receiver certificate:
+.Bd -literal -offset indent
+# A CA: distribute ca.crt to every forwarder, keep ca.key secret.
+openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \\
+    -keyout ca.key -out ca.crt -subj "/CN=My Syslog CA"
+
+# A receiver certificate with CN set to the receiver's hostname,
+# signed by the CA.
+openssl req -newkey rsa:2048 -nodes \\
+    -keyout server.key -out server.csr -subj "/CN=loghost.example"
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key \\
+    -CAcreateserial -out server.crt -days 825
+.Ed
+.Pp
+Install
+.Pa server.key
+and
+.Pa server.crt
+on the receiver, and copy the public
+.Pa ca.crt
+to each forwarder for its
+.Ql tls_cafile .
 .Ss List of Users
 Usually critical messages are also directed to
 .Ql root
@@ -672,6 +1074,26 @@ Recommended directory for .conf snippets
 .El
 .Sh EXAMPLES
 This section lists some examples, partially from actual site setups.
+.Ss Applying Changes
+After editing this file, tell the running
+.Xr syslogd 8
+to reload it; changes do not take effect until then.  Send it
+.Dv SIGHUP ,
+using the PID file so you need not look up the process ID first:
+.Bd -literal -offset indent
+kill -HUP `cat /var/run/syslogd.pid`
+.Ed
+.Pp
+On a
+.Xr systemd 1
+host use
+.Ql systemctl reload syslogd
+instead.  A reload rereads
+.Pa /etc/syslog.conf
+and all
+.Ql include
+snippets, reopens log files, and re-resolves forwarding targets; there
+is no need to restart.
 .Ss Catch Everything
 This example matches all facilities and priorities and stores everything
 in the file
@@ -750,6 +1172,51 @@ These examples show off the substring and regexp matching capabilities.
 :hostname, icase_ereregex, "^server-(dcA|podB|cdn)-rack1[0-9]{2}\..*"
 *.*			     /var/log/racks10-19.log
 .Ed
+.Ss Stop Processing
+In this example, firewall messages tagged with
+.Ql [nftables
+are captured in a dedicated log file and then processing stops,
+preventing the same messages from also appearing in
+.Pa /var/log/syslog .
+Without the
+.Ql ::
+prefix on the property filter, both files would receive the message.
+.Bd -literal -offset indent
+# Capture firewall messages exclusively in their own log file.
+# The :: prefix stops further rule evaluation once a match fires.
+::msg, contains, "[nftables"
+kern.*                       /var/log/nftables.log
+
+# Reset the property filter, then log general kernel/warn messages.
+# Firewall messages never reach this rule.
+:*
+*.warn;\e
+    authpriv.none;cron.none;mail.none;news.none    /var/log/syslog
+.Ed
+.Pp
+The same behaviour is available for program and hostname blocks.
+Here, all messages from
+.Nm spamd
+are routed to their own log and nowhere else:
+.Bd -literal -offset indent
+!!spamd
+daemon.info                  /var/log/spamd
+!*
+.Ed
+.Pp
+.Sy Note:
+stop-processing only suppresses rules that follow the matching rule in
+the parsed order.
+A stop-block placed in a snippet under
+.Pa /etc/syslog.d/
+cannot suppress rules already parsed from the main configuration file
+above the
+.Ql include
+line.
+Place the
+.Ql include
+directive before any general catch-all rules so that snippets are
+evaluated first.
 .Ss Critical
 This stores all messages of priority
 .Ql crit
@@ -957,11 +1424,75 @@ messages will egress
 .Ed
 .Pp
 .Sy Note:
-some may prefer a 224.0.0.0/4 interface route to direct outbound
-multicast, but
-.Nm sysklogd
-support this, less intrusive, option.
+some may prefer a 224.0.0.0/4 interface route to direct all outbound
+multicast via a given interface, but the
+.Ql iface=
+option above does this per log target, which is less intrusive.
+.Ss Logging to Remote Syslog Server via TCP
+TCP forwarding can be configured using either the
+.Ql @@
+prefix or the
+.Ql tcp://
+URL syntax.  Messages are framed using RFC 6587 octet counting.
+To receive TCP connections, use
+.Ql listen tcp://
+in the configuration.
+.Bd -literal -offset indent
+# Forward to remote host via TCP
+*.*                @@loghost:1514   ;RFC5424
+
+# Same using tcp:// URL syntax
+*.*                tcp://loghost:1514  ;RFC5424
+
+# Listen for incoming TCP syslog connections
+listen tcp://[::]:1514
+.Ed
+.Ss Logging to Remote Syslog Server via TLS
+TLS forwarding per RFC 5425 uses the
+.Ql @@@
+prefix or the
+.Ql tls://
+URL syntax; the default port is 6514 and OpenSSL support must be compiled
+in.  A TLS setup has two sides, configured on different machines; see
+.Sx TLS Certificates and Trust
+for which file is private, which is public, and where each belongs.
+.Pp
+On the forwarding host (the client) the action selects the transport and
+how to verify the server it connects to:
+.Bd -literal -offset indent
+# No verification (testing only)
+*.*    @@@loghost              ;RFC5424,verify=off
+
+# Verify the collector against a CA (tls_cafile, below) ...
+*.*    tls://loghost:6514      ;RFC5424,verify=required
+# ... or also require its name to match the certificate ...
+*.*    tls://loghost:6514      ;RFC5424,verify=hostname
+# ... or pin its certificate directly, no CA needed
+*.*    tls://loghost:6514      ;RFC5424,fingerprint=SHA256:abc123...
+
+# Mutual TLS: also present our own client certificate
+*.*    tls://loghost:6514      ;RFC5424,verify=required,tls_keyfile=/etc/client.key,tls_certfile=/etc/client.cert
+
+# The CA that signed the collector's certificate (and our client cert)
+tls_cafile  /etc/syslog.d/ca.crt
+.Ed
+.Pp
+On the collecting host (the server) configure the identity it presents
+and listen for connections:
+.Bd -literal -offset indent
+# The collector's own key (private) and certificate (public)
+tls_keyfile   /etc/syslog.d/server.key
+tls_certfile  /etc/syslog.d/server.cert
+
+# To also authenticate clients (mutual TLS): trust their CA and require
+# a client certificate from every forwarder
+tls_cafile    /etc/syslog.d/ca.crt
+tls_verify    required
+
+listen tls://[::]:6514
+.Ed
 .Sh SEE ALSO
+.Xr logread 1 ,
 .Xr syslog 3 ,
 .Xr syslogd 8
 .Sh BUGS

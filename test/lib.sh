@@ -174,7 +174,10 @@ log_and_find()
     message="$*"
 
     logger "${altsock}" "$message"
-    grep   "$message"   "$LOG"
+
+    # syslogd drains the socket asynchronously, so the line may not be
+    # in $LOG the instant logger returns -- retry instead of grep once.
+    tenacious 5 grep "$message" "$LOG"
 }
 
 # Helper to poll for a file with a timeout

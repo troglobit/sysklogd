@@ -26,5 +26,6 @@ libtool
 ltmain.sh
 missing
 stamp-h1
+syslog.conf
 syslogd.service
 test-driver

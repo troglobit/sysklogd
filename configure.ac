@@ -25,7 +25,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-AC_INIT([sysklogd], [2.7.2],
+AC_INIT([sysklogd], [3.0.0-rc1],
 	[https://github.com/troglobit/sysklogd/issues],,
 	[https://github.com/troglobit/sysklogd])
 AC_CONFIG_AUX_DIR(aux)
@@ -35,18 +35,20 @@ AM_SILENT_RULES([yes])
 
 AC_CONFIG_MACRO_DIRS([m4])
 AC_CONFIG_SRCDIR([src/syslogd.c])
-AC_CONFIG_HEADER([config.h])
+AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile
-		 example/Makefile
+		 examples/Makefile
 		 man/Makefile
 		 src/Makefile
 		 src/libsyslog.pc
 		 test/Makefile
+		 syslog.conf
 		 syslogd.service])
 
 AC_PROG_CC
 AC_PROG_INSTALL
-AC_HEADER_STDC
+AC_CHECK_INCLUDES_DEFAULT
+AC_PROG_EGREP
 
 # Check for required packages
 PKG_PROG_PKG_CONFIG
@@ -86,6 +88,28 @@ AC_ARG_WITH(logger,
 
 AS_IF([test "x$logger" != "xno"], with_logger="yes", with_logger="no")
 AM_CONDITIONAL([ENABLE_LOGGER], [test "x$with_logger" != "xno"])
+
+AC_ARG_WITH(logread,
+     AS_HELP_STRING([--without-logread], [Build without logread tool, default: enabled]),
+     [logread=$withval], [logread='yes'])
+
+AS_IF([test "x$logread" != "xno"], with_logread="yes", with_logread="no")
+AM_CONDITIONAL([ENABLE_LOGREAD], [test "x$with_logread" != "xno"])
+
+# OpenSSL enables RFC 5848 signed messages and RFC 5425 TLS transport
+AC_ARG_WITH([openssl],
+     AS_HELP_STRING([--without-openssl], [Build without OpenSSL, no RFC 5848 signing or RFC 5425 TLS]),
+     [openssl=$withval], [openssl='yes'])
+
+AS_IF([test "x$openssl" != "xno"], [
+     PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.0], [
+          AC_DEFINE([HAVE_OPENSSL], [1], [Define if OpenSSL is available for RFC 5848 signing])
+          have_openssl=yes
+     ], [
+          AC_MSG_ERROR([OpenSSL >= 1.1.0 not found; use --without-openssl to build without it])
+     ])
+], [have_openssl=no])
+AM_CONDITIONAL([ENABLE_SSL], [test "x$have_openssl" = "xyes"])
 
 AS_IF([test "x$dns_delay" != "xno"],[
 	AS_IF([test "x$dns_delay" = "xyes"],[
@@ -128,12 +152,29 @@ AC_SUBST(SYSCONFDIR)
 AS_IF([test -z "$runstatedir"], runstatedir="$localstatedir/run")
 AC_SUBST(runstatedir)
 
-AC_OUTPUT
-
-# Expand directories for configuration summary, unexpanded defaults:
-# runstatedir => ${localstatedir}/run
+# Expanded runstatedir for the configuration summary and for templating
+# the example syslog.conf (membuf control socket path), defaults to
+# ${localstatedir}/run.
 RUNSTATEDIR=`eval echo $runstatedir`
 RUNSTATEDIR=`eval echo $RUNSTATEDIR`
+AC_SUBST(RUNSTATEDIR)
+
+# Advertise the membuf example in the generated syslog.conf only when the
+# logread tool is built; --without-logread drops it entirely.
+AS_IF([test "x$with_logread" != "xno"], [
+MEMBUF_EXAMPLE="
+#
+# In-memory log buffer for logread(1).  The optional USER:GROUP field
+# sets who may read the buffer (connect to the socket); it defaults to
+# 'root:adm' (if omitted) and has a fallback to 'root:root'
+#
+membuf $RUNSTATEDIR/syslogd.sock 128k root:adm"
+], [MEMBUF_EXAMPLE=""])
+AC_SUBST([MEMBUF_EXAMPLE])
+# Multi-line value: keep it out of the Makefiles, only syslog.conf uses it.
+AM_SUBST_NOTMAKE([MEMBUF_EXAMPLE])
+
+AC_OUTPUT
 
 cat <<EOF
 
@@ -146,9 +187,11 @@ cat <<EOF
 
  Optional features:
   logger.........: $with_logger
+  logread........: $with_logread
   dns retry delay: $dns_delay sec
   suspend time...: $suspend_time sec
   systemd........: $with_systemd
+  RFC5848 signing: $have_openssl
 
 ------------- Compiler version --------------
 $($CC --version || true)

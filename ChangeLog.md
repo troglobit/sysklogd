@@ -3,6 +3,71 @@ Change Log
 
 All relevant changes to the project are documented in this file.
 
+[v3.0.0][UNRELEASED] - 2026-06-30
+-----------------------
+
+> [!NOTE]
+> **This is a major release.**  It adds reliable and secure remote logging:
+> TCP ([RFC 6587](https://www.rfc-editor.org/rfc/rfc6587.html)),
+> TLS ([RFC 5425](https://www.rfc-editor.org/rfc/rfc5425.html)), as well as
+> signed messages ([RFC 5848](https://www.rfc-editor.org/rfc/rfc5848.html)).
+>
+> Additional goodies: OpenBSD stop-processing filters, support for printing
+> message priority `<PRI>` in log files, and a BusyBox-style `logread`.
+>
+> **Packagers:** OpenSSL is a new *default build requirement*, because it
+> provides TLS and signed messages.  Use `configure --without-openssl` to build
+> without these features, there's no silent degradation, you must opt out.
+
+### Changes
+
+- Add TCP transport for syslog forwarding per RFC 6587. See the documentation
+  for details on setting up forwarding and reception
+- Add per-destination in-memory send queue for TCP forwarding.  Messages are
+  queued during a receiver outage, up to 1000 entries or 1 MiB per destination,
+  and flushed on reconnect instead of being dropped.  See the documentation
+  for details on the new `tcp_suspend_time SEC` directive
+- Add RFC 5848 signed syslog message support (requires OpenSSL). This provides
+  cryptographic signing of messages for origin authentication, integrity, and
+  replay resistance.  Verification of received signatures is not yet supported
+- Add RFC 5425 TLS transport for remote syslog (requires OpenSSL).  See the
+  documentation for details on setting up forwarding and reception
+- Add `!!prog`, `++host`, and `::filter` stop-processing block prefixes,
+  inspired by OpenBSD.  A double-prefix block stops rule evaluation once a
+  matching rule fires, preventing a message from being logged twice
+- Add `pri` action option, e.g. `*.* /var/log/messages ;pri`, to always print
+  the message priority in the header, in the format in use (RFC3164 or
+  RFC5424).  By Gavin D. Howard.  The NetBSD-style `+` destination prefix is
+  an equivalent alternative, e.g. `*.* +/var/log/messages`, and combines with
+  the `-` no-sync prefix as `+-`
+- Add in-memory log buffer and `logread` tool.  A new `syslog.conf` directive
+  `membuf PATH SIZE [USER:GROUP]` enables a size-bounded ring capturing every
+  message, served to `logread` over a UNIX domain socket
+- `logger` now supports TCP transport via `-h`, mirroring the `syslog.conf`
+  forwarding URL syntax, see the documentation for details
+- `logger` new verbose mode, `-V`, prints the resolved peer, transport, and the
+  RFC 6587 framed message (TCP) to stderr, use for verifying remote setups
+- `logger` now parses a leading `<LEVEL>` (PRI) in input messages, e.g.  for
+  systemd-style `daemon --foreground 2>&1 | logger` redirection
+- `logger` message buffer increased from 512 to 2048 bytes, matching `syslogd`,
+  to avoid silent truncation of long messages
+- OpenSSL is now required by default, since it provides the new RFC 5425 TLS
+  and RFC 5848 message signing.  Disable these features using the configure
+  flag `--without-openssl` to actively opt out
+
+### Fixes
+
+- Fix use-after-free in socket polling when callbacks close sockets during
+  iteration.  Could cause undefined behavior when handling multiple concurrent
+  TCP connections
+- Fix #105: UTF-8 handling with the `-8` flag.  Multi-byte sequences, e.g.,
+  em-dash, were corrupted by byte-by-byte sanitization; complete valid UTF-8
+  sequences are now preserved, including the RFC 5424 BOM
+- Unescape Linux `/dev/kmsg` C-style `\xHH` encoding before sanitization, so
+  UTF-8 in kernel messages is preserved with the `-8` flag
+- Fix #104: RFC 3164 tag parsing of parenthesized tags.  Surrounding parens are
+  stripped from complete tags, `(polkit-agent):` becomes `polkit-agent`, while
+  partial tags like `app(version):` are preserved
 
 [v2.7.2][] - 2025-03-31
 -----------------------
@@ -692,7 +757,7 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.7.1...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.7.2...HEAD
 [v2.7.2]:     https://github.com/troglobit/sysklogd/compare/v2.7.1...v2.7.2
 [v2.7.1]:     https://github.com/troglobit/sysklogd/compare/v2.7.0...v2.7.1
 [v2.7.0]:     https://github.com/troglobit/sysklogd/compare/v2.6.2...v2.7.0

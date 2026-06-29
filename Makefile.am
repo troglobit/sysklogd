@@ -25,9 +25,9 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-SUBDIRS        = example man src test
+SUBDIRS        = examples man src test
 doc_DATA       = README.md LICENSE ChangeLog.md syslog.conf
-EXTRA_DIST     = README.md LICENSE ChangeLog.md syslog.conf
+EXTRA_DIST     = README.md LICENSE ChangeLog.md
 
 if HAVE_SYSTEMD
 systemd_DATA   = syslogd.service
@@ -72,4 +72,4 @@ release: release-hook distcheck
 
 # Workaround for systemd unit file duing distcheck
 DISTCHECK_CONFIGURE_FLAGS = --with-systemd=$$dc_install_base/$(systemd)
-DISTCLEANFILES = lib/.libs/*
+DISTCLEANFILES = lib/.libs/* syslog.conf syslogd.service

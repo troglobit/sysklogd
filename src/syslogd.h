@@ -129,6 +129,13 @@
 #define INET_SUSPEND_TIME 180 /* equal to 3 minutes */
 #endif
 
+#ifndef FORW_QUEUE_MAX_LEN
+#define FORW_QUEUE_MAX_LEN   1000            /* max queued messages per dest */
+#endif
+#ifndef FORW_QUEUE_MAX_SIZE
+#define FORW_QUEUE_MAX_SIZE  (1024 * 1024)   /* max total bytes per dest */
+#endif
+
 #define LIST_DELIMITER    ':' /* delimiter between two hosts */
 
 #define	AI_SECURE	0x8000	/* Tell socket_create() to not bind() */
@@ -192,6 +199,7 @@
 #define RFC3164   0x010  /* format log message according to RFC 3164 */
 #define RFC5424   0x020  /* format log message according to RFC 5424 */
 #define PRI       0x040  /* always print priority */
+#define STOP_FLAG 0x080  /* stop processing further rules after match */
 
 /* Syslog timestamp formats. */
 #define	BSDFMT_DATELEN	0
@@ -223,6 +231,13 @@
 #define F_FORW_SUSP       7   /* suspended host forwarding */
 #define F_FORW_UNKN       8   /* unknown host forwarding */
 #define F_PIPE            9   /* named pipe */
+#define F_FORW_TCP       10   /* TCP forwarding (connected) */
+#define F_FORW_TCP_SUSP  11   /* TCP forwarding (suspended/error) */
+#define F_FORW_TCP_UNKN  12   /* TCP forwarding (DNS unresolved) */
+#define F_FORW_TLS       13   /* TLS forwarding (connected) */
+#define F_FORW_TLS_SUSP  14   /* TLS forwarding (suspended/error) */
+#define F_FORW_TLS_UNKN  15   /* TLS forwarding (DNS unresolved) */
+#define F_MEMBUF         16   /* in-memory ring buffer for logread(1) */
 
 /*
  * Struct to hold property-based filters
@@ -253,6 +268,22 @@ struct prop_filter {
 };
 
 /*
+ * TCP client connections for receive side (RFC 6587, RFC 5425)
+ */
+struct tcp_conn {
+	LIST_ENTRY(tcp_conn) tc_link;
+	int    tc_sd;
+	char   tc_buf[MAXLINE + 64];  /* reassembly buffer */
+	size_t tc_len;
+	char   tc_hname[NI_MAXHOST];
+	size_t tc_hname_len;
+#ifdef HAVE_OPENSSL
+	void  *tc_ssl;                /* SSL connection (cast to SSL*) */
+	int    tc_tls_handshake;      /* 1 if handshake in progress */
+#endif
+};
+
+/*
  * Struct to hold records of peers and sockets
  */
 struct peer {
@@ -264,6 +295,8 @@ struct peer {
 	mode_t		 pe_mode;
 	int		 pe_sock[16];
 	size_t		 pe_socknum;
+	int		 pe_tcp;	/* 1=TCP listener, 0=UDP */
+	int		 pe_tls;	/* 1=TLS listener, 0=plain */
 };
 
 /*
@@ -309,6 +342,16 @@ struct buf_msg {
 };
 
 /*
+ * Per-destination TCP send queue entry and head type.
+ */
+struct fwd_qentry {
+	SIMPLEQ_ENTRY(fwd_qentry) fq_link;
+	char  *fq_data;   /* RFC 6587 framed message: "LEN SP MSG" */
+	size_t fq_len;    /* total length of fq_data */
+};
+SIMPLEQ_HEAD(fwd_qhead, fwd_qentry);
+
+/*
  * This structure represents the files that will have log
  * copies printed.
  * We require f_file to be valid if f_type is F_FILE, F_CONSOLE, F_TTY
@@ -329,7 +372,18 @@ struct filed {
 		struct {
 			char f_hname[MAXHOSTNAMELEN + 1];
 			char f_serv[20];
+			int  f_family;    /* AF_INET/AF_INET6 to force, 0=any */
 			struct addrinfo *f_addr;
+			int  f_tcp;       /* 1=TCP, 0=UDP */
+			int  f_tcp_sd;    /* persistent TCP socket, -1 if not connected */
+			/* TLS fields (RFC 5425) */
+			int   f_tls;               /* 1=TLS enabled */
+			void *f_ssl;               /* SSL connection (cast to SSL*) */
+			int   f_tls_handshake;     /* 1=handshake in progress */
+			int   f_tls_verify;        /* TLS_VERIFY_* mode */
+			char *f_tls_fingerprint;   /* Expected server fingerprint */
+			char *f_tls_keyfile;       /* Client key (mutual auth) */
+			char *f_tls_certfile;      /* Client cert (mutual auth) */
 		} f_forw; /* forwarding address */
 		char f_fname[MAXFNAME];
 	} f_un;
@@ -345,6 +399,12 @@ struct filed {
 	int	 f_rotatesz;
 	char    *f_iface;                      /* only for multicast fwd */
 	int      f_ttl;                        /* only for multicast fwd */
+
+	/* Per-destination send queue (TCP forwarding only) */
+	struct fwd_qhead f_queue;
+	size_t           f_qlen;       /* current message count */
+	size_t           f_qsize;      /* current total bytes */
+	int              f_qoverflow;  /* 1 = overflow notice already emitted */
 };
 
 /*
