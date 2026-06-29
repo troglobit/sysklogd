@@ -1,19 +1,28 @@
 Stand-alone Example syslogp() Application
 =========================================
 
-This is a *very* simple stand-alone example application.  The purpose is
-to show how to use the sysklogd 2.x API, e.g. `syslogp()`, to use "new"
-RFC5424 features like MsgID.
+These are small, stand-alone examples of the sysklogd `libsyslog` API,
+including the "new" RFC5424 features (MSGID and structured data) exposed
+by `syslogp()`.
 
-Included in this directory are two files:
+Included in this directory, each demonstrating one part of the API:
 
- - `example.c`: actual C code example
- - `example.mk`: plain Makefile for building `example`
+ - `example.c`: minimal `syslogp()` call, start here
+ - `basic.c`: classic `syslog()`, `openlog()` flags, priority mask, `%m`
+ - `structured.c`: RFC5424 MSGID and a structured-data (SD) element
+ - `reentrant.c`: thread-safe `*_r` API with a local `struct syslog_data`
+ - `multicast.c`: forwarding to a multicast group via `log_host`,
+   `log_iface`, and `log_ttl`
+ - `example.mk`: plain Makefile that builds them all
 
-Provided the two files are in the same (writable) directory, you can
-build the application like this:
+Provided the files are in the same (writable) directory, build them all
+with:
 
     make -f example.mk
+
+or build a single one, e.g. `make -f example.mk structured`.  The
+`LOG_STDOUT` flag in several of them prints the formatted message to
+stdout, so they show output without a running `syslogd`.
 
 
 GNU Autotools
