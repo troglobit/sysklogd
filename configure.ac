@@ -35,7 +35,7 @@ AM_SILENT_RULES([yes])
 
 AC_CONFIG_MACRO_DIRS([m4])
 AC_CONFIG_SRCDIR([src/syslogd.c])
-AC_CONFIG_HEADER([config.h])
+AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile
 		 examples/Makefile
 		 man/Makefile
@@ -47,7 +47,8 @@ AC_CONFIG_FILES([Makefile
 
 AC_PROG_CC
 AC_PROG_INSTALL
-AC_HEADER_STDC
+AC_CHECK_INCLUDES_DEFAULT
+AC_PROG_EGREP
 
 # Check for required packages
 PKG_PROG_PKG_CONFIG
