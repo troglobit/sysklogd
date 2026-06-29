@@ -501,10 +501,14 @@ Optional; used for certificate block transmission to receivers.
 .Pp
 Example configuration:
 .Bd -literal -offset indent
-# Enable signing with global signature group
+# Sign every message (global signature group, SG=0) and log locally in
+# RFC5424 format.  The signature and certificate blocks are themselves
+# RFC5424 messages, emitted to this destination too.
 sign_sg        0
 sign_keyfile   /etc/syslog.d/syslog.key
 sign_certfile  /etc/syslog.d/syslog.cert
+
+*.*            /var/log/syslog          ;RFC5424
 .Ed
 .Pp
 Signature blocks (SD-ID:
@@ -515,6 +519,28 @@ Certificate blocks (SD-ID:
 .Ql ssign-cert )
 are sent at startup and periodically to distribute the public key
 to receivers.
+.Pp
+The blocks are ordinary RFC5424 messages.  The certificate block carries
+the base64 X.509 public key (long base64 fields truncated below):
+.Bd -literal -offset indent
+[ssign-cert VER="0121" RSID="208672719837483" SG="0" SPRI="0" \\
+    TBPL="294" INDEX="1" FLEN="294" FRAG="MIIBIjANBgkq..." \\
+    SIGN="MEUCIQDx9c2V...g=="]
+.Ed
+.Pp
+Each signature block binds the SHA-256 hashes of the messages seen since
+the previous block:
+.Ql CNT
+is the hash count,
+.Ql HB
+the space-separated base64 hashes, and
+.Ql SIGN
+the signature over the preceding fields.
+.Bd -literal -offset indent
+[ssign VER="0121" RSID="208672719837483" SG="0" SPRI="0" GBC="1" \\
+    FMN="1" CNT="5" HB="d2hLpQ8r... 9fK1mZ0w... Qm7Xy4Tn..." \\
+    SIGN="MEQCIBxK7m2P...Jr9w=="]
+.Ed
 .Pp
 .Sy Note:
 generating keys requires OpenSSL:
@@ -770,8 +796,10 @@ does not check the server certificate;
 validates the chain when a certificate is presented but proceeds (with a
 warning) if validation fails;
 .Ql required
-demands a certificate that chains to a trusted CA
-.Po Ql tls_cafile / Ql tls_capath Pc ;
+demands a certificate that chains to a trusted CA configured with
+.Ql tls_cafile
+or
+.Ql tls_capath ;
 and
 .Ql hostname
 additionally requires the certificate name to match the forwarding target.
@@ -901,6 +929,26 @@ Recommended directory for .conf snippets
 .El
 .Sh EXAMPLES
 This section lists some examples, partially from actual site setups.
+.Ss Applying Changes
+After editing this file, tell the running
+.Xr syslogd 8
+to reload it; changes do not take effect until then.  Send it
+.Dv SIGHUP ,
+using the PID file so you need not look up the process ID first:
+.Bd -literal -offset indent
+kill -HUP `cat /var/run/syslogd.pid`
+.Ed
+.Pp
+On a
+.Xr systemd 1
+host use
+.Ql systemctl reload syslogd
+instead.  A reload rereads
+.Pa /etc/syslog.conf
+and all
+.Ql include
+snippets, reopens log files, and re-resolves forwarding targets; there
+is no need to restart.
 .Ss Catch Everything
 This example matches all facilities and priorities and stores everything
 in the file

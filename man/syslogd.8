@@ -442,8 +442,17 @@ Show program version and exit.
 .Pp
 The
 .Nm
-utility reads its configuration file when it starts up and whenever it
-receives a hangup signal.
+utility reads its configuration file at startup and whenever it receives
+.Dv SIGHUP .
+To apply changes to
+.Xr syslog.conf 5
+without restarting, run
+.Ql kill -HUP `cat /var/run/syslogd.pid` ,
+or
+.Ql systemctl reload syslogd
+on a
+.Xr systemd 1
+host.
 For information on the format of the configuration file,
 see
 .Xr syslog.conf 5 .
