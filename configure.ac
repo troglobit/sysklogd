@@ -95,19 +95,17 @@ AC_ARG_WITH(logread,
 AS_IF([test "x$logread" != "xno"], with_logread="yes", with_logread="no")
 AM_CONDITIONAL([ENABLE_LOGREAD], [test "x$with_logread" != "xno"])
 
-# Optional OpenSSL support for RFC 5848 signed syslog messages
+# OpenSSL enables RFC 5848 signed messages and RFC 5425 TLS transport
 AC_ARG_WITH([openssl],
-     AS_HELP_STRING([--with-openssl], [Enable RFC 5848 signed syslog messages (requires OpenSSL)]),
-     [], [with_openssl=no])
+     AS_HELP_STRING([--without-openssl], [Build without OpenSSL, no RFC 5848 signing or RFC 5425 TLS]),
+     [openssl=$withval], [openssl='yes'])
 
-AS_IF([test "x$with_openssl" != "xno"], [
+AS_IF([test "x$openssl" != "xno"], [
      PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.0], [
           AC_DEFINE([HAVE_OPENSSL], [1], [Define if OpenSSL is available for RFC 5848 signing])
           have_openssl=yes
      ], [
-          AS_IF([test "x$with_openssl" = "xyes"],
-               [AC_MSG_ERROR([OpenSSL >= 1.1.0 requested but not found])])
-          have_openssl=no
+          AC_MSG_ERROR([OpenSSL >= 1.1.0 not found; use --without-openssl to build without it])
      ])
 ], [have_openssl=no])
 AM_CONDITIONAL([ENABLE_SSL], [test "x$have_openssl" = "xyes"])
