@@ -42,6 +42,7 @@ AC_CONFIG_FILES([Makefile
 		 src/Makefile
 		 src/libsyslog.pc
 		 test/Makefile
+		 syslog.conf
 		 syslogd.service])
 
 AC_PROG_CC
@@ -86,6 +87,13 @@ AC_ARG_WITH(logger,
 
 AS_IF([test "x$logger" != "xno"], with_logger="yes", with_logger="no")
 AM_CONDITIONAL([ENABLE_LOGGER], [test "x$with_logger" != "xno"])
+
+AC_ARG_WITH(logread,
+     AS_HELP_STRING([--without-logread], [Build without logread tool, default: enabled]),
+     [logread=$withval], [logread='yes'])
+
+AS_IF([test "x$logread" != "xno"], with_logread="yes", with_logread="no")
+AM_CONDITIONAL([ENABLE_LOGREAD], [test "x$with_logread" != "xno"])
 
 # Optional OpenSSL support for RFC 5848 signed syslog messages
 AC_ARG_WITH([openssl],
@@ -145,12 +153,29 @@ AC_SUBST(SYSCONFDIR)
 AS_IF([test -z "$runstatedir"], runstatedir="$localstatedir/run")
 AC_SUBST(runstatedir)
 
-AC_OUTPUT
-
-# Expand directories for configuration summary, unexpanded defaults:
-# runstatedir => ${localstatedir}/run
+# Expanded runstatedir for the configuration summary and for templating
+# the example syslog.conf (membuf control socket path), defaults to
+# ${localstatedir}/run.
 RUNSTATEDIR=`eval echo $runstatedir`
 RUNSTATEDIR=`eval echo $RUNSTATEDIR`
+AC_SUBST(RUNSTATEDIR)
+
+# Advertise the membuf example in the generated syslog.conf only when the
+# logread tool is built; --without-logread drops it entirely.
+AS_IF([test "x$with_logread" != "xno"], [
+MEMBUF_EXAMPLE="
+#
+# In-memory log buffer for logread(1).  The optional USER:GROUP field
+# sets who may read the buffer (connect to the socket); it defaults to
+# 'root:adm' (if omitted) and has a fallback to 'root:root'
+#
+membuf $RUNSTATEDIR/syslogd.sock 128k root:adm"
+], [MEMBUF_EXAMPLE=""])
+AC_SUBST([MEMBUF_EXAMPLE])
+# Multi-line value: keep it out of the Makefiles, only syslog.conf uses it.
+AM_SUBST_NOTMAKE([MEMBUF_EXAMPLE])
+
+AC_OUTPUT
 
 cat <<EOF
 
@@ -163,6 +188,7 @@ cat <<EOF
 
  Optional features:
   logger.........: $with_logger
+  logread........: $with_logread
   dns retry delay: $dns_delay sec
   suspend time...: $suspend_time sec
   systemd........: $with_systemd

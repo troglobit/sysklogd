@@ -93,6 +93,7 @@ static char sccsid[] __attribute__((unused)) =
 #define SYSLOG_NAMES
 #include "syslogd.h"
 #include "socket.h"
+#include "membuf.h"
 #include "timer.h"
 #include "compat.h"
 #include "sign.h"
@@ -128,7 +129,8 @@ static char *TypeNames[] = {
 	"FORW",          "USERS", "WALL", "FORW(SUSPENDED)",
 	"FORW(UNKNOWN)", "PIPE",
 	"FORW_TCP",      "FORW_TCP(SUSPENDED)", "FORW_TCP(UNKNOWN)",
-	"FORW_TLS",      "FORW_TLS(SUSPENDED)", "FORW_TLS(UNKNOWN)"
+	"FORW_TLS",      "FORW_TLS(SUSPENDED)", "FORW_TLS(UNKNOWN)",
+	"MEMBUF"
 };
 
 /* TCP client connections list (struct tcp_conn is in syslogd.h) */
@@ -283,6 +285,7 @@ const struct cfkey {
 	{ "rotate_count", &rotate_cnt_str, NULL, NULL             },
 	{ "secure_mode",      &secure_str,      NULL, NULL         },
 	{ "tcp_suspend_time", &tcp_suspend_str, NULL, NULL         },
+	{ "membuf",           NULL,             membuf_config, NULL },
 #ifdef HAVE_OPENSSL
 	{ "sign_sg",        &sign_sg_str,       NULL, NULL        },
 	{ "sign_delim_sg2", &sign_delim_str,    NULL, NULL        },
@@ -2530,9 +2533,10 @@ static void logmsg(struct buf_msg *buffer)
 		}
 
 		/*
-		 * suppress duplicate lines to this file
+		 * suppress duplicate lines to this file (but capture every
+		 * message verbatim in the memory buffer, for logread)
 		 */
-		if (no_compress - (f->f_type != F_PIPE) < 1 &&
+		if (f->f_type != F_MEMBUF && no_compress - (f->f_type != F_PIPE) < 1 &&
 		    (buffer->flags & MARK) == 0 && savedlen == f->f_prevlen &&
 		    !strcmp(saved, f->f_prevline)) {
 			f->f_lasttime = buffer->timestamp;
@@ -3077,6 +3081,26 @@ void fprintlog_write(struct filed *f, struct iovec *iov, int iovcnt, int flags)
 		pushiov(iov, iovcnt, "\r\n");
 		wallmsg(f, iov, iovcnt);
 		break;
+
+	case F_MEMBUF: {
+		char line[MAXLINE + 1];
+		size_t off = 0;
+
+		f->f_time = timer_now();
+
+		/* Flatten the iov into one line; skip <PRI> like a log file. */
+		start = ((f->f_flags & PRI) == 0);
+		for (int i = start; i < iovcnt && off < sizeof(line) - 1; i++) {
+			size_t l = iov[i].iov_len;
+
+			if (l > sizeof(line) - 1 - off)
+				l = sizeof(line) - 1 - off;
+			memcpy(&line[off], iov[i].iov_base, l);
+			off += l;
+		}
+		membuf_add(line, off);
+		break;
+	}
 	} /* switch */
 
 	if (f->f_type != F_FORW_UNKN)
@@ -3876,6 +3900,11 @@ void die(int signo)
 	tcp_close_all();
 
 	/*
+	 * Tear down the logread(1) control socket and buffer
+	 */
+	membuf_exit();
+
+	/*
 	 * Close all UNIX and inet sockets
 	 */
 	TAILQ_FOREACH_SAFE(pe, &pqueue, pe_link, next) {
@@ -4148,6 +4177,11 @@ static void init(void)
 	notifier_free_all();
 
 	/*
+	 * Forget any membuf settings so a removed directive disables it
+	 */
+	membuf_reset();
+
+	/*
 	 * Read configuration file(s)
 	 */
 	fp = fopen(ConfFile, "r");
@@ -4173,6 +4207,24 @@ static void init(void)
 	close_open_log_files();
 
 	fhead = newf;
+
+	/*
+	 * When the in-memory buffer is enabled, capture every message by
+	 * prepending a catch-all rule -- ahead of any rule that may STOP.
+	 */
+	if (membuf_enabled()) {
+		struct filed *mf = calloc(1, sizeof(*mf));
+
+		if (mf) {
+			mf->f_type = F_MEMBUF;
+			mf->f_file = -1;
+			SIMPLEQ_INIT(&mf->f_queue);
+			for (int i = 0; i <= LOG_NFACILITIES; i++)
+				mf->f_pmask[i] = INTERNAL_ALLPRI;
+			SIMPLEQ_INSERT_HEAD(&fhead, mf, f_link);
+		} else
+			ERR("Cannot allocate memory for membuf rule");
+	}
 
 	/*
 	 * Ensure a default listen *:514 exists (compat)
@@ -4249,6 +4301,11 @@ static void init(void)
 		}
 	}
 
+	/*
+	 * Bring up (or tear down) the logread(1) control socket
+	 */
+	membuf_init();
+
 	if (fail)
 		retry = &init_tv;
 	else
@@ -4305,6 +4362,10 @@ static void init(void)
 			case F_FORW_TLS_SUSP:
 			case F_FORW_TLS_UNKN:
 				printf("%s:%s/tls", f->f_un.f_forw.f_hname, f->f_un.f_forw.f_serv);
+				break;
+
+			case F_MEMBUF:
+				printf("(in-memory)");
 				break;
 
 			case F_USERS:

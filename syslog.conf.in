@@ -86,3 +86,4 @@ secure_mode 1
 #
 #rotate_size  1M
 #rotate_count 5
+@MEMBUF_EXAMPLE@

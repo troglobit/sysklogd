@@ -129,6 +129,8 @@ listen [address:port[%iface] | :port | address[%iface] | tcp://... | tls://...]
 
 include /etc/syslog.d/*.conf
 notify  /path/to/script-on-rotate
+
+membuf  /path/to/socket SIZE [USER:GROUP]
 .Ed
 .Pp
 Each block of rules is separated from the previous block by a
@@ -426,6 +428,49 @@ as an argument.
 For example:
 .Ql notify /sbin/on-log-rotate.sh .
 Any number of notifiers may be installed.
+.Pp
+The
+.Ql membuf Ar PATH SIZE Op Ar USER:GROUP
+option enables an in-memory log buffer, in the style of BusyBox and
+OpenWRT, read with
+.Xr logread 1 .
+It is disabled by default.  Every message is captured in a circular
+buffer of at most
+.Ar SIZE
+bytes
+.Pq e.g. Ql 128k ,
+oldest lines evicted first, and served to
+.Xr logread 1
+over a UNIX domain control socket at
+.Ar PATH .
+The buffer lives in memory only and is lost on restart, which suits
+embedded systems where writing to flash is undesirable.
+.Pp
+Access to the buffer is governed by the ownership and permission of the
+control socket.  The optional
+.Ar USER:GROUP
+sets its owner and group; connecting requires write permission, so the
+socket is created mode
+.Ql 0660
+.Pq owner and group .
+Either part may be omitted, e.g.
+.Ql :adm .
+When
+.Ar USER:GROUP
+is not given, the socket is owned by root and the
+.Ql adm
+group if that group exists, otherwise it falls back to root only, mode
+.Ql 0600 .
+A configured user or group that cannot be resolved likewise falls back to
+root-only access rather than widening it.
+.Pp
+.Sy Note:
+place the socket in a directory writable only by root (the default
+.Ar PATH
+under
+.Pa /run
+is).  A directory writable by others lets them tamper with the socket
+node before its ownership is applied.
 .Pp
 The
 .Ql include <PATH/*.conf>
@@ -1447,6 +1492,7 @@ tls_verify    required
 listen tls://[::]:6514
 .Ed
 .Sh SEE ALSO
+.Xr logread 1 ,
 .Xr syslog 3 ,
 .Xr syslogd 8
 .Sh BUGS

@@ -27,7 +27,8 @@
 
 SUBDIRS        = example man src test
 doc_DATA       = README.md LICENSE ChangeLog.md syslog.conf
-EXTRA_DIST     = README.md LICENSE ChangeLog.md syslog.conf
+EXTRA_DIST     = README.md LICENSE ChangeLog.md
+DISTCLEANFILES = syslog.conf
 
 if HAVE_SYSTEMD
 systemd_DATA   = syslogd.service

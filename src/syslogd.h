@@ -237,6 +237,7 @@
 #define F_FORW_TLS       13   /* TLS forwarding (connected) */
 #define F_FORW_TLS_SUSP  14   /* TLS forwarding (suspended/error) */
 #define F_FORW_TLS_UNKN  15   /* TLS forwarding (DNS unresolved) */
+#define F_MEMBUF         16   /* in-memory ring buffer for logread(1) */
 
 /*
  * Struct to hold property-based filters
