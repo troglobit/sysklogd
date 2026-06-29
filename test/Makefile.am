@@ -8,6 +8,7 @@ EXTRA_DIST      += api.sh local.sh unicode.sh remote.sh fwd.sh mark.sh      \
 EXTRA_DIST      += pri.sh
 EXTRA_DIST      += loglevel.sh
 EXTRA_DIST      += tls-auth.sh
+EXTRA_DIST      += logread.sh
 CLEANFILES       = *~ *.trs *.log
 TEST_EXTENSIONS  = .sh
 TESTS_ENVIRONMENT= unshare -mrun --map-auto
@@ -47,6 +48,9 @@ TESTS           += tcp-queue.sh
 TESTS           += stop.sh
 TESTS           += pri.sh
 TESTS           += loglevel.sh
+if ENABLE_LOGREAD
+TESTS           += logread.sh
+endif
 if ENABLE_SSL
 TESTS           += sign.sh
 TESTS           += tls-fwd.sh
