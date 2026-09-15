@@ -1014,8 +1014,12 @@ Name of program that sent the message
 .It hostname
 Hostname of message's originator
 .It source
-Alias for
-.Ql hostname
+Name or address of the peer the message was received from, reverse
+resolved unless
+.Xr syslogd 8
+runs with
+.Fl n .
+The local hostname for locally generated messages
 .El
 .Pp
 The operator field specifies a comparison function between a message
@@ -1171,6 +1175,40 @@ These examples show off the substring and regexp matching capabilities.
 # Log messages from servers in racks 10-19 in multiple locations, case insensitive
 :hostname, icase_ereregex, "^server-(dcA|podB|cdn)-rack1[0-9]{2}\..*"
 *.*			     /var/log/racks10-19.log
+.Ed
+.Ss Sorting by Sender
+The
+.Ql source
+property matches the peer a message was received from, not the hostname
+in the message.  This keeps messages sorted by sender even when a sender
+changes its hostname.  Note, unless
+.Xr syslogd 8
+runs with
+.Fl H ,
+the hostname of remote messages is replaced with the peer name, so
+.Ql hostname
+and
+.Ql source
+only differ when the hostname from the message is kept.  Here
+.Xr syslogd 8
+runs with both
+.Fl H
+and
+.Fl n ,
+to keep the message hostname and match on the peer address, without
+reverse lookups:
+.Bd -literal -offset indent
+listen [2001:db8::1]:514
+
+# Everything, from everyone
+*.*                          /var/log/remote/all.log
+
+# One file per sender
+:source, isequal, "2001:db8::5054:ff:fe00:1"
+*.*                          /var/log/remote/host1.log
+:source, isequal, "2001:db8::5054:ff:fe00:2"
+*.*                          /var/log/remote/host2.log
+:*
 .Ed
 .Ss Stop Processing
 In this example, firewall messages tagged with

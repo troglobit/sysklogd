@@ -38,6 +38,7 @@ TESTS           += tag.sh
 TESTS           += parens.sh
 TESTS           += hostname.sh
 TESTS           += property.sh
+TESTS           += source.sh
 TESTS           += raw.sh
 TESTS           += regression.sh
 TESTS           += multicast.sh

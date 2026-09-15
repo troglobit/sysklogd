@@ -2463,6 +2463,8 @@ static void logmsg(struct buf_msg *buffer)
 	 */
 	assert(buffer->hostname != NULL);
 	assert(buffer->msg != NULL);
+	if (!buffer->recvhost)		/* kernel and internal messages */
+		buffer->recvhost = LocalHostName;
 	savedlen = snprintf(saved, sizeof(saved),
 			    "%d %s %s %s %s %s %s", buffer->pri, buffer->hostname,
 			    buffer->app_name == NULL ? "-" : buffer->app_name,
@@ -2510,6 +2512,10 @@ static void logmsg(struct buf_msg *buffer)
 				break;
 			case PROP_TYPE_HOSTNAME:
 				if (prop_filter_skip(f->f_prop_filter, buffer->hostname))
+					continue;
+				break;
+			case PROP_TYPE_SOURCE: /* peer address, or local hostname */
+				if (prop_filter_skip(f->f_prop_filter, buffer->recvhost))
 					continue;
 				break;
 			case PROP_TYPE_PROGNAME:
@@ -4631,7 +4637,7 @@ prop_filter_compile(const char *filter_in)
 	else if(strcasecmp(argv[0], "hostname") == 0)
 		pfilter->prop_type = PROP_TYPE_HOSTNAME;
 	else if(strcasecmp(argv[0], "source") == 0)
-		pfilter->prop_type = PROP_TYPE_HOSTNAME;
+		pfilter->prop_type = PROP_TYPE_SOURCE;
 	else if(strcasecmp(argv[0], "programname") == 0)
 		pfilter->prop_type = PROP_TYPE_PROGNAME;
 	else {

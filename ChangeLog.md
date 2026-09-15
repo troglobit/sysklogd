@@ -43,6 +43,9 @@ All relevant changes to the project are documented in this file.
 - Add in-memory log buffer and `logread` tool.  A new `syslog.conf` directive
   `membuf PATH SIZE [USER:GROUP]` enables a size-bounded ring capturing every
   message, served to `logread` over a UNIX domain socket
+- Change `:source` property filter to match the peer a message was received
+  from, it used to be an alias for `:hostname`.  Sorts messages by sender even
+  when a sender changes its hostname, see the documentation for an example
 - `logger` now supports TCP transport via `-h`, mirroring the `syslog.conf`
   forwarding URL syntax, see the documentation for details
 - `logger` new verbose mode, `-V`, prints the resolved peer, transport, and the
