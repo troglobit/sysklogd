@@ -2147,15 +2147,22 @@ static void logmsg(struct buf_msg *buffer)
 		} else {
 			struct buf_msg *bm = buffer;
 			struct buf_msg copy;
+			char sdbuf[MAXLINE];
 
 			/* new line, save it */
 			if (f->f_prevcount)
 				fprintlog_successive(f, 0);
 
 			/* buffer is shared by all actions, override on a copy */
-			if (f->f_hostname) {
+			if (f->f_hostname || f->f_sd) {
 				copy = *buffer;
-				copy.hostname = f->f_hostname;
+				if (f->f_hostname)
+					copy.hostname = f->f_hostname;
+				if (f->f_sd) {
+					snprintf(sdbuf, sizeof(sdbuf), "%s%s",
+						 buffer->sd ?: "", f->f_sd);
+					copy.sd = sdbuf;
+				}
 				bm = &copy;
 			}
 
@@ -2657,6 +2664,7 @@ static void fprintlog_successive(struct filed *f, int flags)
 
 	memset(&buffer, 0, sizeof(buffer));
 	buffer.hostname = f->f_prevhost;
+	buffer.sd = f->f_sd;
 	buffer.pri = f->f_prevpri;
 	buffer.timestamp = f->f_lasttime;
 	buffer.flags = flags;
@@ -3008,6 +3016,7 @@ static void close_open_log_files(void)
 		if (f->f_iface)
 			free(f->f_iface);
 		free(f->f_hostname);
+		free(f->f_sd);
 		if (f->f_program)
 			free(f->f_program);
 		if (f->f_host)
@@ -3458,6 +3467,8 @@ static void init(void)
 				printf(",rotate=%d:%d", f->f_rotatesz, f->f_rotatecount);
 			if (f->f_hostname)
 				printf(",hostname=%s", f->f_hostname);
+			if (f->f_sd)
+				printf(",sd=%s", f->f_sd);
 			printf("\n");
 		}
 	}
@@ -3539,11 +3550,36 @@ static int cfopt(char **ptr, const char *opt)
 }
 
 /*
+ * Next option, split on ';' or ',' outside double quotes
+ */
+static char *cftok(char **next)
+{
+	int quote = 0;
+	char *tok, *p;
+
+	tok = *next + strspn(*next, ";,");
+	if (!*tok)
+		return NULL;
+
+	for (p = tok; *p; p++) {
+		if (*p == '"')
+			quote = !quote;
+		else if (!quote && strchr(";,", *p))
+			break;
+	}
+	if (*p)
+		*p++ = 0;
+	*next = p;
+
+	return tok;
+}
+
+/*
  * Option processing
  */
 static void cfopts(char *ptr, struct filed *f)
 {
-	char *opt;
+	char *next, *opt;
 
 	/* First locate any whitespace between action and option */
 	ptr = strpbrk(ptr, "\t ;");
@@ -3554,11 +3590,8 @@ static void cfopts(char *ptr, struct filed *f)
 	if (*ptr != ';')
 		*ptr++ = 0;
 
-	opt = strtok(ptr, ";,");
-	if (!opt)
-		return;
-
-	while (opt) {
+	next = ptr;
+	while ((opt = cftok(&next))) {
 		if (cfopt(&opt, "RFC5424")) {
 			f->f_flags |=  RFC5424;
 			f->f_flags &= ~RFC3164;
@@ -3572,6 +3605,15 @@ static void cfopts(char *ptr, struct filed *f)
 		} else if (cfopt(&opt, "hostname=")) {
 			free(f->f_hostname);
 			f->f_hostname = strdup(opt);
+		} else if (cfopt(&opt, "sd=")) {
+			size_t len = strlen(opt);
+
+			if (len < 3 || opt[0] != '[' || opt[len - 1] != ']') {
+				ERRX("Invalid structured data, sd=%s, ignoring", opt);
+				continue;
+			}
+			free(f->f_sd);
+			f->f_sd = strdup(opt);
 		} else if (cfopt(&opt, "ttl=")) {
 			int ttl = atoi(opt);
 
@@ -3585,8 +3627,6 @@ static void cfopts(char *ptr, struct filed *f)
 			cfrot(opt, f);
 		else
 			cfrot(ptr, f); /* Compat v1.6 syntax */
-
-		opt = strtok(NULL, ";,");
 	}
 }
 
@@ -4009,6 +4049,12 @@ static struct filed *cfline(char *line, const char *prog, const char *host, char
 		logit("%s format enabled\n", (f->f_flags & RFC3164) ? "RFC3164" : "RFC5424");
 	else
 		logit("BSD format enabled\n");
+
+	if (f->f_sd && !(f->f_flags & RFC5424)) {
+		logit("sd= only applies to RFC5424 format, ignoring\n");
+		free(f->f_sd);
+		f->f_sd = NULL;
+	}
 
 	if (pfilter)
 		f->f_prop_filter = prop_filter_compile(pfilter);

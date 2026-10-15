@@ -93,6 +93,7 @@ OPTION   := [OPTION,]
 	 |= RFC5424
 	 |= pri
 	 |= hostname=NAME
+	 |= sd=[SD-ELEMENT]
 	 |= iface=IFNAME
          |= rotate=ROT
 	 |= ttl=1..255
@@ -207,8 +208,8 @@ details where or what to do with the selected input.  The
 .Em option
 field, which must start with the semi-colon option delimiter (';'),
 currently supports priority, log formatting, log rotation, hostname
-override, outbound interface and TTL when forwarding to a multicast
-group.
+override, structured data, outbound interface and TTL when forwarding
+to a multicast group.
 .Pp
 The default log format is the traditional RFC3164 (included here for
 completeness),
@@ -248,10 +249,14 @@ The
 .Ql hostname=NAME
 option replaces the hostname field of every message logged by that
 action with
-.Ar NAME ,
-see
+.Ar NAME .
+The
+.Ql sd=[SD-ELEMENT]
+option appends a structured data element to every message logged by
+that action.  It only applies to RFC5424 format and is ignored for
+other formats.  See
 .Sx Remote Machine
-for an example.
+for examples.
 .Pp
 The log rotation, which is only relevant for files, details the max
 .Ar SIZE:COUNT
@@ -582,6 +587,16 @@ to the options.  The receiver must run with
 to keep the hostname from the message instead of the sender's address:
 .Bd -literal -offset indent
 *.*                @loghost        ;RFC5424,hostname=kilroy
+.Ed
+.Pp
+To tag messages with a fixed structured data element, use
+.Ql sd=[SD-ELEMENT] .
+The element is appended to any structured data already in the message.
+Use a private enterprise number in the SD-ID, see RFC5424 section 7 for
+details.  Commas and semicolons inside quoted parameter values are
+allowed:
+.Bd -literal -offset indent
+*.*                @loghost        ;RFC5424,sd=[device@32473 name="kilroy"]
 .Ed
 .Ss List of Users
 Usually critical messages are also directed to

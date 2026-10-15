@@ -345,6 +345,7 @@ struct filed {
 	int	 f_rotatesz;
 	char    *f_iface;                      /* only for multicast fwd */
 	char    *f_hostname;                   /* hostname= action option */
+	char    *f_sd;                         /* sd= action option, RFC5424 only */
 	int      f_ttl;                        /* only for multicast fwd */
 };
 

@@ -10,6 +10,8 @@ All relevant changes to the project are documented in this file.
 - Add `hostname=NAME` action option to replace the hostname in messages
   logged by that action, e.g. to forward under a fixed name from a system
   whose hostname changes
+- Add `sd=[SD-ELEMENT]` action option to append a structured data element
+  to every message logged by that action.  RFC5424 format only
 
 
 [v2.7.2][] - 2025-03-31
