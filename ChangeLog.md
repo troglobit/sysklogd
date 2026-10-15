@@ -3,15 +3,34 @@ Change Log
 
 All relevant changes to the project are documented in this file.
 
-[v2.8.0][UNRELEASED] - 2026-10-15
+[v2.8.0][] - 2026-10-15
 -----------------------
 
 ### Changes
+- Add `pri` action option, e.g. `*.* /var/log/messages ;pri`, to always print
+  the message priority in the header, in the format in use (RFC3164 or
+  RFC5424).  By Gavin D. Howard.  The NetBSD-style `+` destination prefix is
+  an equivalent alternative, e.g. `*.* +/var/log/messages`, and combines with
+  the `-` no-sync prefix as `+-`
 - Add `hostname=NAME` action option to replace the hostname in messages
   logged by that action, e.g. to forward under a fixed name from a system
   whose hostname changes
 - Add `sd=[SD-ELEMENT]` action option to append a structured data element
   to every message logged by that action.  RFC5424 format only
+- `logger` now parses a leading `<LEVEL>` (PRI) in input messages, e.g. for
+  systemd-style `daemon --foreground 2>&1 | logger` redirection
+- Add security policy for reporting vulnerabilities
+
+### Fixes
+- Fix #105: UTF-8 handling with the `-8` flag.  Multi-byte sequences, e.g.,
+  em-dash, were corrupted by byte-by-byte sanitization; complete valid UTF-8
+  sequences are now preserved, including the RFC 5424 BOM
+- Unescape Linux `/dev/kmsg` C-style `\xHH` encoding before sanitization, so
+  UTF-8 in kernel messages is preserved with the `-8` flag
+- Fix #104: RFC 3164 tag parsing of parenthesized tags.  Surrounding parens are
+  stripped from complete tags, `(polkit-agent):` becomes `polkit-agent`, while
+  partial tags like `app(version):` are preserved
+- `logger`: fix evaluation order violation, found by Coverity Scan
 
 
 [v2.7.2][] - 2025-03-31
@@ -702,7 +721,8 @@ and a replacement for `syslog.h` to enable new features in RFC5424.
 - Several bugfixes and improvements, please refer to the .c files
 
 
-[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.7.1...HEAD
+[UNRELEASED]: https://github.com/troglobit/sysklogd/compare/v2.8.0...HEAD
+[v2.8.0]:     https://github.com/troglobit/sysklogd/compare/v2.7.2...v2.8.0
 [v2.7.2]:     https://github.com/troglobit/sysklogd/compare/v2.7.1...v2.7.2
 [v2.7.1]:     https://github.com/troglobit/sysklogd/compare/v2.7.0...v2.7.1
 [v2.7.0]:     https://github.com/troglobit/sysklogd/compare/v2.6.2...v2.7.0
