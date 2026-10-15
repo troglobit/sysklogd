@@ -11,7 +11,7 @@ export MSG="no-openlog-apitest"
 verify_basic_syslog()
 {
     ./api
-    grep "api: ${MSG}" "${LOG}"
+    tenacious 5 grep "api: ${MSG}" "${LOG}"
 }
 
 verify_basic_openlog()
@@ -70,7 +70,7 @@ verify_localN_notice()
     reload
 
     ../src/logger -p local7.notice -u "${SOCK}" "aye matey"
-    grep "aye matey" "${LOG2}"
+    tenacious 5 grep "aye matey" "${LOG2}"
 }
 
 # Expected to fail

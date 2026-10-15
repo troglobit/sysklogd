@@ -11,6 +11,14 @@ on:
     branches:
       - '**'
 
+# A push to a branch that also has an open PR fires both a 'push' and a
+# 'pull_request' event.  Key the group on the branch name -- which both
+# events resolve to -- so the second cancels the first instead of running
+# the same tree twice.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   build:
     # Verify we can build on latest Ubuntu with both gcc and clang
@@ -26,16 +34,15 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          sudo apt-get -y update
-          sudo apt-get -y install tree tshark valgrind
-      - uses: actions/checkout@v4
+          sudo apt-get -y install tree tshark valgrind libssl-dev
+      - uses: actions/checkout@v6
       - name: Configure
         run: |
           set -x
           ./autogen.sh
           mkdir -p build/dir
           cd build/dir
-          ../../configure --prefix=/tmp --with-systemd=/tmp/lib/systemd/system
+          ../../configure --prefix=/tmp --with-systemd=/tmp/lib/systemd/system --with-openssl
           chmod -R a+w .
       - name: Build
         run: |
@@ -49,21 +56,39 @@ jobs:
           ldd /tmp/sbin/syslogd
           size /tmp/sbin/syslogd
           /tmp/sbin/syslogd -?
-      - name: Build Example
+      - name: Build Examples
         run: |
-          mkdir -p /tmp/example
-          cp -a example/example.* /tmp/example/
-          pushd /tmp/example/
+          mkdir -p /tmp/examples
+          cp -a examples/*.c examples/example.mk /tmp/examples/
+          pushd /tmp/examples/
           PKG_CONFIG_LIBDIR=/tmp/lib/pkgconfig make -f example.mk
           popd
       - name: Enable unprivileged userns (unshare)
         run: |
           sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0
       - name: Run Tests
+        # DEBUG=1 keeps per-test dirs from being wiped on exit and folds
+        # the syslogd -d trace into each test/<name>.log we dump & upload.
+        env:
+          DEBUG: 1
         run: |
           cd build/dir
-          make check || (cat test/test-suite.log; false)
-      - uses: actions/upload-artifact@v4
+          make check || {
+            echo "::group::test-suite.log"
+            cat test/test-suite.log
+            echo "::endgroup::"
+            echo "::group::per-test step logs"
+            tail -n +1 test/*.log
+            echo "::endgroup::"
+            echo "::group::syslogd debug logs"
+            find /tmp/sysklogd -name '*.log' | sort | xargs -r tail -n +1
+            echo "::endgroup::"
+            false
+          }
+      - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: ${{ matrix.compiler }}-test-logs
-          path: build/dir/test/*.log
+          path: |
+            build/dir/test/*.log
+            /tmp/sysklogd/**/*.log

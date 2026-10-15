@@ -460,9 +460,20 @@ vsyslogp_r(int pri, struct syslog_data *data, const char *msgid,
 		strlcat(fmt_cat, "-", FMT_LEN);
 
 output:
-	if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG))
-		msgsdlen = strlen(fmt_cat) + 1;
-	else
+	if (data->log_stat & (LOG_PERROR|LOG_CONS|LOG_NLOG)) {
+		va_list ap2;
+		int pfxlen;
+
+		/*
+		 * Length of the "MSGID SD " prefix the PERROR/CONS echo skips.
+		 * Measure the expanded prefix, not the format string, since the
+		 * SD may contain conversions; +1 for the space before the msg.
+		 */
+		va_copy(ap2, ap);
+		pfxlen = vsnprintf(NULL, 0, fmt_cat, ap2);
+		va_end(ap2);
+		msgsdlen = (pfxlen < 0 ? strlen(fmt_cat) : (size_t)pfxlen) + 1;
+	} else
 		msgsdlen = 0;	/* XXX: GCC */
 
 	if (msgfmt != NULL && *msgfmt != '\0') {
@@ -526,14 +537,18 @@ output:
 			piov = iov;
 			piovcnt = iovcnt + 1;
 		}
-		(void)writev(STDERR_FILENO, piov, piovcnt + 1);
+		if (writev(STDERR_FILENO, piov, piovcnt) < 0) {
+			/* best effort echo to stderr */
+		}
 	}
 
 	/* Don't write to system log, instead use fd in log_file */
 	if (data->log_stat & LOG_NLOG) {
 		iov[iovcnt].iov_base = __UNCONST(CRLF + 1);
 		iov[iovcnt].iov_len = 1;
-		(void)writev(data->log_file, iov, iovcnt + 1);
+		if (writev(data->log_file, iov, iovcnt + 1) < 0) {
+			/* best effort */
+		}
 		goto done;
 	}
 
@@ -548,7 +563,9 @@ output:
 	/* Log to stdout, usually for debugging syslogp() API */
 	if (data->log_stat & LOG_STDOUT) {
 		strlcat(tbuf, "\n", sizeof(tbuf));
-		write(data->log_file, tbuf, strlen(tbuf));
+		if (write(data->log_file, tbuf, strlen(tbuf)) < 0) {
+			/* best effort */
+		}
 		goto done;
 	}
 
@@ -590,7 +607,9 @@ output:
 		O_WRONLY | O_NONBLOCK | O_CLOEXEC, 0)) >= 0) {
 		iov[iovcnt].iov_base = __UNCONST(CRLF);
 		iov[iovcnt].iov_len = 2;
-		(void)writev(fd, iov, iovcnt + 1);
+		if (writev(fd, iov, iovcnt + 1) < 0) {
+			/* best effort console fallback */
+		}
 		(void)close(fd);
 	}
 
