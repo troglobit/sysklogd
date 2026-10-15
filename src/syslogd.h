@@ -344,6 +344,7 @@ struct filed {
 	int	 f_rotatecount;
 	int	 f_rotatesz;
 	char    *f_iface;                      /* only for multicast fwd */
+	char    *f_hostname;                   /* hostname= action option */
 	int      f_ttl;                        /* only for multicast fwd */
 };
 

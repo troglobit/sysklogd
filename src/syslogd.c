@@ -2145,17 +2145,27 @@ static void logmsg(struct buf_msg *buffer)
 				BACKOFF(f);
 			}
 		} else {
+			struct buf_msg *bm = buffer;
+			struct buf_msg copy;
+
 			/* new line, save it */
 			if (f->f_prevcount)
 				fprintlog_successive(f, 0);
 
-			f->f_prevpri = buffer->pri;
+			/* buffer is shared by all actions, override on a copy */
+			if (f->f_hostname) {
+				copy = *buffer;
+				copy.hostname = f->f_hostname;
+				bm = &copy;
+			}
+
+			f->f_prevpri = bm->pri;
 			f->f_repeatcount = 0;
-			f->f_lasttime = buffer->timestamp;
-			strlcpy(f->f_prevhost, buffer->hostname, sizeof(f->f_prevhost));
+			f->f_lasttime = bm->timestamp;
+			strlcpy(f->f_prevhost, bm->hostname, sizeof(f->f_prevhost));
 			strlcpy(f->f_prevline, saved, sizeof(f->f_prevline));
 			f->f_prevlen = savedlen;
-			fprintlog_first(f, buffer);
+			fprintlog_first(f, bm);
 		}
 	}
 
@@ -2997,6 +3007,7 @@ static void close_open_log_files(void)
 
 		if (f->f_iface)
 			free(f->f_iface);
+		free(f->f_hostname);
 		if (f->f_program)
 			free(f->f_program);
 		if (f->f_host)
@@ -3445,6 +3456,8 @@ static void init(void)
 				printf("\t;BSD");
 			if (f->f_rotatesz > 0)
 				printf(",rotate=%d:%d", f->f_rotatesz, f->f_rotatecount);
+			if (f->f_hostname)
+				printf(",hostname=%s", f->f_hostname);
 			printf("\n");
 		}
 	}
@@ -3556,6 +3569,9 @@ static void cfopts(char *ptr, struct filed *f)
 			if (f->f_iface)
 				free(f->f_iface);
 			f->f_iface = strdup(opt);
+		} else if (cfopt(&opt, "hostname=")) {
+			free(f->f_hostname);
+			f->f_hostname = strdup(opt);
 		} else if (cfopt(&opt, "ttl=")) {
 			int ttl = atoi(opt);
 

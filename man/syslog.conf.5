@@ -92,6 +92,7 @@ OPTION   := [OPTION,]
 	 |= RFC3164
 	 |= RFC5424
 	 |= pri
+	 |= hostname=NAME
 	 |= iface=IFNAME
          |= rotate=ROT
 	 |= ttl=1..255
@@ -205,8 +206,9 @@ specified action.  The
 details where or what to do with the selected input.  The
 .Em option
 field, which must start with the semi-colon option delimiter (';'),
-currently supports priority, log formatting, log rotation, outbound
-interface and TTL when forwarding to a multicast group.
+currently supports priority, log formatting, log rotation, hostname
+override, outbound interface and TTL when forwarding to a multicast
+group.
 .Pp
 The default log format is the traditional RFC3164 (included here for
 completeness),
@@ -241,6 +243,15 @@ warning severity.
 .It Sy RFC5424:
 .Li <12>1 2003-08-24T05:14:15.000003-07:00 192.0.2.1 myproc 8710 - - Kilroy was here.
 .El
+.Pp
+The
+.Ql hostname=NAME
+option replaces the hostname field of every message logged by that
+action with
+.Ar NAME ,
+see
+.Sx Remote Machine
+for an example.
 .Pp
 The log rotation, which is only relevant for files, details the max
 .Ar SIZE:COUNT
@@ -562,6 +573,16 @@ BSD style, without timestamp or hostname.  As of
 v2.0 the default includes timestamp and hostname.  It is also possible to
 enable the new RFC5424 style formatting, append ';RFC5424' after the
 hostname.
+.Pp
+To send messages under a fixed name, regardless of the local hostname,
+append
+.Ql hostname=NAME
+to the options.  The receiver must run with
+.Fl H
+to keep the hostname from the message instead of the sender's address:
+.Bd -literal -offset indent
+*.*                @loghost        ;RFC5424,hostname=kilroy
+.Ed
 .Ss List of Users
 Usually critical messages are also directed to
 .Ql root

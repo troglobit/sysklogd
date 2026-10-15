@@ -3,6 +3,14 @@ Change Log
 
 All relevant changes to the project are documented in this file.
 
+[v2.8.0][UNRELEASED] - 2026-10-15
+-----------------------
+
+### Changes
+- Add `hostname=NAME` action option to replace the hostname in messages
+  logged by that action, e.g. to forward under a fixed name from a system
+  whose hostname changes
+
 
 [v2.7.2][] - 2025-03-31
 -----------------------
