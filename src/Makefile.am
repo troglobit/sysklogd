@@ -33,20 +33,37 @@ if ENABLE_LOGGER
 bin_PROGRAMS	     += logger
 endif
 
+if ENABLE_LOGREAD
+bin_PROGRAMS	     += logread
+endif
+
 AM_CFLAGS             = -W -Wall -Wextra -std=c99 -gdwarf-4
 AM_CFLAGS            += -Wno-unused-result -Wno-unused-parameter -fno-strict-aliasing
 AM_CPPFLAGS           = -DSYSCONFDIR=\"@sysconfdir@\" -DRUNSTATEDIR=\"@runstatedir@\"
 AM_CPPFLAGS          += -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_GNU_SOURCE
 
 syslogd_SOURCES       = syslogd.c syslogd.h socket.c socket.h syslog.h
-syslogd_SOURCES      += timer.c timer.h queue.h compat.h
+syslogd_SOURCES      += membuf.c membuf.h
+syslogd_SOURCES      += timer.c timer.h queue.h compat.h sign.h
 syslogd_CPPFLAGS      = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
 syslogd_LDADD         = $(LIBS) $(LIBOBJS)
+
+# RFC 5848 Signed Syslog Messages + RFC 5425 TLS Transport (optional OpenSSL)
+if ENABLE_SSL
+syslogd_SOURCES      += sign.c tls.c tls.h
+syslogd_CFLAGS        = $(AM_CFLAGS) $(OPENSSL_CFLAGS)
+syslogd_LDADD        += $(OPENSSL_LIBS)
+endif
 
 logger_SOURCES        = logger.c syslog.h
 logger_CPPFLAGS       = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
 logger_LDADD          = $(LIBS) $(LIBOBJS)
 logger_LDADD         += libsyslog.la
+
+logread_SOURCES       = logread.c membuf.h
+logread_CPPFLAGS      = $(AM_CPPFLAGS) -D_XOPEN_SOURCE=600
+logread_LDADD         = $(LIBS) $(LIBOBJS)
+logread_LDADD        += libsyslog.la
 
 pkgconfigdir          = $(libdir)/pkgconfig
 pkgincludedir         = $(includedir)/syslog

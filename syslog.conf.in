@@ -7,7 +7,14 @@
 # First some standard log files.  Log by facility.
 #
 auth,authpriv.*			 /var/log/auth.log
-*.*;auth,authpriv.none		-/var/log/syslog
+
+#
+# Include all config files in /etc/syslog.d/ before the catch-all rules
+# below.  This allows snippets to use stop-processing block prefixes
+# (!!, ++, ::) to capture messages exclusively, preventing them from
+# also being matched by the general rules that follow.
+#
+include /etc/syslog.d/*.conf
 
 #cron.*				/var/log/cron.log
 #daemon.*			-/var/log/daemon.log
@@ -15,6 +22,8 @@ kern.*				-/var/log/kern.log
 #lpr.*				-/var/log/lpr.log
 mail.*				-/var/log/mail.log
 #user.*				-/var/log/user.log
+
+*.*;auth,authpriv.none		-/var/log/syslog
 
 #
 # Logging for the mail system.  Split it up so that
@@ -77,8 +86,4 @@ secure_mode 1
 #
 #rotate_size  1M
 #rotate_count 5
-
-#
-# Include all config files in /etc/syslog.d/
-#
-include /etc/syslog.d/*.conf
+@MEMBUF_EXAMPLE@

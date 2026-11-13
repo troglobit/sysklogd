@@ -52,19 +52,28 @@ verify_tag()
 
     # BSD log format (with -b)
     logger -b -ip user.debug -t "$tag" "$msg"
-    verify_log "$log" "$msg" | grep "$tag" || return 1
+    tenacious 5 match_tag "$log" "$tag" "$msg"
 
     # RFC5424 (default)
     logger -ip user.debug -t "$tag" "$rev"
-    verify_log "$log" "$rev" | grep "$tag" || return 1
+    tenacious 5 match_tag "$log" "$tag" "$rev"
 
     # BSD without -p flag
     logger -b -i -t "$tag" "$rot"
-    verify_log "$log" "$rot" | grep "$tag" || return 1
+    tenacious 5 match_tag "$log" "$tag" "$rot"
 
     # RFC5424 without -p flag
     logger -i -t "$tag" "$bin"
-    verify_log "$log" "$bin" | grep "$tag" || return 1
+    tenacious 5 match_tag "$log" "$tag" "$bin"
+}
+
+# Positive check: $msg landed in $log on a line carrying $tag.  syslogd
+# drains the socket asynchronously, so pair with tenacious() to retry
+# instead of grepping the instant logger returns.
+match_tag()
+{
+    log="$1"; tag="$2"; shift 2
+    grep "$*" "$log" | grep "$tag"
 }
 
 verify_log()

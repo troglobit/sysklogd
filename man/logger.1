@@ -33,7 +33,7 @@
 .Nd Send messages to system log daemon, or a log file
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46bchiknsv
+.Op Fl 46bchiknsvV
 .Op Fl d Ar SD
 .Op Fl f Ar FILE
 .Op Fl h Ar HOST
@@ -47,7 +47,7 @@
 .Op Fl t Ar TAG
 .Op Fl u Ar SOCK
 .Op Ar MESSAGE
-.Sh DESCRIPTIOMN
+.Sh DESCRIPTION
 .Nm
 can be used to log messages to a local or remote system log daemon, or a
 log file, from a UNIX shell, or script.  The new
@@ -109,9 +109,25 @@ will be used.  This is the same as using the special character
 as the
 .Ar hostname .
 .It Fl h Ar host
-Send the message to the remote system
+Send the message to the remote syslog server
 .Ar host
 instead of logging it locally.
+The argument may include a transport prefix and an optional port:
+.Bl -tag -compact -width "tcp://HOST:PORT"
+.It Cm udp:// Ns Ar HOST Ns Op : Ns Ar PORT
+Send over UDP (default when no prefix is given).
+.It Cm tcp:// Ns Ar HOST Ns Op : Ns Ar PORT
+Send over TCP using RFC 6587 octet-count framing.
+.El
+When a port is embedded in the URL it takes precedence over
+.Fl P .
+IPv6 addresses require bracket notation:
+.Ql tcp://[::1]:514 .
+Note: bare IPv6 address literals (e.g.
+.Ql ::1 )
+are not supported directly in
+.Fl h ;
+always use bracket notation when specifying an IPv6 address.
 .It Fl I Ar PID
 Like
 .Fl i ,
@@ -194,6 +210,16 @@ Log to UNIX domain socket
 .Ar SOCK
 instead of the default
 .Pa /dev/log .
+.It Fl V
+Verbose mode.
+Prints diagnostic information to
+.Ar stderr :
+the resolved peer address and port, and for TCP the connection status
+and the exact syslog-formatted message transmitted.
+Useful for verifying that a remote syslogd is reachable and that the
+message content matches the expected format for filter rules.
+For UDP only the resolved peer is shown, since the transport gives
+no delivery confirmation.
 .It Fl v
 Show program version.
 .It Ar MESSAGE
@@ -208,11 +234,19 @@ until EOF.  In this mode every new row (newline separated) is converted
 into an independent
 .Xr syslogp 3
 call.
+A line beginning with a
+.Ql <N>
+severity prefix (systemd journal style, where N is 0-7) sets the
+priority for that line, e.g. when redirecting a daemon's output with
+.Ql program --foreground 2>&1 | logger .
 .El
 .Sh EXAMPLES
 .Bd -unfilled -offset left
 logger -t dropbear -p auth.notice "Successful login for user 'admin' from 1.2.3.4"
 logger -t udhcpc -f /tmp/script.log "New lease 1.2.3.200 obtained for interface eth0"
+logger -p kern.warn -h tcp://logserver:514 "test message over TCP"
+logger -p kern.warn -h tcp://[::1]:514 "test message to local IPv6 TCP listener"
+logger -V -p kern.warn -h tcp://logserver:514 -t myapp "verify syslogd setup"
 .Ed
 .Sh FILES
 .Bl -tag -width /dev/log -compact

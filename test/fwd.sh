@@ -48,7 +48,9 @@ send_and_verify()
     expected="$2"
 
     logger -t fwd -p ntp.notice -m "NTP123" "${msg}"
-    sleep 3  # Allow message to be received, processed, and forwarded
+
+    # Wait for the forwarded line to arrive instead of a fixed sleep.
+    tenacious 5 grep -q "fwd - NTP123 - ${expected}" "${LOG2}"
 
     logged_msg=$(grep "fwd - NTP123 -" "${LOG2}" |tail -1)
     message=$(echo "$logged_msg" | sed -n "s/.*fwd - NTP123 - //p")

@@ -43,7 +43,7 @@ verify_hst()
     fi
 
     logger -H "$hst" -t "$usr" -p $pri "$msg"
-    grep   -H "$msg" "$log"
+    tenacious 5 grep -H "$msg" "$log"
 }
 
 verify_log()

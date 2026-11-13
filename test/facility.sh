@@ -68,8 +68,7 @@ verify_logfile()
     TAG="facility"
 
     logger -t $TAG -p local7.notice "${LOGMSG}"
-    sleep 1
-    grep "$TAG: ${LOGMSG}" "$LOGFILE"
+    tenacious 5 grep "$TAG: ${LOGMSG}" "$LOGFILE"
 }
 
 # Ensure the dedicated local7.notice message reached no other log file
@@ -81,7 +80,7 @@ verify_leaks()
 verify_authpriv()
 {
     logger -t login -p authpriv.debug "$AUTHMSG"
-    grep "$AUTHMSG" "$AUTHLOG"
+    tenacious 5 grep "$AUTHMSG" "$AUTHLOG"
 }
 
 # Ensure $AUTHMSG is only in $AUTHLOG
